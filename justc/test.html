@@ -19,7 +19,8 @@
                 const input = code();
                 if (!input || input.length < 1) return;
                 try {
-                    alert(JUSTC[func](input));
+                    const output = JUSTC[func](input);
+                    alert(typeof output === "object" ? JSON.stringify(output) : String(output));
                 } catch (err) {
                     alert("Error: "+err);
                 }
