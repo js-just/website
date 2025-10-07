@@ -6,10 +6,38 @@
         <title>JUSTC browsers test</title>
     </head>
     <body>
-        <button onclick="runParser()">Parse</button>
+        <button onclick="exec()">Execute</button>
         <hr>
-        <button onclick="runLexer()">Lexer</button>
+        <button onclick="pars()">Parse</button><button onclick="init()">Initialize</button>
         <script src="justc.core.js"></script>
         <script src="justc.js"></script>
+        <script>
+            function code() {
+                return prompt("Enter JUSTC Code");
+            }
+            function run(func) {
+                const input = code();
+                if (!input || input.length < 1) return;
+                try {
+                    alert(JUSTC[func](input));
+                } catch (err) {
+                    alert("Error: "+err);
+                }
+            }
+            function exec() {
+                run("execute");
+            }
+            function pars() {
+                run("parse");
+            }
+            async function init() {
+                try {
+                    await JUSTC.initialize();
+                    alert("Initialized.");
+                } catch (err) {
+                    alert("Failed: "+err);
+                }
+            }
+        </script>
     </body>
 </html>
