@@ -109,7 +109,11 @@
             for (const [name, value] of Object.entries(JSON.parse(JSON.stringify(input)))) {
                 varNames.push(name);
                 output += `${name}=${
-                    typeof value === 'string' ? `"${value}"` : value
+                    typeof value === 'string' ? `"${value}"` :
+                    value === true ? 'y' :
+                    value === false ? 'n' :
+                    value === null ? 'nil' :
+                    value
                 },`;
             }
             output += 'RT[';
