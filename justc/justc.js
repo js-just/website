@@ -100,6 +100,26 @@
         } else return false;
     }
 
+    JUSTC.fromJSON = function(input) {
+        if (Array.isArray(input)) {
+            throw new JUSTC.Error("Array cannot be converted to JUSTC.");
+        } else {
+            const varNames = [];
+            let output = '';
+            for (const [name, value] of Object.entries(JSON.parse(JSON.stringify(input)))) {
+                varNames.push(name);
+                output += `${name}=${
+                    typeof value === 'string' ? `"${value}"` : value
+                },`;
+            }
+            output += 'RT[';
+            for (const name of varNames) {
+                output += (varNames.indexOf(name) > 0 ? ',' : '') + name;
+            }
+            return output + '].';
+        }
+    }
+
     JUSTC.Output = {
         parse: function ParseJUSTC(code) {
             JUSTC.CheckInput(code);
@@ -126,6 +146,10 @@
         },
         initialize: async function InitializeJUSTC() {
             await JUSTC.InitWASM();
+        },
+        stringify: function JSONtoJUSTC(JavaScriptObjectNotation) {
+            if (typeof JavaScriptObjectNotation != 'object') throw new JUSTC.Error('Provided input is not valid object.');
+            return JUSTC.fromJSON(JavaScriptObjectNotation);
         }
     };
     JUSTC.Public = {};
