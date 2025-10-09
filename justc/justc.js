@@ -9,7 +9,6 @@
 
     JUSTC.JUSTC = globalThis_.__justc__;
     globalThis_.__justc__ = undefined;
-    delete globalThis_.__justc__;
     JUSTC.Error = class extends Error {};
     JUSTC.ErrorEnabled = true;
     JUSTC.CoreLogsEnabled = false;
