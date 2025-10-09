@@ -1,6 +1,8 @@
 (async()=>{
     "use strict";
 
+    "justc.core.js";
+
     const JUSTC = {};
     JUSTC.JUSTC = __justc__;
     JUSTC.Error = class extends Error {};
@@ -62,9 +64,9 @@
             }
         }
         if (JUSTC.WASM) {
-            for (const [NeedsWASM, Name, Return] of Object.entries(JUSTC.PrivateFunctions.All)) {
-                if (NeedsWASM && !JUSTC.PrivateFunctions.Available.includes(Name)) {
-                    JUSTC.PrivateFunctions.Available.push(Name);
+            for (const [unused, prfunc] of Object.entries(JUSTC.PrivateFunctions.All)) {
+                if (prfunc.NeedsWASM && !JUSTC.PrivateFunctions.Available.includes(prfunc.Name)) {
+                    JUSTC.PrivateFunctions.Available.push(prfunc.Name);
                 }
             }
         }
@@ -89,7 +91,6 @@
         "SwitchCoreErrors": function() { JUSTC.ErrorEnabled = !JUSTC.ErrorEnabled },
         "Silent": function() { JUSTC.Silent = true },
         "Help": function() { console.info("https://just.js.org/justc") },
-        "GetAvailablePrivateFunctions": function() { return Array.from(JUSTC.PrivateFunctions.Available) },
     }
 
     JUSTC.Parse = function(code) {
@@ -198,7 +199,7 @@
         });
     };
     JUSTC.Private = function(what) {
-        if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error('Invalid argument 0. Run "JUSTC = \'GetAvailablePrivateFunctions\'" or "JUSTC = \'help\'" for help.');
+        if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error('Invalid argument 0. Run "JUSTC = \'help\'" for help.');
         if (JUSTC.PrivateFunctions.Available.includes(what)) {
             return JUSTC.PrivateFunctions.All[JUSTC.PrivateFunctions.WhatToName[what]].Return;
         } else {
