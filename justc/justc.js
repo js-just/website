@@ -238,23 +238,17 @@ SOFTWARE.
         if (ARRAY.isArray(input)) {
             throw new JUSTC.Error(JUSTC.Errors.arrayInput);
         } else {
-            const varNames = [];
             let output = '';
             for (const [name, value] of OBJECT.entries(json_.parse(json_.stringify(input)))) {
-                varNames.push(name);
-                output += `${name}=${
+                output += (output.length > 0 ? ',' : '') + `${name}=${
                     typeof value === 'string' ? `"${value}"` :
                     value === true ? 'y' :
                     value === false ? 'n' :
                     value === null ? 'nil' :
                     value
-                },`;
+                }`;
             };
-            output += 'RT[';
-            for (const name of varNames) {
-                output += (varNames.indexOf(name) > 0 ? ',' : '') + name;
-            };
-            return output + '].';
+            return output + '.';
         }
     };
 
