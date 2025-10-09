@@ -19,6 +19,30 @@
         }
     }
 
+    JUSTC.Core = {};
+    JUSTC.Core.Lexer = function Lexer() {};
+    JUSTC.Core.Parser = function Parser() {};
+
+    JUSTC.PrivateFunctions = {
+        All: {
+            Lexer: {
+                NeedsWASM: true,
+                Name: "core.lexer",
+                Return: JUSTC.Core.Lexer
+            },
+            Parser: {
+                NeedsWASM: true,
+                Name: "core.parser",
+                Return: JUSTC.Core.Parser
+            }
+        },
+        Available: [],
+        WhatToName: {
+            "core.lexer": "Lexer",
+            "core.parser": "Parser"
+        }
+    }
+
     JUSTC.Initialize = async function() {
         try {
             JUSTC.WASM = await JUSTC.JUSTC();
@@ -35,6 +59,13 @@
             await JUSTC.Initialize();
             if (attempt > 10) {
                 throw new JUSTC.Error("Unable to initialize JUSTC WebAssembly module.");
+            }
+        }
+        if (JUSTC.WASM) {
+            for (const [NeedsWASM, Name, Return] of Object.entries(JUSTC.PrivateFunctions.All)) {
+                if (NeedsWASM && !JUSTC.PrivateFunctions.Available.includes(Name)) {
+                    JUSTC.PrivateFunctions.Available.push(Name);
+                }
             }
         }
     }
@@ -57,7 +88,8 @@
         "HideCoreErrors": function() { JUSTC.ErrorEnabled = false },
         "SwitchCoreErrors": function() { JUSTC.ErrorEnabled = !JUSTC.ErrorEnabled },
         "Silent": function() { JUSTC.Silent = true },
-        "Help": function() { console.info("https://just.js.org/justc") }
+        "Help": function() { console.info("https://just.js.org/justc") },
+        "GetAvailablePrivateFunctions": function() { return Array.from(JUSTC.PrivateFunctions.Available) },
     }
 
     JUSTC.Parse = function(code) {
@@ -165,7 +197,14 @@
             enumerable: true
         });
     };
-    JUSTC.Private = function() {}
+    JUSTC.Private = function(what) {
+        if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error('Invalid argument 0. Run "JUSTC = \'GetAvailablePrivateFunctions\'" or "JUSTC = \'help\'" for help.');
+        if (JUSTC.PrivateFunctions.Available.includes(what)) {
+            return JUSTC.PrivateFunctions.All[JUSTC.PrivateFunctions.WhatToName[what]].Return;
+        } else {
+            throw new JUSTC.Error(`JUSTC.requestPermissions: "${what}" is either not available or does not exist.`);
+        }
+    }
     Object.defineProperty(JUSTC.Public, 'requestPermissions', {
         value: JUSTC.Private,
         writable: false,
@@ -176,7 +215,7 @@
     Object.defineProperty(globalThis.window, 'JUSTC', {
         get: function() {
             JUSTC.InitWASM();
-            return Object.freeze({...JUSTC.Public});
+            return Object.freeze(JUSTC.Public);
         },
         set: function(command) {
             if (typeof command === 'string' && typeof JUSTC.Commands[command] === 'function') {
