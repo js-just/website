@@ -49,6 +49,7 @@
                 [resultptr]
             );
 
+            console.log(resultjson);
             return JSON.parse(resultjson);
         } catch (error) {
             throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
