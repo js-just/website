@@ -55,7 +55,7 @@
             throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
         }
     };
-    JUSTC.Core.Lexer = function(code) {
+    JUSTC.Core.Lexer = function Lexer(code) {
         if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
         if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
         const result = JUSTC.CoreScript(code, 'lexer');
@@ -65,10 +65,11 @@
             return result.return || {};
         }
     };
-    JUSTC.Core.Parser = function(code) {
+    JUSTC.Core.Parser = function Parser(code) {
         if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
         if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
         const result = JUSTC.CoreScript(code, 'parse');
+        console.log(result)
         if (result.error) {
             throw new JUSTC.Error(result.error);
         } else {
