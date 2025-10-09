@@ -2,8 +2,14 @@
     "use strict";
 
     const JUSTC = {};
-    JUSTC.JUSTC = globalThis.__justc__;
-    globalThis.__justc__ = undefined;
+    const globalThis_ = globalThis;
+    const OBJECT = Object;
+    const json_ = JSON;
+    const ARRAY = Array;
+
+    JUSTC.JUSTC = globalThis_.__justc__;
+    globalThis_.__justc__ = undefined;
+    delete globalThis_.__justc__;
     JUSTC.Error = class extends Error {};
     JUSTC.ErrorEnabled = true;
     JUSTC.CoreLogsEnabled = false;
@@ -30,7 +36,7 @@
         objectInput: 'Provided input is not valid object.',
         arg0: 'Invalid argument 0. Run "JUSTC = \'help\'" for help.',
         lexerError: 'JUSTC/core/lexer.cpp error:',
-        parseError: 'JUSTC/core/parser.cpp error:'
+        parseError: 'JUSTC/core/parser.cpp error:',
     };
 
     JUSTC.Core = {};
@@ -49,7 +55,7 @@
                 ['number'],
                 [resultptr]
             );
-            return JSON.parse(resultjson);
+            return json_.parse(resultjson);
         } catch (error) {
             throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
         }
@@ -119,6 +125,8 @@
             if (JUSTC.CoreLogsEnabled) {
                 JUSTC.Console("log", "JUSTC WebAssembly module initialized.");
             }
+            JUSTC.JUSTC = null;
+            delete JUSTC.JUSTC;
         } catch (error) {
             JUSTC.Console("error", JUSTC.Errors.wasmFailed, error);
         }
@@ -132,7 +140,7 @@
             }
         };
         if (JUSTC.WASM) {
-            for (const [unused, prfunc] of Object.entries(JUSTC.PrivateFunctions.All)) {
+            for (const [unused, prfunc] of OBJECT.entries(JUSTC.PrivateFunctions.All)) {
                 if (prfunc.NeedsWASM && !JUSTC.PrivateFunctions.Available.includes(prfunc.Name)) {
                     JUSTC.PrivateFunctions.Available.push(prfunc.Name);
                 }
@@ -143,7 +151,7 @@
         if (result.logfile && result.logfile.file && result.logfile.file != '') {
             throw new JUSTC.Error("Logfile cannot be created in browser.");
         };
-        if (result.logs && Array.isArray(result.logs)) {
+        if (result.logs && ARRAY.isArray(result.logs)) {
             result.logs.forEach(log => {
                 JUSTC.Console("log", log.time, log.message);
             });
@@ -173,7 +181,7 @@
             const resultJson = JUSTC.WASM.UTF8ToString(resultPtr);
             JUSTC.WASM.ccall('free_string', null, ['number'], [resultPtr]);
             
-            const result = JSON.parse(resultJson);
+            const result = json_.parse(resultJson);
             
             return result;
         } catch (error) {
@@ -202,12 +210,12 @@
     };
 
     JUSTC.fromJSON = function(input) {
-        if (Array.isArray(input)) {
+        if (ARRAY.isArray(input)) {
             throw new JUSTC.Error(JUSTC.Errors.arrayInput);
         } else {
             const varNames = [];
             let output = '';
-            for (const [name, value] of Object.entries(JSON.parse(JSON.stringify(input)))) {
+            for (const [name, value] of OBJECT.entries(json_.parse(json_.stringify(input)))) {
                 varNames.push(name);
                 output += `${name}=${
                     typeof value === 'string' ? `"${value}"` :
@@ -262,8 +270,8 @@
             return 'JUSTC'
         }
     };
-    for (const [name, value] of Object.entries(JUSTC.Output)) {
-        Object.defineProperty(JUSTC.Public, name, {
+    for (const [name, value] of OBJECT.entries(JUSTC.Output)) {
+        OBJECT.defineProperty(JUSTC.Public, name, {
             value, 
             writable: false,
             configurable: false,
@@ -281,8 +289,8 @@
     JUSTC.HiddenOutput = {
         requestPermissions: JUSTC.Private
     };
-    for (const [name, value] of Object.entries(JUSTC.HiddenOutput)) {
-        Object.defineProperty(JUSTC.Public, name, {
+    for (const [name, value] of OBJECT.entries(JUSTC.HiddenOutput)) {
+        OBJECT.defineProperty(JUSTC.Public, name, {
             value,
             writable: false,
             configurable: false,
@@ -290,10 +298,10 @@
         })
     };
     
-    Object.defineProperty(globalThis.window, 'JUSTC', {
+    OBJECT.defineProperty(globalThis_.window, 'JUSTC', {
         get: function() {
             JUSTC.InitWASM();
-            return Object.freeze(JUSTC.Public);
+            return OBJECT.freeze(JUSTC.Public);
         },
         set: function(command) {
             if (typeof command === 'string' && typeof JUSTC.Commands[command] === 'function') {
