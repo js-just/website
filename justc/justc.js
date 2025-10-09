@@ -257,7 +257,11 @@
             return JUSTC.fromJSON(JavaScriptObjectNotation);
         }
     };
-    JUSTC.Public = {};
+    JUSTC.Public = {
+        get [Symbol.toStringTag]() {
+            return 'JUSTC'
+        }
+    };
     for (const [name, value] of Object.entries(JUSTC.Output)) {
         Object.defineProperty(JUSTC.Public, name, {
             value, 
@@ -290,9 +294,6 @@
         get: function() {
             JUSTC.InitWASM();
             return Object.freeze(JUSTC.Public);
-        },
-        get [Symbol.toStringTag]() {
-            return 'JUSTC'
         },
         set: function(command) {
             if (typeof command === 'string' && typeof JUSTC.Commands[command] === 'function') {
