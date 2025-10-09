@@ -1,8 +1,6 @@
 (async()=>{
     "use strict";
 
-    "justc.core.js";
-
     const JUSTC = {};
     JUSTC.JUSTC = __justc__;
     JUSTC.Error = class extends Error {};
@@ -14,16 +12,68 @@
         if (!JUSTC.Silent) {
             console[type](...args);
         }
-    }
+    };
     JUSTC.ErrorIfEnabled = function(...args) {
         if (JUSTC.ErrorEnabled) {
             throw new JUSTC.Error(...args);
         }
-    }
+    };
+
+    JUSTC.Errors = {
+        initWasm: 'JUSTC WebAssembly module hasn\'t been initialized yet.',
+        wrongInputType: 'Argument 0 should be a string.',
+        wasmFailed: 'Failed to initialize JUSTC WebAssembly module:',
+        wasmInitFailed: 'Unable to initialize JUSTC WebAssembly module.',
+        executionError: 'JUSTC/core/browsers.cpp error:',
+        arrayInput: 'Array cannot be converted to JUSTC.',
+        objectInput: 'Provided input is not valid object.',
+        arg0: 'Invalid argument 0. Run "JUSTC = \'help\'" for help.',
+        lexerError: 'JUSTC/core/lexer.cpp error:',
+        parseError: 'JUSTC/core/parser.cpp error:'
+    };
 
     JUSTC.Core = {};
-    JUSTC.Core.Lexer = function Lexer() {};
-    JUSTC.Core.Parser = function Parser() {};
+    JUSTC.CoreScript = function(code, name) {
+        try {
+            const resultptr = JUSTC.WASM.ccall(
+                name,
+                'number',
+                ['string'],
+                [code]
+            );
+            const resultjson = JUSTC.WASM.UTF8ToString(resultptr);
+            JUSTC.WASM.ccall(
+                'free_string',
+                null,
+                ['number'],
+                [resultptr]
+            );
+
+            return JSON.parse(resultjson);
+        } catch (error) {
+            throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
+        }
+    };
+    JUSTC.Core.Lexer = function(code) {
+        if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
+        if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
+        const result = JUSTC.CoreScript(code, 'lexer');
+        if (result.error) {
+            throw new JUSTC.Error(result.error);
+        } else {
+            return result.return || {};
+        }
+    };
+    JUSTC.Core.Parser = function(code) {
+        if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
+        if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
+        const result = JUSTC.CoreScript(code, 'parse');
+        if (result.error) {
+            throw new JUSTC.Error(result.error);
+        } else {
+            return result.return || {};
+        }
+    };
 
     JUSTC.PrivateFunctions = {
         All: {
@@ -43,7 +93,7 @@
             "core.lexer": "Lexer",
             "core.parser": "Parser"
         }
-    }
+    };
 
     JUSTC.Initialize = async function() {
         try {
@@ -52,17 +102,17 @@
                 JUSTC.Console("log", "JUSTC WebAssembly module initialized.");
             }
         } catch (error) {
-            JUSTC.Console("error", "Failed to initialize JUSTC WebAssembly module:", error);
+            JUSTC.Console("error", JUSTC.Errors.wasmFailed, error);
         }
-    }
+    };
     JUSTC.InitWASM = async function InitializeJUSTC(attempt = 0) {
         while (!JUSTC.WASM) {
             attempt++;
             await JUSTC.Initialize();
             if (attempt > 10) {
-                throw new JUSTC.Error("Unable to initialize JUSTC WebAssembly module.");
+                throw new JUSTC.Error(JUSTC.Errors.wasmInitFailed);
             }
-        }
+        };
         if (JUSTC.WASM) {
             for (const [unused, prfunc] of Object.entries(JUSTC.PrivateFunctions.All)) {
                 if (prfunc.NeedsWASM && !JUSTC.PrivateFunctions.Available.includes(prfunc.Name)) {
@@ -70,17 +120,17 @@
                 }
             }
         }
-    }
+    };
     JUSTC.DisplayLogs = function(result) {
         if (result.logfile && result.logfile.file && result.logfile.file != '') {
             throw new JUSTC.Error("Logfile cannot be created in browser.");
-        }
+        };
         if (result.logs && Array.isArray(result.logs)) {
             result.logs.forEach(log => {
                 JUSTC.Console("log", log.time, log.message);
             });
         }
-    }
+    };
 
     JUSTC.Commands = {
         "EnableCoreLogs": function() { JUSTC.CoreLogsEnabled = true },
@@ -91,7 +141,7 @@
         "SwitchCoreErrors": function() { JUSTC.ErrorEnabled = !JUSTC.ErrorEnabled },
         "Silent": function() { JUSTC.Silent = true },
         "Help": function() { console.info("https://just.js.org/justc") },
-    }
+    };
 
     JUSTC.Parse = function(code) {
         try {
@@ -109,16 +159,16 @@
             
             return result;
         } catch (error) {
-            console.error("Execution error:", error);
+            console.error(JUSTC.Errors.executionError, error);
             throw error;
         }
-    }
+    };
 
     JUSTC.CheckWASM = function() {
         if (!JUSTC.WASM) {
-            throw new JUSTC.Error('JUSTC WebAssembly module hasn\'t been initialized yet.');
+            throw new JUSTC.Error(JUSTC.Errors.initWasm);
         }
-    }
+    };
     JUSTC.CheckInput = function(input) {
         if (!input || typeof input != 'string') {
             JUSTC.ErrorIfEnabled(String(input).length < 32 ? `"${String(input)}" is not valid JUSTC.` : ()=>{
@@ -131,11 +181,11 @@
             });
             return true;
         } else return false;
-    }
+    };
 
     JUSTC.fromJSON = function(input) {
         if (Array.isArray(input)) {
-            throw new JUSTC.Error("Array cannot be converted to JUSTC.");
+            throw new JUSTC.Error(JUSTC.Errors.arrayInput);
         } else {
             const varNames = [];
             let output = '';
@@ -148,14 +198,14 @@
                     value === null ? 'nil' :
                     value
                 },`;
-            }
+            };
             output += 'RT[';
             for (const name of varNames) {
                 output += (varNames.indexOf(name) > 0 ? ',' : '') + name;
-            }
+            };
             return output + '].';
         }
-    }
+    };
 
     JUSTC.Output = {
         parse: function ParseJUSTC(code) {
@@ -185,7 +235,7 @@
             await JUSTC.InitWASM();
         },
         stringify: function JSONtoJUSTC(JavaScriptObjectNotation) {
-            if (typeof JavaScriptObjectNotation != 'object') throw new JUSTC.Error('Provided input is not valid object.');
+            if (typeof JavaScriptObjectNotation != 'object') throw new JUSTC.Error(JUSTC.Errors.objectInput);
             return JUSTC.fromJSON(JavaScriptObjectNotation);
         }
     };
@@ -199,13 +249,13 @@
         });
     };
     JUSTC.Private = function(what) {
-        if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error('Invalid argument 0. Run "JUSTC = \'help\'" for help.');
+        if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error(JUSTC.Errors.arg0);
         if (JUSTC.PrivateFunctions.Available.includes(what)) {
             return JUSTC.PrivateFunctions.All[JUSTC.PrivateFunctions.WhatToName[what]].Return;
         } else {
             throw new JUSTC.Error(`JUSTC.requestPermissions: "${what}" is either not available or does not exist.`);
         }
-    }
+    };
     Object.defineProperty(JUSTC.Public, 'requestPermissions', {
         value: JUSTC.Private,
         writable: false,
@@ -228,5 +278,5 @@
             }
         },
         configurable: false,
-    });
+    })
 })()
