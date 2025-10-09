@@ -165,6 +165,13 @@
             enumerable: true
         });
     };
+    JUSTC.Private = function() {}
+    Object.defineProperty(JUSTC.Public, 'requestPermissions', {
+        value: JUSTC.Private,
+        writable: false,
+        configurable: false,
+        enumerable: false,
+    });
     
     Object.defineProperty(globalThis.window, 'JUSTC', {
         get: function() {
