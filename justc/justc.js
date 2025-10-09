@@ -244,7 +244,7 @@ SOFTWARE.
                     typeof value === 'string' ? `"${value}"` :
                     value === true ? 'y' :
                     value === false ? 'n' :
-                    value === null ? 'nil' :
+                    value === null ? '' :
                     value
                 }`;
             };
