@@ -33,16 +33,6 @@
         parseError: 'JUSTC/core/parser.cpp error:'
     };
 
-    JUSTC.Return = class {
-        constructor(obj) {
-            return obj;
-        }
-    };
-    JUSTC.MainOutput = class extends JUSTC.Return {};
-    JUSTC.LexerOutput = class extends JUSTC.Return {};
-    JUSTC.ParserOutput = class extends JUSTC.Return {};
-    JUSTC.StringOutput = class extends JUSTC.Return {};
-
     JUSTC.Core = {};
     JUSTC.CoreScript = function(code, name) {
         try {
@@ -71,7 +61,7 @@
         if (result.error) {
             throw new JUSTC.Error(result.error);
         } else {
-            return new JUSTC.LexerOutput(result.tokens || {});
+            return result.tokens || {};
         }
     };
     JUSTC.Core.Parser = function Parser(code) {
@@ -81,7 +71,7 @@
         if (result.error) {
             throw new JUSTC.Error(result.error);
         } else {
-            return new JUSTC.ParserOutput(result.return || {});
+            return result.return || {};
         }
     };
 
@@ -244,7 +234,7 @@
             if (result.error) {
                 throw new JUSTC.Error(result.error);
             } else {
-                return new JUSTC.MainOutput(result.return || {});
+                return result.return || {};
             }
         },
         execute: function ExecuteJUSTC(code) {
@@ -256,7 +246,7 @@
                 throw new JUSTC.Error(result.error);
             } else {
                 JUSTC.DisplayLogs(result);
-                return new JUSTC.MainOutput(result.return || {});
+                return result.return || {};
             }
         },
         initialize: async function InitializeJUSTC() {
@@ -264,7 +254,7 @@
         },
         stringify: function JSONtoJUSTC(JavaScriptObjectNotation) {
             if (typeof JavaScriptObjectNotation != 'object') throw new JUSTC.Error(JUSTC.Errors.objectInput);
-            return new JUSTC.StringOutput(JUSTC.fromJSON(JavaScriptObjectNotation));
+            return JUSTC.fromJSON(JavaScriptObjectNotation);
         }
     };
     JUSTC.Public = {};
@@ -279,20 +269,13 @@
     JUSTC.Private = function(what) {
         if (!what || typeof what != 'string' || what.length < 1) throw new JUSTC.Error(JUSTC.Errors.arg0);
         if (JUSTC.PrivateFunctions.Available.includes(what)) {
-            const output = JUSTC.PrivateFunctions.All[JUSTC.PrivateFunctions.WhatToName[what]].Return;
-            return typeof output === 'function' ? output : new JUSTC.Return(output);
+            return JUSTC.PrivateFunctions.All[JUSTC.PrivateFunctions.WhatToName[what]].Return;
         } else {
             throw new JUSTC.Error(`JUSTC.requestPermissions: "${what}" is either not available or does not exist.`);
         }
     };
     JUSTC.HiddenOutput = {
-        requestPermissions: JUSTC.Private,
-        wasJUSTC: function wasJUSTC(JavaScriptObjectNotation) {
-            return JavaScriptObjectNotation instanceof JUSTC.MainOutput || JavaScriptObjectNotation instanceof JUSTC.ParserOutput;
-        },
-        isJUSTC: function isJUSTC(code) {
-            if (code instanceof JUSTC.StringOutput) return true;
-        }
+        requestPermissions: JUSTC.Private
     };
     for (const [name, value] of Object.entries(JUSTC.HiddenOutput)) {
         Object.defineProperty(JUSTC.Public, name, {
@@ -307,6 +290,9 @@
         get: function() {
             JUSTC.InitWASM();
             return Object.freeze(JUSTC.Public);
+        },
+        get [Symbol.toStringTag]() {
+            return 'JUSTC'
         },
         set: function(command) {
             if (typeof command === 'string' && typeof JUSTC.Commands[command] === 'function') {
