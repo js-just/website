@@ -189,7 +189,12 @@ SOFTWARE.
         };
         if (result.logs && ARRAY.isArray(result.logs)) {
             result.logs.forEach(log => {
-                JUSTC.Console("log", log.time, log.message);
+                if (log.type != 'ECHO') {
+                    JUSTC.Console(
+                        log.type == 'ERROR' ? 'error' : 'log', 
+                        `[JUSTC] (${log.time})`, log.message
+                    );
+                }
             });
         }
     };
