@@ -123,8 +123,8 @@ SOFTWARE.
                     if (!ARRAY.isArray(JavaScriptObjectNotation)) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
                     let stringInput = '';
                     for (const token of JavaScriptObjectNotation) {
-                        if (!token.type || !token.start) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
-                        stringInput += token + ' ';
+                        if (typeof token != 'object' || token.type === undefined || token.start === undefined || typeof token.start != 'number' || token.value === undefined) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
+                        stringInput += token.value + ' ';
                     }
                     return JUSTC.Core.Parser(stringInput);
                 }
