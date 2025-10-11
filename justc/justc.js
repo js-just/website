@@ -62,6 +62,8 @@ SOFTWARE.
         arg0: 'Invalid argument 0. Run "JUSTC = \'help\'" for help.',
         lexerError: 'JUSTC/core/lexer.cpp error:',
         parseError: 'JUSTC/core/parser.cpp error:',
+        jsonInput: 'Argument 0 should be an object.',
+        lexerInput: 'Provided input is not valid core.lexer output.',
     };
 
     JUSTC.Core = {};
@@ -97,7 +99,7 @@ SOFTWARE.
     };
     JUSTC.Core.Parser = function Parser(code) {
         if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
-        if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
+        if (!code || typeof code != 'string' || code.length < 1) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
         const result = JUSTC.CoreScript(code, 'parse');
         if (result.error) {
             throw new JUSTC.Error(result.error);
@@ -116,7 +118,16 @@ SOFTWARE.
             Parser: {
                 NeedsWASM: true,
                 Name: "core.parser",
-                Return: JUSTC.Core.Parser
+                Return: function Parser(JavaScriptObjectNotation) {
+                    if (!JavaScriptObjectNotation || typeof JavaScriptObjectNotation != 'object') throw new JUSTC.Error(JUSTC.Errors.jsonInput);
+                    if (!ARRAY.isArray(JavaScriptObjectNotation)) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
+                    let stringInput = '';
+                    for (const token of JavaScriptObjectNotation) {
+                        if (!token.type || !token.start) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
+                        stringInput += token + ' ';
+                    }
+                    return JUSTC.Core.Parser(stringInput);
+                }
             },
             CoreErrors: {
                 NeedsWASM: false,
