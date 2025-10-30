@@ -1,1 +1,0 @@
-require("./justc.node.js");const JUSTC=require("./justc.js");JUSTC.initialize().then(()=>{console.log(JSON.stringify(JUSTC.execute("a is 123456.")))});
