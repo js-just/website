@@ -61,9 +61,6 @@ char* lexer(const char* input, const char* outputMode) {
     } catch (const std::exception& e) {
         std::string error = "{\"error\":\"" + JsonSerializer::escapeJsonString(std::string(e.what())) + "\",\"lexer\":true}";
         return strdup(error.c_str());
-    } catch (...) {
-        std::string error = "{\"error\":\"Unknown error occurred\"}";
-        return strdup(error.c_str());
     }
 }
 
@@ -87,9 +84,6 @@ char* parser(const char* tokensJson, const char* outputMode) {
     } catch (const std::exception& e) {
         std::string error = "{\"error\":\"" + JsonSerializer::escapeJsonString(std::string(e.what())) + "\",\"parser\":true}";
         return strdup(error.c_str());
-    } catch (...) {
-        std::string error = "{\"error\":\"Unknown error occurred\"}";
-        return strdup(error.c_str());
     }
 }
 
@@ -105,9 +99,6 @@ char* parse(const char* input, const bool execute, const bool runAsync, const ch
 
     } catch (const std::exception& e) {
         std::string error = "{\"error\":\"" + JsonSerializer::escapeJsonString(std::string(e.what())) + "\"}";
-        return strdup(error.c_str());
-    } catch (...) {
-        std::string error = "{\"error\":\"Unknown error occurred\"}";
         return strdup(error.c_str());
     }
 }
