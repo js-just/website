@@ -29,12 +29,20 @@ SOFTWARE.
 #include "version.h"
 #include <string>
 #include <cstring>
+#include <stdexcept>
 
 RunLua::RunLua() {
     L = luaL_newstate();
-    if (L) {
+    if (!L) {
+        throw std::runtime_error("Failed to create Lua state");
+    }
+
+    try {
         luaL_openlibs(L);
         initJUSTC();
+    } catch (const std::exception& e) {
+        lua_close(L);
+        throw;
     }
 }
 
@@ -45,15 +53,24 @@ RunLua::~RunLua() {
 }
 
 bool RunLua::executeScript(const std::string& script) {
-    if (!L) return false;
-
-    int result = luaL_dostring(L, script.c_str());
-    if (result != LUA_OK) {
-        std::cerr << "Lua error: " << lua_tostring(L, -1) << std::endl;
-        lua_pop(L, 1);
+    if (!L) {
+        std::cerr << "Lua state is not initialized" << std::endl;
         return false;
     }
-    return true;
+
+    try {
+        int result = luaL_dostring(L, script.c_str());
+        if (result != LUA_OK) {
+            const char* error = lua_tostring(L, -1);
+            std::cerr << "Lua error: " << (error ? error : "Unknown error") << std::endl;
+            lua_pop(L, 1);
+            return false;
+        }
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception in Lua execution: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool RunLua::executeFile(const std::string& filename) {
