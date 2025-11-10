@@ -178,11 +178,15 @@ private:
     bool allowJavaScript;
     bool globalScope;
     bool strictMode;
+    bool canAllowJS;
 
     std::vector<LogEntry> logs;
     std::string logFilePath;
     std::string logFileContent;
     bool hasLogFile;
+
+    std::string scriptName;
+    std::string scriptType;
 
     ParserToken currentToken() const;
     ParserToken peekToken(size_t offset = 1) const;
@@ -332,9 +336,9 @@ private:
 
 public:
     static std::string getCurrentTimestamp();
-    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "");
+    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script");
     ParseResult parse(bool doExecute = true);
-    static ParseResult parseTokens(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "");
+    static ParseResult parseTokens(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script");
 };
 
 #endif

@@ -322,10 +322,10 @@ long getCurrentTime() {
 
 }
 
-Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input)
-    : tokens(tokens), input(input), position(0), outputMode("EVERYTHING"), allowJavaScript(true),
+Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType)
+    : tokens(tokens), input(input), position(0), outputMode("EVERYTHING"), allowJavaScript(allowJavaScript),
       globalScope(false), strictMode(false), hasLogFile(false),
-      doExecute(doExecute), runAsync(runAsync) {}
+      doExecute(doExecute), runAsync(runAsync), canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType) {}
 
 std::string Parser::getCurrentTimestamp() {
     auto now = std::chrono::system_clock::now();
@@ -438,7 +438,7 @@ ParseResult Parser::parse(bool doExecute) {
                 }
                 break;
             } else if (match("JavaScript")) {
-                if (doExecute) {
+                if (doExecute && allowJavaScript) {
                     #ifdef __EMSCRIPTEN__
 
                     Value result = runJavaScript(currentToken().value, Utility::position(position, input), false);
@@ -457,6 +457,10 @@ ParseResult Parser::parse(bool doExecute) {
                         std::cout << jsresult.first << std::endl;
                     }
 
+                    #endif
+                } else if (!allowJavaScript) {
+                    #ifdef __EMSCRIPTEN__
+                    warn_js_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
                     #endif
                 }
                 advance();
@@ -609,7 +613,12 @@ ASTNode Parser::parseAllowCommand() {
     advance();
 
     if (match("keyword", "JAVASCRIPT")) {
-        allowJavaScript = (command == "ALLOW");
+        if (!canAllowJS && command == "ALLOW") {
+            #ifdef __EMSCRIPTEN__
+            warn_cant_enable_js(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str(), scriptName.c_str(), scriptType.c_str());
+            #endif
+            addLog("WARN", "Attempt to allow JavaScript at <import ", currentToken().start);
+        } else allowJavaScript = (command == "ALLOW");
         node.value = booleanToValue(allowJavaScript);
         advance();
     }
@@ -643,7 +652,7 @@ ASTNode Parser::parseImportCommand() {
             else throw std::runtime_error("Expected \")\", got \"" + currentToken().value + "\" at " + Utility::position(position, input));
             // if (match("keyword", "REQUIRE") || match("keyword", "EXECUTE"));
 
-            std::pair<ParseResult, std::string> imports = Import::JUSTC(path, Utility::position(position, input), true, true);
+            std::pair<ParseResult, std::string> imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode);
             addImportLog(path, imports.second, "JUSTC");
             for (const auto& pair : imports.first.returnValues) {
                 ASTNode node = ASTNode("VARIABLE_DECLARATION", pair.first, position);
@@ -1038,7 +1047,7 @@ Value Parser::parsePrimary(bool doExecute) {
         result.name = objectstr;
         return result;
     }
-    else if (match("JavaScript") && doExecute) {
+    else if (match("JavaScript") && doExecute && allowJavaScript) {
         #ifdef __EMSCRIPTEN__
 
         Value result = runJavaScript(currentToken().value, Utility::position(currentToken().start, input), true);
@@ -1061,7 +1070,8 @@ Value Parser::parsePrimary(bool doExecute) {
     }
     else if (match("JavaScript")) {
         #ifdef __EMSCRIPTEN__
-        warn_js_disabled(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
+        if (!allowJavaScript) warn_js_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
+        else warn_js_disabled(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
         #endif
         advance();
         return Value::createNull();
@@ -2010,7 +2020,7 @@ void Parser::evaluateAllVariablesAsync() {
 #endif
 }
 
-ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input) {
-    Parser parser(tokens, doExecute, runAsync, input);
+ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType) {
+    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType);
     return parser.parse(doExecute);
 }
