@@ -466,8 +466,28 @@ ParseResult Parser::parse(bool doExecute) {
                 }
                 advance();
             } else if (match("Lua")) {
-                RunLua runLua;
-                runLua.executeScript(currentToken().value);
+                try {
+                    RunLua runLua;
+                    std::string luaCode = currentToken().value;
+                    std::cout << "DEBUG: Lua code to execute: " << luaCode << std::endl;
+
+                    if (!runLua.executeScript(luaCode)) {
+                        std::string errorMsg = "Lua script execution failed at " + Utility::position(currentToken().start, input);
+                        addLog("ERROR", errorMsg, currentToken().start);
+                        std::cerr << errorMsg << std::endl;
+                    } else {
+                        addLog("LUA", "Lua script executed successfully", currentToken().start);
+                        std::cout << "DEBUG: Lua execution completed successfully" << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::string errorMsg = std::string("Lua initialization failed: ") + e.what() + " at " + Utility::position(currentToken().start, input);
+                    addLog("ERROR", errorMsg, currentToken().start);
+                    std::cerr << errorMsg << std::endl;
+                } catch (...) {
+                    std::string errorMsg = "Unknown Lua error at " + Utility::position(currentToken().start, input);
+                    addLog("ERROR", errorMsg, currentToken().start);
+                    std::cerr << errorMsg << std::endl;
+                }
                 advance();
             } else {
                 throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");

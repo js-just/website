@@ -37,6 +37,13 @@ SOFTWARE.
 #include <stdexcept>
 #include <tuple>
 
+void setupGlobalExceptionHandler() {
+    std::set_terminate([]() {
+        std::cerr << "Terminate called due to uncaught exception" << std::endl;
+        std::abort();
+    });
+}
+
 class OutputRedirector {
 private:
     std::streambuf* originalCout;
@@ -194,6 +201,8 @@ std::string outputString(cmdFlags flags, Args... args) {
     }
 }
 int main(int argc, char* argv[]) {
+    setupGlobalExceptionHandler();
+
     if (argc < 1) {
         printUsage();
         return 1;

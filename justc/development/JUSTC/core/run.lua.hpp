@@ -27,7 +27,6 @@ SOFTWARE.
 #pragma once
 
 #include <string>
-#include <cstring>
 
 extern "C" {
     #include <lua.h>
@@ -42,11 +41,9 @@ public:
 
     bool executeScript(const std::string& script);
     bool executeFile(const std::string& filename);
-
     void registerFunction(const std::string& name, lua_CFunction func);
 
 private:
     lua_State* L;
-
     void initJUSTC();
 };

@@ -26,10 +26,8 @@ SOFTWARE.
 
 #include "run.lua.hpp"
 #include <iostream>
-#include "version.h"
-#include <string>
-#include <cstring>
 #include <stdexcept>
+#include <cstring>
 
 RunLua::RunLua() {
     L = luaL_newstate();
@@ -42,7 +40,7 @@ RunLua::RunLua() {
         initJUSTC();
     } catch (const std::exception& e) {
         lua_close(L);
-        throw;
+        throw std::runtime_error(std::string("Lua initialization failed: ") + e.what());
     }
 }
 
@@ -58,27 +56,39 @@ bool RunLua::executeScript(const std::string& script) {
         return false;
     }
 
-    try {
-        int result = luaL_dostring(L, script.c_str());
-        if (result != LUA_OK) {
-            const char* error = lua_tostring(L, -1);
-            std::cerr << "Lua error: " << (error ? error : "Unknown error") << std::endl;
-            lua_pop(L, 1);
-            return false;
-        }
-        return true;
-    } catch (const std::exception& e) {
-        std::cerr << "Exception in Lua execution: " << e.what() << std::endl;
+    std::cout << "DEBUG: Executing Lua script: " << script << std::endl;
+
+    int load_result = luaL_loadstring(L, script.c_str());
+    if (load_result != LUA_OK) {
+        const char* error = lua_tostring(L, -1);
+        std::cerr << "Lua load error: " << (error ? error : "Unknown load error") << std::endl;
+        lua_pop(L, 1);
         return false;
     }
+
+    int call_result = lua_pcall(L, 0, LUA_MULTRET, 0);
+    if (call_result != LUA_OK) {
+        const char* error = lua_tostring(L, -1);
+        std::cerr << "Lua execution error: " << (error ? error : "Unknown execution error") << std::endl;
+        std::cerr << "Error code: " << call_result << std::endl;
+        lua_pop(L, 1);
+        return false;
+    }
+
+    std::cout << "DEBUG: Lua script executed successfully" << std::endl;
+    return true;
 }
 
 bool RunLua::executeFile(const std::string& filename) {
-    if (!L) return false;
+    if (!L) {
+        std::cerr << "Lua state is not initialized" << std::endl;
+        return false;
+    }
 
     int result = luaL_dofile(L, filename.c_str());
     if (result != LUA_OK) {
-        std::cerr << "Lua error: " << lua_tostring(L, -1) << std::endl;
+        const char* error = lua_tostring(L, -1);
+        std::cerr << "Lua file error: " << (error ? error : "Unknown file error") << std::endl;
         lua_pop(L, 1);
         return false;
     }
@@ -91,11 +101,35 @@ void RunLua::registerFunction(const std::string& name, lua_CFunction func) {
     }
 }
 
+int lua_print_wrapper(lua_State* L) {
+    int n = lua_gettop(L);
+    for (int i = 1; i <= n; i++) {
+        if (lua_isstring(L, i)) {
+            std::cout << lua_tostring(L, i) << " ";
+        }
+    }
+    std::cout << std::endl;
+    return 0;
+}
+
 int justc_version_lua(lua_State* L) {
-    lua_pushstring(L, JUSTC_VERSION.c_str());
+    lua_pushstring(L, "1.0.0");
     return 1;
 }
 
 void RunLua::initJUSTC() {
+    registerFunction("print", lua_print_wrapper);
     registerFunction("justc_version", justc_version_lua);
+
+    lua_pushnil(L);
+    lua_setglobal(L, "dofile");
+
+    lua_pushnil(L);
+    lua_setglobal(L, "loadfile");
+
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
+
+    lua_pushnil(L);
+    lua_setglobal(L, "os");
 }
