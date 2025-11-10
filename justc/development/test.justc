@@ -1,4 +1,5 @@
 a is 123,
 b is 456,
 c is 789,
+ALLOW JAVASCRIPT,
 {{alert(10101010)}}.
