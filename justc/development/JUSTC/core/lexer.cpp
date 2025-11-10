@@ -373,19 +373,85 @@ void Lexer::tokenize() {
             std::stringstream JavaScript;
             size_t brackets = 2;
             size_t startPos = position;
+            size_t str = 0;
+            size_t comment = 0;
             position += 2;
             while(position < input.length() && brackets > 0) {
                 JavaScript << input[position];
                 if (input[position] == '{') {
                     brackets++;
-                } else if (input[position] == '}') {
+                } else if (input[position] == '}' && str == 0 && comment == 0) {
                     brackets--;
+                } else if (input[position] == '\'' && str == 0 && comment == 0) {
+                    str = 1;
+                } else if (input[position] == '\'' && str == 1 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '"' && str == 0 && comment == 0) {
+                    str = 2;
+                } else if (input[position] == '"' && str == 2 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '`' && str == 0 && comment == 0) {
+                    str = 3;
+                } else if (input[position] == '`' && str == 3 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '/' && peek() == '/' && str == 0 && comment == 0) {
+                    comment = 1;
+                } else if (((input[position] == '\r' && peek() == '\n') || input[position] == '\n' || input[position] == '\r') && str == 0 && comment == 1) {
+                    comment = 0;
+                } else if (input[position] == '/' && peek() == '*' && str == 0 && comment == 0) {
+                    comment = 2;
+                } else if (input[position] == '*' && peek() == '/' && str == 0 && comment == 2) {
+                    comment = 0;
                 }
                 position++;
             }
+            if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
             std::string JavaScript_str = JavaScript.str();
             std::string result = JavaScript_str.substr(0, JavaScript_str.size() - 2); // remove "}}" at the end
             tokens.push_back(ParserToken{"JavaScript", result, startPos});
+            continue;
+        }
+        if (ch == '<' && peek() == '<') {
+            addDollarBefore();
+            std::stringstream Lua;
+            size_t brackets = 2;
+            size_t startPos = position;
+            size_t str = 0;
+            size_t comment = 0;
+            position += 2;
+            while(position < input.length() && brackets > 0) {
+                Lua << input[position];
+                if (input[position] == '<' && peek() == '<') {
+                    brackets++;
+                } else if (input[position] == '>' && peek() == '>' && str == 0 && comment == 0) {
+                    brackets--;
+                } else if (input[position] == '\'' && str == 0 && comment == 0) {
+                    str = 1;
+                } else if (input[position] == '\'' && str == 1 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '"' && str == 0 && comment == 0) {
+                    str = 2;
+                } else if (input[position] == '"' && str == 2 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '[' && peek() == '[' && str == 0 && comment == 0) {
+                    str = 3;
+                } else if (input[position] == ']' && peek() == ']' && str == 3 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '[' && peek() == '=' && input[position + 2] == '[' && str == 0 && comment == 0) {
+                    str = 4;
+                } else if (input[position] == ']' && peek() == '=' && input[position + 2] == ']' && str == 4 && input[position - 1] != '\\' && comment == 0) {
+                    str = 0;
+                } else if (input[position] == '-' && peek() == '-' && str == 0 && comment == 0) {
+                    comment = 1;
+                } else if (((input[position] == '\r' && peek() == '\n') || input[position] == '\n' || input[position] == '\r') && str == 0 && comment == 1) {
+                    comment = 0;
+                }
+                position++;
+            }
+            if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
+            std::string Lua_str = Lua.str();
+            std::string result = Lua_str.substr(0, Lua_str.size() - 2); // remove ">>" at the end
+            tokens.push_back(ParserToken{"Lua", result, startPos});
             continue;
         }
 

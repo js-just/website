@@ -37,7 +37,7 @@ EM_JS(void, warn_js_disabled, (const char* position, const char* token_value, co
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot run JavaScript', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position));
 });
 EM_JS(void, warn_js_disabled_by_justc, (const char* position, const char* token_value, const char* timestamp), {
-    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') JavaScript disabled - Cannot run JavaScript', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position));
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') JavaScript disallowed - Cannot run JavaScript', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position));
 });
 EM_JS(void, warn_cant_enable_js, (const char* position, const char* timestamp, const char* filename, const char* filetype), {
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Attempt to allow JavaScript at <import', UTF8ToString(filetype), '"'+UTF8ToString(filename)+'">', 'at', UTF8ToString(position));

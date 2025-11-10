@@ -39,6 +39,7 @@ SOFTWARE.
 #include "utility.h"
 #include <vector>
 #include "import.hpp"
+#include "run.lua.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -463,6 +464,10 @@ ParseResult Parser::parse(bool doExecute) {
                     warn_js_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
                     #endif
                 }
+                advance();
+            } else if (match("Lua")) {
+                RunLua runLua;
+                runLua.executeScript(currentToken().value);
                 advance();
             } else {
                 throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
