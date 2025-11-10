@@ -112,7 +112,7 @@ ParserToken Lexer::readString() {
     return ParserToken{"string", value, start};
 }
 
-ParserToken Lexer::readAngleString() {
+ParserToken Lexer::readLink() {
     size_t start = ++position;
     std::string value = "";
     while (position < input.length() && input[position] != '>') {
@@ -252,9 +252,9 @@ void Lexer::tokenize() {
             continue;
         }
 
-        if (ch == '<') {
+        if (ch == '<' && peek() != '<' && peek() != '=') {
             addDollarBefore();
-            tokens.push_back(readAngleString());
+            tokens.push_back(readLink());
             continue;
         }
 
