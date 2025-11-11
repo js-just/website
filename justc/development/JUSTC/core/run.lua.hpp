@@ -24,26 +24,14 @@ SOFTWARE.
 
 */
 
-#pragma once
+#ifndef RUN_LUA_HPP
+#define RUN_LUA_HPP
 
 #include <string>
 
-extern "C" {
-    #include <lua.h>
-    #include <lualib.h>
-    #include <lauxlib.h>
-}
-
 class RunLua {
 public:
-    RunLua();
-    ~RunLua();
-
-    bool executeScript(const std::string& script);
-    bool executeFile(const std::string& filename);
-    void registerFunction(const std::string& name, lua_CFunction func);
-
-private:
-    lua_State* L;
-    void initJUSTC();
+    static void runScript(const std::string& code);
 };
+
+#endif

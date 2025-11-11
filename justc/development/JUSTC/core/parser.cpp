@@ -466,49 +466,7 @@ ParseResult Parser::parse(bool doExecute) {
                 }
                 advance();
             } else if (match("Lua")) {
-                std::cout << "=== LUA EXECUTION START ===" << std::endl;
-                std::cout << "DEBUG: Found Lua token at position " << currentToken().start << std::endl;
-
-                std::string luaCode = currentToken().value;
-                std::cout << "DEBUG: Raw Lua code: '" << luaCode << "'" << std::endl;
-
-                if (luaCode.empty()) {
-                    std::cout << "DEBUG: Empty Lua code, skipping" << std::endl;
-                    advance();
-                    continue;
-                }
-
-                try {
-                    std::cout << "DEBUG: Creating RunLua instance..." << std::endl;
-                    RunLua runLua;
-                    std::cout << "DEBUG: RunLua instance created successfully" << std::endl;
-
-                    std::cout << "DEBUG: Executing Lua code..." << std::endl;
-                    if (!runLua.executeScript(luaCode)) {
-                        std::string errorMsg = "Lua script execution failed at " + Utility::position(currentToken().start, input);
-                        addLog("ERROR", errorMsg, currentToken().start);
-                        std::cerr << "ERROR: " << errorMsg << std::endl;
-
-                        std::cout << "DEBUG: Continuing execution after Lua error" << std::endl;
-                    } else {
-                        addLog("LUA", "Lua script executed successfully", currentToken().start);
-                        std::cout << "DEBUG: Lua execution completed successfully" << std::endl;
-                    }
-                } catch (const std::exception& e) {
-                    std::string errorMsg = std::string("Lua initialization failed: ") + e.what() + " at " + Utility::position(currentToken().start, input);
-                    addLog("ERROR", errorMsg, currentToken().start);
-                    std::cerr << "EXCEPTION: " << errorMsg << std::endl;
-
-                    std::cout << "DEBUG: Continuing execution after Lua exception" << std::endl;
-                } catch (...) {
-                    std::string errorMsg = "Unknown Lua error at " + Utility::position(currentToken().start, input);
-                    addLog("ERROR", errorMsg, currentToken().start);
-                    std::cerr << "EXCEPTION: " << errorMsg << std::endl;
-
-                    std::cout << "DEBUG: Continuing execution after unknown Lua exception" << std::endl;
-                }
-
-                std::cout << "=== LUA EXECUTION END ===" << std::endl;
+                RunLua::runScript(currentToken().value);
                 advance();
             } else {
                 throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
