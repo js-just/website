@@ -33,10 +33,24 @@ SOFTWARE.
 
 void RunLua::runScript(const std::string& code) {
     lua_State *L = luaL_newstate();
-    if(L == NULL)
-        throw std::runtime_error("Failed to lua_State *L = luaL_newstate();");
+    if (L == NULL)
+        throw std::runtime_error("Failed to create Lua state");
+
     luaL_openlibs(L);
-    luaL_loadstring(L, code.c_str());
-    lua_call(L, 0, 0);
+
+    int load_result = luaL_loadstring(L, code.c_str());
+    if (load_result != LUA_OK) {
+        std::string error_msg = lua_tostring(L, -1);
+        lua_close(L);
+        throw std::runtime_error("Lua load error: " + error_msg);
+    }
+
+    int call_result = lua_pcall(L, 0, 0, 0);
+    if (call_result != LUA_OK) {
+        std::string error_msg = lua_tostring(L, -1);
+        lua_close(L);
+        throw std::runtime_error("Lua runtime error: " + error_msg);
+    }
+
     lua_close(L);
 }
