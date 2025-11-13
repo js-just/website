@@ -466,8 +466,13 @@ ParseResult Parser::parse(bool doExecute) {
                 }
                 advance();
             } else if (match("Lua")) {
-                RunLua::runScript(currentToken().value);
-                advance();
+                try {
+                    RunLua::runScript(currentToken().value);
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("Lua error at " + Utility::position(position, input) + ":\n" + e.what());
+                } catch (...) {
+                    throw std::runtime_error("Fatal Lua error at " + Utility::position(position, input) + ".");
+                }
             } else {
                 throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
             }

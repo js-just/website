@@ -37,9 +37,29 @@ SOFTWARE.
 #include <stdexcept>
 #include <tuple>
 
+void logError(const std::string error) {
+    const char* githubActions = std::getenv("GITHUB_ACTIONS");
+    if (githubActions && std::string(githubActions) == "true") std::cerr << "::error::" + error << std::endl;
+    else std::cerr << error << std::endl;
+}
+
 void setupGlobalExceptionHandler() {
     std::set_terminate([]() {
-        std::cerr << "Terminate called due to uncaught exception" << std::endl;
+        logError("Terminate called due to uncaught exception");
+
+        auto current = std::current_exception();
+        if (current) {
+            try {
+                std::rethrow_exception(current);
+            } catch (const std::exception& e) {
+                logError(std::string("Exception: ") + std::string(e.what()));
+            } catch (...) {
+                logError("Unknown exception type");
+            }
+        } else {
+            logError("No current exception available");
+        }
+
         std::abort();
     });
 }
@@ -88,7 +108,7 @@ public:
                 std::cerr.rdbuf(silentBuffer.rdbuf());
             }
         } else {
-            std::cerr << error << std::endl;
+            logError(std::string(error));
         }
     }
 };
@@ -379,6 +399,9 @@ int main(int argc, char* argv[]) {
             delete outputRedirector;
         }
         std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown fatal error." << std::endl;
         return 1;
     }
 
