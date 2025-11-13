@@ -46,4 +46,5 @@ EM_JS(void, warn_cant_enable_js, (const char* position, const char* timestamp, c
 EM_JS(void, warn_http_disabled, (const char* position, const char* url, const char* timestamp), {
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot fetch', '"' + UTF8ToString(url) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for HTTP requests.');
 });
+
 #endif

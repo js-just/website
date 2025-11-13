@@ -39,7 +39,7 @@ SOFTWARE.
 #include "utility.h"
 #include <vector>
 #include "import.hpp"
-#include "run.lua.hpp"
+#include "run.luau.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -467,7 +467,7 @@ ParseResult Parser::parse(bool doExecute) {
                 advance();
             } else if (match("Lua")) {
                 try {
-                    RunLua::runScript(currentToken().value);
+                    RunLuau::runScript(currentToken().value);
                 } catch (const std::exception& e) {
                     throw std::runtime_error("Lua error at " + Utility::position(position, input) + ":\n" + e.what());
                 } catch (...) {

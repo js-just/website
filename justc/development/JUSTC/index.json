@@ -10,7 +10,7 @@
 "core/to.yaml.cpp",
 "core/utility.cpp",
 "core/import.cpp",
-"core/run.lua.cpp",
+"core/run.luau.cpp",
 "core/main.cpp",
 "core/lexer.h",
 "core/parser.h",
@@ -27,4 +27,5 @@
 "core/parser.emscripten.h",
 "core/run.js.cpp",
 "core/run.js.hpp",
-"core/run.lua.hpp"]
+"core/run.luau.hpp",
+"core/run.luau.emscripten.hpp"]
