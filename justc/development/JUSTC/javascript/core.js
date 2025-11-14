@@ -130,7 +130,7 @@ SOFTWARE.
     JUSTC.Experiments = false;
 
     if (!isBrowser && !JUSTC.JUSTC && !JUSTC.WASM && JUSTC.NodeWASM) {JUSTC.JUSTC = JUSTC.NodeWASM}
-    else if (isBrowser && !JUSTC.JUSTC && !JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.environment);
+    else if (isBrowser && (globalThis_.__justc__ || globalThis_.__justc__luau__)) throw new JUSTC.Error(JUSTC.Errors.environment);
 
     JUSTC.Console = function(type, ...args) {
         if (!JUSTC.Silent) {
