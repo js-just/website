@@ -466,7 +466,8 @@ ParseResult Parser::parse(bool doExecute) {
                 advance();
             } else if (match("Luau")) {
                 #ifdef __EMSCRIPTEN__
-                use_luau(currentToken().value.c_str());
+                bool error = use_luau(currentToken().value.c_str(), getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
+                if (error) throw std::runtime_error("Luau error at " + Utility::position(position, input));
                 #else
                 std::cout << currentToken().value << std::endl;
                 #endif
