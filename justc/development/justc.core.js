@@ -4828,16 +4828,17 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  94985: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the JSON output."); },  
- 95088: ($0, $1) => { return Asyncify.handleSleep(function(wakeUp) { try { var url = UTF8ToString($0); var version = UTF8ToString($1); var isBrowser = (typeof window !== 'undefined') && (typeof navigator !== 'undefined'); var xhr = new XMLHttpRequest(); xhr.open('GET', url, false); xhr.setRequestHeader('Accept', '*/*'); if (!isBrowser) { xhr.setRequestHeader('User-Agent', 'JUSTC/' + version); } xhr.setRequestHeader('X-JUSTC', 'JUSTC/' + version); xhr.onload = function() { var response = xhr.responseText; var length = lengthBytesUTF8(response) + 1; var result = _malloc(length); if (xhr.status >= 400 && xhr.status < 600) { if ((length - 1) < 1) { throw new Error("HTTP Request failed with status " + xhr.status + "."); } else { console.warn('[JUSTC] (' + (new Date()).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ') HTTP Request succeeded, but with status', xhr.status); } } stringToUTF8(response, result, length); wakeUp(result); }; xhr.onerror = function() { throw new Error("HTTP Request failed with status " + xhr.status + "."); }; xhr.send(); } catch (e) { throw new Error("HTTP Request failed: " + e); } }); },  
- 96296: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the XML output."); },  
- 96398: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the YAML output."); }
+  95116: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the JSON output."); },  
+ 95219: ($0, $1) => { return Asyncify.handleSleep(function(wakeUp) { try { var url = UTF8ToString($0); var version = UTF8ToString($1); var isBrowser = (typeof window !== 'undefined') && (typeof navigator !== 'undefined'); var xhr = new XMLHttpRequest(); xhr.open('GET', url, false); xhr.setRequestHeader('Accept', '*/*'); if (!isBrowser) { xhr.setRequestHeader('User-Agent', 'JUSTC/' + version); } xhr.setRequestHeader('X-JUSTC', 'JUSTC/' + version); xhr.onload = function() { var response = xhr.responseText; var length = lengthBytesUTF8(response) + 1; var result = _malloc(length); if (xhr.status >= 400 && xhr.status < 600) { if ((length - 1) < 1) { throw new Error("HTTP Request failed with status " + xhr.status + "."); } else { console.warn('[JUSTC] (' + (new Date()).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ') HTTP Request succeeded, but with status', xhr.status); } } stringToUTF8(response, result, length); wakeUp(result); }; xhr.onerror = function() { throw new Error("HTTP Request failed with status " + xhr.status + "."); }; xhr.send(); } catch (e) { throw new Error("HTTP Request failed: " + e); } }); },  
+ 96427: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the XML output."); },  
+ 96529: ($0) => { console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the YAML output."); }
 };
 function warn_unsupported_js_type(timestamp,value,position) { console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Unsupported JavaScript output type ("' + UTF8ToString(value) + '") was converted to a string at', UTF8ToString(position)); }
 function warn_js_disabled(position,token_value,timestamp) { console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot run JavaScript', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position)); }
 function warn_js_disabled_by_justc(position,token_value,timestamp) { console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') JavaScript disallowed - Cannot run JavaScript', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position)); }
 function warn_cant_enable_js(position,timestamp,filename,filetype) { console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Attempt to allow JavaScript at <import', UTF8ToString(filetype), '"'+UTF8ToString(filename)+'">', 'at', UTF8ToString(position)); }
 function warn_http_disabled(position,url,timestamp) { console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot fetch', '"' + UTF8ToString(url) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for HTTP requests.'); }
+function debug_lua(log) { console.warn('[JUSTC] Luau debug: ' + UTF8ToString(log)); }
 function debug_luau(log) { console.warn('[JUSTC] Luau debug: ' + UTF8ToString(log)); }
 
 // Imports from the Wasm binary.
@@ -5041,6 +5042,8 @@ var wasmImports = {
   _tzset_js: __tzset_js,
   /** @export */
   clock_time_get: _clock_time_get,
+  /** @export */
+  debug_lua,
   /** @export */
   debug_luau,
   /** @export */
