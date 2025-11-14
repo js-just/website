@@ -1,0 +1,2 @@
+/home/runner/work/JUSTC/JUSTC/luau/emsdk/upstream/emscripten/emar qc libLuau.CLI.lib.a CMakeFiles/Luau.CLI.lib.dir/CLI/src/FileUtils.cpp.o CMakeFiles/Luau.CLI.lib.dir/CLI/src/Flags.cpp.o CMakeFiles/Luau.CLI.lib.dir/CLI/src/VfsNavigator.cpp.o
+/home/runner/work/JUSTC/JUSTC/luau/emsdk/upstream/emscripten/emranlib libLuau.CLI.lib.a

@@ -47,7 +47,7 @@ EM_JS(void, warn_http_disabled, (const char* position, const char* url, const ch
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot fetch', '"' + UTF8ToString(url) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for HTTP requests.');
 });
 
-EM_JS(void, debug_lua, (const char* log), {
+EM_JS(void, use_luau, (const char* log), {
     console.warn('[JUSTC] Luau debug: ' + UTF8ToString(log));
 });
 
