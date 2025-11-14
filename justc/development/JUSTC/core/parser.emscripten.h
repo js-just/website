@@ -48,8 +48,9 @@ EM_JS(void, warn_http_disabled, (const char* position, const char* url, const ch
 });
 
 #ifdef __JUSTC_WEB__
-EM_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
-    return __justc__luau__().then(function(luau) {
+EM_ASYNC_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
+    try {
+        var luau = await __justc__luau__();
         var err = luau.ccall('executeScript', 'string', ['string'], [UTF8ToString(script)]);
         if (err) {
             var err_text = err.replace('stdin:', '');
@@ -57,10 +58,10 @@ EM_JS(int, use_luau, (const char* script, const char* timestamp, const char* pos
             return 1;
         }
         return 0;
-    }).catch(function(e) {
+    } catch (e) {
         console.error('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau loading error:', e, 'at' + UTF8ToString(position));
         return 1;
-    });
+    }
 });
 #else
 EM_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
