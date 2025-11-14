@@ -413,14 +413,14 @@ void Lexer::tokenize() {
         }
         if (ch == '<' && peek() == '<') {
             addDollarBefore();
-            std::stringstream Lua;
+            std::stringstream Luau;
             size_t brackets = 2;
             size_t startPos = position;
             size_t str = 0;
             size_t comment = 0;
             position += 2;
             while(position < input.length() && brackets > 0) {
-                Lua << input[position];
+                Luau << input[position];
                 if (input[position] == '<' && peek() == '<') {
                     brackets++;
                 } else if (input[position] == '>' && peek() == '>' && str == 0 && comment == 0) {
@@ -449,9 +449,9 @@ void Lexer::tokenize() {
                 position++;
             }
             if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
-            std::string Lua_str = Lua.str();
-            std::string result = Lua_str.substr(0, Lua_str.size() - 2); // remove ">>" at the end
-            tokens.push_back(ParserToken{"Lua", result, startPos});
+            std::string Luau_str = Luau.str();
+            std::string result = Luau_str.substr(0, Luau_str.size() - 2); // remove ">>" at the end
+            tokens.push_back(ParserToken{"Luau", result, startPos});
             continue;
         }
 

@@ -464,7 +464,7 @@ ParseResult Parser::parse(bool doExecute) {
                     #endif
                 }
                 advance();
-            } else if (match("Lua")) {
+            } else if (match("Luau")) {
                 #ifdef __EMSCRIPTEN__
                 use_luau(currentToken().value.c_str());
                 #else

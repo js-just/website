@@ -1,2 +1,0 @@
-/home/runner/work/JUSTC/JUSTC/luau/emsdk/upstream/emscripten/emar qc libLuau.Config.a CMakeFiles/Luau.Config.dir/Config/src/Config.cpp.o CMakeFiles/Luau.Config.dir/Config/src/LinterConfig.cpp.o CMakeFiles/Luau.Config.dir/Config/src/LuauConfig.cpp.o
-/home/runner/work/JUSTC/JUSTC/luau/emsdk/upstream/emscripten/emranlib libLuau.Config.a
