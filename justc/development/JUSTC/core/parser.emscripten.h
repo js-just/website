@@ -48,20 +48,22 @@ EM_JS(void, warn_http_disabled, (const char* position, const char* url, const ch
 });
 
 #ifdef __JUSTC_WEB__
-EM_ASYNC_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
-    try {
-        var luau = await __justc__luau__();
-        var err = luau.ccall('executeScript', 'string', ['string'], [UTF8ToString(script)]);
-        if (err) {
-            var err_text = err.replace('stdin:', '');
-            console.error('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau error:', err_text + '\nat Luau, line', parseInt(err_text) - 1, '\nat' + UTF8ToString(position));
+EM_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
+    return Asyncify.handleAsync(async () => {
+        try {
+            var luau = await __justc__luau__();
+            var err = luau.ccall('executeScript', 'string', ['string'], [UTF8ToString(script)]);
+            if (err) {
+                var err_text = err.replace('stdin:', '');
+                console.error('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau error:', err_text + '\nat Luau, line', parseInt(err_text) - 1, '\nat' + UTF8ToString(position));
+                return 1;
+            }
+            return 0;
+        } catch (e) {
+            console.error('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau loading error:', e, 'at' + UTF8ToString(position));
             return 1;
         }
-        return 0;
-    } catch (e) {
-        console.error('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau loading error:', e, 'at' + UTF8ToString(position));
-        return 1;
-    }
+    });
 });
 #else
 EM_JS(int, use_luau, (const char* script, const char* timestamp, const char* position), {
