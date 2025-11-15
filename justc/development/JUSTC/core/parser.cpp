@@ -39,6 +39,7 @@ SOFTWARE.
 #include "utility.h"
 #include <vector>
 #include "import.hpp"
+#include "run.luau.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -470,7 +471,7 @@ ParseResult Parser::parse(bool doExecute) {
                 bool luau_error = use_luau(currentToken().value.c_str(), getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
                 if (luau_error) throw std::runtime_error("Luau error at " + Utility::position(position, input));
                 #else
-                std::cout << currentToken().value << std::endl;
+                RunLuau::runScript(currentToken().value);
                 #endif
                 ast.push_back(ASTNode("LUAU"));
                 advance();
