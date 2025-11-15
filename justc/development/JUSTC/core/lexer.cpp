@@ -414,7 +414,7 @@ void Lexer::tokenize() {
         if (ch == '<' && peek() == '<') {
             addDollarBefore();
             std::stringstream Luau;
-            size_t brackets = 2;
+            size_t brackets = 1;
             size_t startPos = position;
             size_t str = 0;
             size_t comment = 0;
