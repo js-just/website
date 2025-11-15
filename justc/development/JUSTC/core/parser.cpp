@@ -463,14 +463,16 @@ ParseResult Parser::parse(bool doExecute) {
                     warn_js_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
                     #endif
                 }
+                ast.push_back(ASTNode("JAVASCRIPT"));
                 advance();
             } else if (match("Luau")) {
                 #ifdef __EMSCRIPTEN__
-                bool error = use_luau(currentToken().value.c_str(), getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
-                if (error) throw std::runtime_error("Luau error at " + Utility::position(position, input));
+                bool luau_error = use_luau(currentToken().value.c_str(), getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
+                if (luau_error) throw std::runtime_error("Luau error at " + Utility::position(position, input));
                 #else
                 std::cout << currentToken().value << std::endl;
                 #endif
+                ast.push_back(ASTNode("LUAU"));
                 advance();
             } else {
                 throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");

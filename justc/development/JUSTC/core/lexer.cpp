@@ -457,8 +457,8 @@ void Lexer::tokenize() {
             }
 
             std::string Luau_str = Luau.str();
-            if (Luau_str.length() >= 2) {
-                Luau_str = Luau_str.substr(0, Luau_str.length() - 2);
+            if (Luau_str.length() >= 1) {
+                Luau_str = Luau_str.substr(0, Luau_str.length() - 1);
             }
 
             tokens.push_back(ParserToken{"Luau", Luau_str, startPos});
