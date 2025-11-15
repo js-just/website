@@ -418,40 +418,50 @@ void Lexer::tokenize() {
             size_t startPos = position;
             size_t str = 0;
             size_t comment = 0;
-            position += 2;
-            while(position < input.length() && brackets > 0) {
-                Luau << input[position];
-                if (input[position] == '<' && peek() == '<') {
-                    brackets++;
-                } else if (input[position] == '>' && peek() == '>' && str == 0 && comment == 0) {
-                    brackets--;
-                } else if (input[position] == '\'' && str == 0 && comment == 0) {
-                    str = 1;
-                } else if (input[position] == '\'' && str == 1 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '"' && str == 0 && comment == 0) {
-                    str = 2;
-                } else if (input[position] == '"' && str == 2 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '[' && peek() == '[' && str == 0 && comment == 0) {
-                    str = 3;
-                } else if (input[position] == ']' && peek() == ']' && str == 3 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '[' && peek() == '=' && input[position + 2] == '[' && str == 0 && comment == 0) {
-                    str = 4;
-                } else if (input[position] == ']' && peek() == '=' && input[position + 2] == ']' && str == 4 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '-' && peek() == '-' && str == 0 && comment == 0) {
-                    comment = 1;
-                } else if (((input[position] == '\r' && peek() == '\n') || input[position] == '\n' || input[position] == '\r') && str == 0 && comment == 1) {
-                    comment = 0;
+
+            position += 2; // "<<"
+
+            while (position < input.length() && brackets > 0) {
+                char current = input[position];
+                Luau << current;
+
+                if (str == 0 && comment == 0) {
+                    if (current == '<' && peek(1) == '<') {
+                        brackets++;
+                    } else if (current == '>' && peek(1) == '>') {
+                        brackets--;
+                    }
                 }
+
+                if (comment == 0) {
+                    if (str == 0 && (current == '\'' || current == '"')) {
+                        str = current;
+                    } else if (str != 0 && current == str && input[position-1] != '\\') {
+                        str = 0;
+                    }
+                }
+
+                if (str == 0) {
+                    if (comment == 0 && current == '-' && peek(1) == '-') {
+                        comment = 1;
+                    } else if (comment == 1 && (current == '\n' || current == '\r')) {
+                        comment = 0;
+                    }
+                }
+
                 position++;
             }
-            if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
+
+            if (brackets > 0 || str != 0) {
+                throw std::runtime_error("Unexpected EOF.");
+            }
+
             std::string Luau_str = Luau.str();
-            std::string result = Luau_str.substr(0, Luau_str.size() - 2); // remove ">>" at the end
-            tokens.push_back(ParserToken{"Luau", result, startPos});
+            if (Luau_str.length() >= 2) {
+                Luau_str = Luau_str.substr(0, Luau_str.length() - 2);
+            }
+
+            tokens.push_back(ParserToken{"Luau", Luau_str, startPos});
             continue;
         }
 
