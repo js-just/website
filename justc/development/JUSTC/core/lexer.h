@@ -46,6 +46,7 @@ struct ParserToken {
 class Lexer {
 private:
     std::string input;
+    bool warn;
     size_t position;
     std::vector<ParserToken> tokens;
 
@@ -76,9 +77,9 @@ private:
     void addDollarBefore();
 
 public:
-    Lexer(const std::string& input);
+    Lexer(const std::string& input, const bool& warn);
     std::vector<ParserToken> getTokens() const;
-    static std::pair<std::string, std::vector<ParserToken>> parse(const std::string& input);
+    static std::pair<std::string, std::vector<ParserToken>> parse(const std::string& input, const bool& warn = false);
 };
 
 #endif

@@ -54,7 +54,7 @@ char* lexer(const char* input, const char* outputMode) {
     std::string mode(outputMode == nullptr ? "json" : outputMode);
 
     try {
-        auto parsed = Lexer::parse(input);
+        auto parsed = Lexer::parse(input, true);
         std::string json = outputString(mode, parsed.second, parsed.first);
         return strdup(json.c_str());
 

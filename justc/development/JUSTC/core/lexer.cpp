@@ -34,8 +34,14 @@ SOFTWARE.
 #include <cstring>
 #include <sstream>
 #include "utility.h"
+#include <iostream>
 
-Lexer::Lexer(const std::string& input) : input(input), position(0), dollarBefore(false) {
+#ifdef __EMSCRIPTEN__
+#include "parser.h"
+#include "lexer.emscripten.h"
+#endif
+
+Lexer::Lexer(const std::string& input, const bool& warn) : input(input), warn(warn), position(0), dollarBefore(false) {
     if (input.empty()) {
         throw std::invalid_argument("Invalid Input.");
     }
@@ -231,6 +237,12 @@ void Lexer::addDollarBefore() {
 }
 
 void Lexer::tokenize() {
+    std::string warnPrefix = "";
+    #ifndef __EMSCRIPTEN__
+    if (Utility::isGitHubActions()) {
+        warnPrefix = "::warning::";
+    }
+    #endif
     while (position < input.length()) {
         char ch = input[position];
 
@@ -408,6 +420,13 @@ void Lexer::tokenize() {
             if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
             std::string JavaScript_str = JavaScript.str();
             std::string result = JavaScript_str.substr(0, JavaScript_str.size() - 2); // remove "}}" at the end
+            if (warn) {
+                #ifdef __EMSCRIPTEN__
+                warn_lexer_js(Parser::getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
+                #else
+                std::cout << warnPrefix + "Warning: JavaScript may be corrupted in the lexer output." << std::endl;
+                #endif
+            }
             tokens.push_back(ParserToken{"JavaScript", result, startPos});
             continue;
         }
@@ -458,10 +477,18 @@ void Lexer::tokenize() {
 
             std::string Luau_str = Luau.str();
             if (Luau_str.length() >= 1) {
-                Luau_str = Luau_str.substr(0, Luau_str.length() - 1);
+                Luau_str = Luau_str.substr(0, Luau_str.length() - 1); // ">"
             }
 
             tokens.push_back(ParserToken{"Luau", Luau_str, startPos});
+            if (warn) {
+                #ifdef __EMSCRIPTEN__
+                warn_lexer_luau(Parser::getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
+                #else
+                std::cout << warnPrefix + "Warning: Luau may be corrupted in the lexer output." << std::endl;
+                #endif
+            }
+            position++; // ">"
             continue;
         }
 
@@ -518,7 +545,7 @@ std::vector<ParserToken> Lexer::getTokens() const {
     return tokens;
 }
 
-std::pair<std::string, std::vector<ParserToken>> Lexer::parse(const std::string& input) {
-    Lexer lexer(input);
+std::pair<std::string, std::vector<ParserToken>> Lexer::parse(const std::string& input, const bool& warn) {
+    Lexer lexer(input, warn);
     return std::make_pair(input, lexer.getTokens());
 }

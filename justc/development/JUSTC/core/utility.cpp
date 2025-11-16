@@ -187,3 +187,8 @@ Value Utility::ParseResult2Value(const ParseResult parseresult) {
     result.name = "(Object)";
     return result;
 }
+
+bool Utility::isGitHubActions() {
+    const char* githubActions = std::getenv("GITHUB_ACTIONS");
+    return (githubActions && std::string(githubActions) == "true");
+}

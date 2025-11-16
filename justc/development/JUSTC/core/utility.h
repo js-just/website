@@ -43,6 +43,7 @@ public:
     static DataType typeDeclaration2dataType(const std::string& typeDeclaration, const std::string& position);
     static Value convert(const Value value, const DataType type);
     static Value ParseResult2Value(const ParseResult parseresult);
+    static bool isGitHubActions();
 };
 
 #endif

@@ -36,10 +36,10 @@ SOFTWARE.
 #include <cstdlib>
 #include <stdexcept>
 #include <tuple>
+#include "utility.h"
 
 void logError(const std::string error) {
-    const char* githubActions = std::getenv("GITHUB_ACTIONS");
-    if (githubActions && std::string(githubActions) == "true") std::cerr << "::error::" + error << std::endl;
+    if (Utility::isGitHubActions()) std::cerr << "::error::" + error << std::endl;
     else std::cerr << error << std::endl;
 }
 
@@ -145,8 +145,7 @@ void printUsage() {
     std::cout << "" << std::endl;
 }
 void throwError(const std::string& error, OutputRedirector* redirector = nullptr) {
-    const char* githubActions = std::getenv("GITHUB_ACTIONS");
-    if (githubActions && std::string(githubActions) == "true") {
+    if (Utility::isGitHubActions()) {
         if (redirector) {
             redirector->outputError("::error::" + error);
         } else {
@@ -353,7 +352,7 @@ int main(int argc, char* argv[]) {
         if (!flags.noInput) {
             std::string json;
             if (flags.mode == "lexer") {
-                auto lexerResult = Lexer::parse(flags.input);
+                auto lexerResult = Lexer::parse(flags.input, true);
                 json = outputString(flags, lexerResult.second, lexerResult.first);
             }
             else if (flags.mode == "parser" || flags.mode == "parserExecute") {
