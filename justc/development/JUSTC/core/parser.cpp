@@ -467,12 +467,7 @@ ParseResult Parser::parse(bool doExecute) {
                 ast.push_back(ASTNode("JAVASCRIPT"));
                 advance();
             } else if (match("Luau")) {
-                #ifdef __EMSCRIPTEN__
-                bool luau_error = use_luau(currentToken().value.c_str(), getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
-                if (luau_error) throw std::runtime_error("Luau error at " + Utility::position(position, input));
-                #else
                 RunLuau::runScript(currentToken().value);
-                #endif
                 ast.push_back(ASTNode("LUAU"));
                 advance();
             } else {

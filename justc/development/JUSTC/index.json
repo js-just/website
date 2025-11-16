@@ -1,4 +1,4 @@
-[
+{"version":["",""],"compiler":"","sources":[
 "core/js.cpp",
 "core/lexer.cpp",
 "core/parser.cpp",
@@ -10,6 +10,7 @@
 "core/to.yaml.cpp",
 "core/utility.cpp",
 "core/import.cpp",
+"core/run.luau.cpp",
 "core/main.cpp",
 "core/lexer.h",
 "core/parser.h",
@@ -25,4 +26,5 @@
 "core/import.hpp",
 "core/parser.emscripten.h",
 "core/run.js.cpp",
-"core/run.js.hpp"]
+"core/run.js.hpp",
+"core/run.luau.hpp"]}

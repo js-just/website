@@ -72,8 +72,11 @@ SOFTWARE.
     if (isBrowser && !SCRIPT) throw new JUSTC.Error(JUSTC.Errors.environment);
 
     JUSTC.VERSION = null;
+    JUSTC['+VERSION'] = null;
     JUSTC.GetVersion = function() {
-        return JUSTC.VERSION === null ? false : JUSTC.VERSION;
+        return JUSTC.VERSION === null ? false : (JUSTC.VERSION + (
+            JUSTC['+VERSION'] === null || JUSTC['+VERSION'] === JUSTC.VERSION ? '' : (' ' + JUSTC['+VERSION'])
+        ));
     };
     JUSTC.SetVersion = function(version) {
         if (!JUSTC.GetVersion()) JUSTC.VERSION = version;
@@ -816,7 +819,9 @@ SOFTWARE.
             };
             try {
                 const urlprefix = SCRIPT.src.slice(0,-8)+'JUSTC/';
-                const sources = await(await FETCH(urlprefix)).json();
+                const indexjson = await(await FETCH(urlprefix)).json();
+                JUSTC['+VERSION'] = indexjson['version'][1] || null;
+                const sources = indexjson['sources'];
                 const CurrentVFS = new JUSTC.VFS();
                 if (!ARRAY.isArray(sources)) return;
                 for (const source of sources) {
