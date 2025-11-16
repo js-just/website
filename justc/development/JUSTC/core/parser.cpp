@@ -324,7 +324,7 @@ long getCurrentTime() {
 }
 
 Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType)
-    : tokens(tokens), input(input), position(0), outputMode("EVERYTHING"), allowJavaScript(allowJavaScript),
+    : tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript),
       globalScope(false), strictMode(false), hasLogFile(false),
       doExecute(doExecute), runAsync(runAsync), canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType) {}
 
@@ -415,17 +415,17 @@ ParseResult Parser::parse(bool doExecute) {
             if (match("keyword")) {
                 std::string keyword = currentToken().value;
 
-                if (keyword == "TYPE") {
-                    ast.push_back(parseTypeCommand());
-                } else if (keyword == "OUTPUT") {
+                if (keyword == "scope") {
+                    ast.push_back(parseScopeCommand());
+                } else if (keyword == "output") {
                     ast.push_back(parseOutputCommand());
-                } else if (keyword == "RETURN" || keyword == "RT") {
+                } else if (keyword == "return") {
                     ast.push_back(parseReturnCommand());
-                } else if (keyword == "ALLOW" || keyword == "DISALLOW") {
+                } else if (keyword == "allow" || keyword == "disallow") {
                     ast.push_back(parseAllowCommand());
-                } else if (keyword == "IMPORT") {
+                } else if (keyword == "import") {
                     ast.push_back(parseImportCommand());
-                } else if (keyword == "ECHO" || keyword == "LOGFILE" || keyword == "LOG") {
+                } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
                     ast.push_back(parseCommand(doExecute));
                 } else {
                     ast.push_back(parseStatement(doExecute));
@@ -486,9 +486,9 @@ ParseResult Parser::parse(bool doExecute) {
 
         evaluateAllVariables();
 
-        if (outputMode == "SPECIFIED") {
+        if (outputMode == "specified") {
             if (outputVariables.empty()) {
-                throw std::runtime_error("OUTPUT SPECIFIED requires RETURN command with variables");
+                throw std::runtime_error("Output mode \"specified\" requires \"return\" command with variables.");
             }
             for (const auto& varName : outputVariables) {
                 auto it = variables.find(varName);
@@ -502,16 +502,16 @@ ParseResult Parser::parse(bool doExecute) {
                     }
                 }
             }
-        } else if (outputMode == "EVERYTHING") {
+        } else if (outputMode == "everything") {
             if (!outputVariables.empty()) {
-                throw std::runtime_error("RETURN command not allowed with OUTPUT EVERYTHING");
+                throw std::runtime_error("Got \"return\" command with output mode \"everything\". Output mode \"everything\" returns every variable without \"return\" command.");
             }
             for (const auto& pair : variables) {
                 result.returnValues[pair.first] = convertToDecimal(pair.second);
             }
-        } else if (outputMode == "DISABLED") {
+        } else if (outputMode == "disabled") {
             if (!outputVariables.empty()) {
-                throw std::runtime_error("RETURN command not allowed with OUTPUT DISABLED");
+                throw std::runtime_error("Cannot return anything with output mode \"disabled\".");
             }
         }
 
@@ -541,17 +541,20 @@ Value Parser::convertToDecimal(const Value& value) {
     return value;
 }
 
-ASTNode Parser::parseTypeCommand() {
-    ASTNode node("TYPE_COMMAND", "", currentToken().start);
+void Parser::parseScopeCommandError(const std::string scope) {
+    throw std::runtime_error("Expected scope mode keyword, got \"" + scope + "\" at " + Utility::position(currentToken().start, input) + ". Scope mode keywords are: \"global\", \"local\", \"strict\".");
+}
+ASTNode Parser::parseScopeCommand() {
+    ASTNode node("SCOPE_COMMAND", "", currentToken().start);
     advance();
 
     if (match("keyword")) {
         std::string type = currentToken().value;
-        if (type == "GLOBAL") {
+        if (type == "global") {
             globalScope = true;
-        } else if (type == "LOCAL") {
+        } else if (type == "local") {
             globalScope = false;
-        } else if (type == "STRICT") {
+        } else if (type == "strict") {
             strictMode = true;
         }
         node.value = stringToValue(type);
@@ -561,24 +564,35 @@ ASTNode Parser::parseTypeCommand() {
     return node;
 }
 
+void Parser::parseOutputCommandError(const std::string mode) {
+    throw std::runtime_error("Expected output mode keyword, got \"" + mode + "\" at " + Utility::position(currentToken().start, input) + ". Output mode keywords are: \"specified\", \"everything\", \"disabled\".");
+}
 ASTNode Parser::parseOutputCommand() {
     ASTNode node("OUTPUT_COMMAND", "", currentToken().start);
     advance();
 
     if (match("keyword")) {
         std::string mode = currentToken().value;
-        if (mode == "SPECIFIED" || mode == "EVERYTHING" || mode == "DISABLED") {
+        if (mode == "specified" || mode == "everything" || mode == "disabled") {
             outputMode = mode;
             node.value = stringToValue(outputMode);
             advance();
         } else {
-            throw std::runtime_error("Invalid OUTPUT mode: " + mode);
+            parseOutputCommandError(mode);
         }
+    } else {
+        parseOutputCommandError(currentToken().value);
     }
 
     return node;
 }
 
+void Parser::parseReturnCommandError(const bool a, const bool b) {
+    if (a && b) throw std::runtime_error("Expected identifier, got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+    else if (b) throw std::runtime_error("Expected variable name, got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+    else if (a) throw std::runtime_error("Expected \"[\", got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+    else throw std::runtime_error("Expected \"]\" (to close \"[\"), got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+}
 ASTNode Parser::parseReturnCommand() {
     ASTNode node("RETURN_COMMAND", "", currentToken().start);
     advance();
@@ -589,45 +603,50 @@ ASTNode Parser::parseReturnCommand() {
             if (match("identifier")) {
                 outputVariables.push_back(currentToken().value);
                 advance();
-            }
+            } else parseReturnCommandError(true, true);
             if (match(",")) advance();
         }
         if (match("]")) advance();
-    }
+        else parseReturnCommandError(false);
+    } else parseReturnCommandError(true);
 
-    if (match("keyword", "AS")) {
+    if (match("keyword", "as")) {
         advance();
         if (match("[")) {
             advance();
             while (!match("]") && !isEnd()) {
-                if (match("identifier")) {
+                if (match("identifier") || match("string") || match("number")) {
                     outputNames.push_back(currentToken().value);
                     advance();
-                }
+                } else parseReturnCommandError(false, true);
                 if (match(",")) advance();
             }
             if (match("]")) advance();
-        }
+            else parseReturnCommandError(false);
+        } else parseReturnCommandError(true);
     }
 
     return node;
 }
 
+void Parser::parseAllowCommandError() {
+    throw std::runtime_error("Expected language name, got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ". Supported languages are: \"JavaScript\", \"Luau\".");
+}
 ASTNode Parser::parseAllowCommand() {
     ASTNode node("ALLOW_COMMAND", "", currentToken().start);
     std::string command = currentToken().value;
     advance();
 
-    if (match("keyword", "JAVASCRIPT")) {
-        if (!canAllowJS && command == "ALLOW") {
+    if (match("keyword", "JavaScript")) {
+        if (!canAllowJS && command == "allow") {
             #ifdef __EMSCRIPTEN__
             warn_cant_enable_js(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str(), scriptName.c_str(), scriptType.c_str());
             #endif
             addLog("WARN", "Attempt to allow JavaScript at <import ", currentToken().start);
-        } else allowJavaScript = (command == "ALLOW");
+        } else allowJavaScript = (command == "allow");
         node.value = booleanToValue(allowJavaScript);
         advance();
-    }
+    } else parseAllowCommandError();
 
     return node;
 }
@@ -636,7 +655,6 @@ ASTNode Parser::parseImportCommand() {
     ASTNode node("IMPORT_COMMAND", "", currentToken().start);
     advance();
 
-    // TODO: import logic
     if (match("keyword", "JUSTC")) {
         advance();
         if (match("(")) {
@@ -730,9 +748,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute) {
         extractReferences(conditionalValue, node.references);
     }
     else if (position >= 2 && (
-        tokens[position - 2].value == "ECHO" ||
-        tokens[position - 2].value == "LOG"  ||
-        tokens[position - 2].value == "LOGFILE"
+        tokens[position - 2].value == "echo" ||
+        tokens[position - 2].value == "log"  ||
+        tokens[position - 2].value == "logfile"
     )) {
         position -= 2;
         parseCommand(doExecute);

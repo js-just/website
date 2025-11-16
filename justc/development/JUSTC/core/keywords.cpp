@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include "keywords.h"
 
+/*
 const std::vector<std::string> keywords = {
     "TYPE", "GLOBAL", "LOCAL", "STRICT", "JSON",
     "HTTPJSON", "HTTPTEXT", "HTTPJUSTC", "JUSTC",
@@ -39,39 +40,16 @@ const std::vector<std::string> keywords = {
     "STRINGOCT", "NUMBER", "BINARY", "OCTAL", "BASE64",
     "HEXADECIMAL", "PARSEHOCON", "HTTPHOCON", "BASE32",
     "STRINGB32", "ABSOLUTE", "CEIL", "FLOOR", "ALLOW",
-    "DISALLOW", "JAVASCRIPT", "SAFE",
-};
+    "DISALLOW", "JAVASCRIPT", "SAFE", "LUAU", "CLASS"
+};*/
 
-const std::unordered_map<std::string, std::string> smallKeywords = {
-    {"T",    "TYPE"},       {"G",      "GLOBAL"},      {"L",   "LOCAL"},
-    {"A",    "ALL"},        {"JS",     "JSON"},        {"JC",  "JUSTC"},
-    {"EX",   "EXPORT"},     {"ES",     "EXPORTS"},     {"RQ",  "REQUIRE"},
-    {"HJS",  "HTTPJSON"},   {"HT",     "HTTPTEXT"},    {"HJ",  "HTTPJUSTC"},
-    {"HH",   "HTTPHOCON"},  {"CO",     "CONFIG"},      {"SF",  "SAFE"},
-    {"F",    "FILE"},       {"SZ",     "SIZE"},        {"ST",  "STRING"},
-    {"SN",   "STRINGNUM"},  {"S64",    "STRINGB64"},   {"S02", "STRINGBIN"},
-    {"S16",  "STRINGHEX"},  {"ID",     "TYPEID"},      {"OF",  "TYPEOF"},
-    {"OUT",  "OUTPUT"},     {"R",     "RETURN"},       {"Q",   "SQ"},
-    {"PJ",   "PARSEJUSTC"}, {"PJS",    "PARSEJSON"},   {"SP",  "SPECIFIED"},
-    {"EV",   "EVERYTHING"}, {"N",      "DISABLED"},    {"SC",  "STRICT"},
-    {"NUM",  "NUMBER"},     {"SO",     "STRINGOCT"},   {"B",   "BINARY"},
-    {"OC",   "OCTAL"},      {"B64",    "BASE64"},      {"HEX", "HEXADECIMAL"},
-    {"PH",   "PARSEHOCON"}, {"S32",    "STRINGB32"},   {"B32", "BASE32"},
-    {"AB",   "ABSOLUTE"},   {"CE",     "CEIL"},        {"FL",  "FLOOR"},
-    {"DL",   "DISALLOW"},   {"J",      "JAVASCRIPT"},  {"I",   "IMPORT"},
-    {"U",    "CU"},         {"AL",     "ALLOW"},
-    {"HJC",  "HTTPJUSTC"},  {"CF",     "CONFIG"},      {"E",   "ENV"},
-    {"S10",  "STRINGNUM"},  {"SNUM",   "STRINGNUM"},   {"TID", "TYPEID"},
-    {"TO",   "TYPEOF"},     {"PUT",    "RETURN"},      {"PJC", "PARSEJUSTC"},
-    {"SPEC", "SPECIFIED"},  {"EVERY",  "EVERYTHING"},  {"DIS", "DISABLED"},
-    {"SOCT", "STRINGOCT"},  {"S08",    "STRINGOCT"},   {"BIN", "BINARY"},
-    {"OCT",  "OCTAL"},      {"HEXDEC", "HEXADECIMAL"}, {"B02", "BINARY"},
-    {"B08",  "OCTAL"},      {"B10",    "NUMBER"},      {"B16", "HEXADECIMAL"},
-    {"ABS",  "ABSOLUTE"},   {"O",      "VALUE"},       {"SL",  "LINK"},
-};
-
-const std::unordered_map<std::string, std::string> bigKeywords = {
-    {"SQRT", "V"},  {"ROOT", "V"},     {"DOUBLE", "D"}, {"SQUARE", "SQ"},
-    {"CUBE", "CU"}, {"NEGATIVE", "N"}, {"SIN", "S"},    {"COS", "C"},
-    {"TAN", "T"},   {"SINE", "S"},     {"COSINE", "C"}, {"TANGENT", "T"}
+const std::vector<std::string> keywords = {
+    "type", "global", "local", "strict",
+    "import", "export", "exports", "require",
+    "run", "output", "return", "specified",
+    "everything", "disabled", "as", "allow",
+    "disallow", "JavaScript", "safe", "Luau",
+    "class", "function", "public", "private",
+    "static", "const", "define", "undefine",
+    "echo", "log", "logfile"
 };

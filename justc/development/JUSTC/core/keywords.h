@@ -32,7 +32,5 @@ SOFTWARE.
 #include <string>
 
 extern const std::vector<std::string> keywords;
-extern const std::unordered_map<std::string, std::string> smallKeywords;
-extern const std::unordered_map<std::string, std::string> bigKeywords;
 
 #endif

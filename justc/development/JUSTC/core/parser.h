@@ -229,7 +229,7 @@ private:
     ASTNode parseStatement(bool doExecute);
     ASTNode parseVariableDeclaration(bool doExecute);
     ASTNode parseCommand(bool doExecute);
-    ASTNode parseTypeCommand();
+    ASTNode parseScopeCommand();
     ASTNode parseOutputCommand();
     ASTNode parseReturnCommand();
     ASTNode parseAllowCommand();
@@ -333,6 +333,10 @@ private:
     Value functionFLOOR(const std::vector<Value>& args);
 
     Value onHTTPDisabled(size_t startPos, std::string args0string_value);
+    void parseOutputCommandError(const std::string mode);
+    void parseReturnCommandError(const bool a, const bool b = false);
+    void parseScopeCommandError(const std::string scope);
+    void parseAllowCommandError();
 
 public:
     static std::string getCurrentTimestamp();

@@ -75,6 +75,7 @@ private:
 
     bool dollarBefore;
     void addDollarBefore();
+    bool isNonAscii(char c);
 
 public:
     Lexer(const std::string& input, const bool& warn);

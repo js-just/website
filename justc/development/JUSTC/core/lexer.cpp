@@ -51,15 +51,6 @@ Lexer::Lexer(const std::string& input, const bool& warn) : input(input), warn(wa
 
 void Lexer::initializeKeywords() {
     keywords = ::keywords;
-    smallkeywords = ::smallKeywords;
-    bigkeywords = ::bigKeywords;
-
-    for (const auto& pair : smallkeywords) {
-        skw.push_back(pair.first);
-    }
-    for (const auto& pair : bigkeywords) {
-        bkw.push_back(pair.first);
-    }
 }
 
 void Lexer::invalidInput() {
@@ -192,22 +183,7 @@ ParserToken Lexer::readIdentifier() {
         idWithoutDollar = id.substr(1);
     }
 
-    auto smallIt = smallkeywords.find(idWithoutDollar);
-    if (smallIt != smallkeywords.end()) {
-        std::string fullKeyword = id[0] == '$' ? "$" + smallIt->second : smallIt->second;
-        return ParserToken{"keyword", fullKeyword, start};
-    }
-    auto bigIt = bigkeywords.find(idWithoutDollar);
-    if (bigIt != bigkeywords.end()) {
-        std::string fullKeyword = id[0] == '$' ? "$" + bigIt->second : bigIt->second;
-        return ParserToken{"keyword", fullKeyword, start};
-    }
-
     if (std::find(keywords.begin(), keywords.end(), idWithoutDollar) != keywords.end()) {
-        return ParserToken{"keyword", id, start};
-    } else if (smallkeywords.find(idWithoutDollar) != smallkeywords.end()) {
-        return ParserToken{"keyword", id, start};
-    } else if (bigkeywords.find(idWithoutDollar) != bigkeywords.end()) {
         return ParserToken{"keyword", id, start};
     }
 
@@ -234,6 +210,9 @@ void Lexer::addDollarBefore() {
         dollarBefore = false;
         position--;
     }
+}
+bool Lexer::isNonAscii(char c) {
+    return static_cast<unsigned char>(c) > 127;
 }
 
 void Lexer::tokenize() {
@@ -524,6 +503,11 @@ void Lexer::tokenize() {
             addDollarBefore();
             tokens.push_back(ParserToken{std::string(1, ch), std::string(1, ch), position});
             position++;
+            continue;
+        }
+
+        if (isNonAscii(ch)) {
+            tokens.push_back(readIdentifier());
             continue;
         }
 
