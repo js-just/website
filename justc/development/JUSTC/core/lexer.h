@@ -64,6 +64,7 @@ private:
     bool isBase64Char(char ch) const;
     char peek(size_t offset = 1) const;
     void readComment();
+    void readMultiLineComment();
     ParserToken readString();
     ParserToken readLink();
     ParserToken readNumber();

@@ -11,6 +11,7 @@
 "core/utility.cpp",
 "core/import.cpp",
 "core/run.luau.cpp",
+"core/built-in/http/http.cpp",
 "core/main.cpp",
 "core/lexer.h",
 "core/parser.h",
@@ -27,4 +28,5 @@
 "core/parser.emscripten.h",
 "core/run.js.cpp",
 "core/run.js.hpp",
-"core/run.luau.hpp"]}
+"core/run.luau.hpp",
+"core/built-in/http/http.hpp"]}

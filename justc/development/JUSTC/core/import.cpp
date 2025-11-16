@@ -46,7 +46,7 @@ std::string Import::ReadFile(const std::string path, const std::string position)
         return std::string((std::istreambuf_iterator<char>(file)),
                             std::istreambuf_iterator<char>());
     #else
-        return Utility::value2string(Fetch::httpGet(path));
+        return Utility::value2string(Fetch::request(path));
     #endif
 }
 

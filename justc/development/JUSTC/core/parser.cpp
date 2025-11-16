@@ -41,6 +41,8 @@ SOFTWARE.
 #include "import.hpp"
 #include "run.luau.hpp"
 
+#include "built-in/http/http.hpp"
+
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
     #include <emscripten.h>
@@ -1009,6 +1011,8 @@ Value Parser::parsePrimary(bool doExecute) {
 
         if (peekToken().type == "(") {
             return parseFunctionCall(doExecute);
+        } else if (peekToken().type == "::") {
+            return parseSpaceCall(doExecute);
         }
 
         Value result;
@@ -1126,6 +1130,19 @@ Value Parser::parseFunctionCall(bool doExecute) {
     advance();
 
     return executeFunction(funcName, args, startPos);
+}
+Value Parser::parseSpaceCall(bool doExecute) {
+    std::string spaceName = currentToken().value;
+    size_t startPos = currentToken().start;
+    advance();
+
+    if (!match("::")) {
+        throw std::runtime_error("Expected \"::\" after space name at " + Utility::position(startPos, input) + ".");
+    }
+    advance();
+
+    tokens[position].value = spaceName + "::" + currentToken().value;
+    return parseFunctionCall(doExecute);
 }
 
 ASTNode Parser::parseCommand(bool doExecute) {
@@ -1263,7 +1280,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         }
         return functionHTTPJSON(args);
     }
-    if (funcName == "HTTPTEXT") {
+    if (funcName == "HTTP::GET") {
         if (!doExecute) {
             return onHTTPDisabled(startPos, args[0].string_value);
         }
@@ -1796,7 +1813,7 @@ Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) 
 
     std::string url = args[0].toString();
 
-    Value result = Fetch::httpGet(url, "TEXT");
+    Value result = HTTP::GET(url, {}, "TEXT");
     if (result.type == DataType::STRING) {
         return result;
     } else {

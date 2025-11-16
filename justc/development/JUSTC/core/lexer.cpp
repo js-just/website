@@ -88,12 +88,22 @@ char Lexer::peek(size_t offset) const {
     return '\0';
 }
 
+// single-line comment: -- comment
 void Lexer::readComment() {
     while (position < input.length() && input[position] != '\n') {
         position++;
     }
     if (position < input.length() && input[position] == '\n') {
         position++;
+    }
+}
+// multi-line comment: -{ comment }-
+void Lexer::readMultiLineComment() {
+    while (position < input.length() && input[position] != '}' && peek() != '-') {
+        position++;
+    }
+    if (position < input.length() && input[position] == '}' && peek() == '-') {
+        position += 2;
     }
 }
 
@@ -232,8 +242,20 @@ void Lexer::tokenize() {
         }
 
         if (ch == '-' && peek() == '-') {
+            if ((isDigit(input[position - 1]) || isLetter(input[position - 1])) && (peek(2) == ',' || peek(2) == '.' || peek(2) == ')')) {
+                addDollarBefore();
+                position += 2;
+                tokens.push_back(ParserToken{"--", "--", position});
+                continue;
+            } else {
+                addDollarBefore();
+                readComment();
+                continue;
+            }
+        }
+        if (ch == '-' && peek() == '{') {
             addDollarBefore();
-            readComment();
+            readMultiLineComment();
             continue;
         }
 
@@ -508,6 +530,13 @@ void Lexer::tokenize() {
 
         if (isNonAscii(ch)) {
             tokens.push_back(readIdentifier());
+            continue;
+        }
+
+        if (ch == ':' && peek() == ':') {
+            addDollarBefore();
+            tokens.push_back(ParserToken{"::", "::", position});
+            position += 2;
             continue;
         }
 

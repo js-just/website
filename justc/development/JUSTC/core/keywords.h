@@ -28,7 +28,6 @@ SOFTWARE.
 #define KEYWORDS_H
 
 #include <vector>
-#include <unordered_map>
 #include <string>
 
 extern const std::vector<std::string> keywords;
