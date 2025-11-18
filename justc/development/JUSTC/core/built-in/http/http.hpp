@@ -29,13 +29,15 @@ SOFTWARE.
 #include "../../parser.h"
 
 class HTTP {
+    private:
+        static Value CreateResponseValue(const Value& response, const std::string& statusCode, const std::string& headers);
     public:
-        static Value GET(    const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format);/*
-        static Value POST(   const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format, const std::string& body);
-        static Value PUT(    const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format, const std::string& body);
-        static Value PATCH(  const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format, const std::string& body);
-        static Value DELETE( const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format);
-        static Value HEAD(   const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format);
-        static Value OPTIONS(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format);*/
-//      static Value request(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format, const std::string& body, const std::string& method);
+        static Value GET(    const std::string& url, const std::unordered_map<std::string, std::string>& headers);/*
+        static Value POST(   const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body);
+        static Value PUT(    const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body);
+        static Value PATCH(  const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body);
+        static Value DELETE( const std::string& url, const std::unordered_map<std::string, std::string>& headers);
+        static Value HEAD(   const std::string& url, const std::unordered_map<std::string, std::string>& headers);
+        static Value OPTIONS(const std::string& url, const std::unordered_map<std::string, std::string>& headers);*/
+//      static Value request(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body, const std::string& method);
 };

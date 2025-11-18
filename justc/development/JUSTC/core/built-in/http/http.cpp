@@ -28,6 +28,6 @@ SOFTWARE.
 #include "../../fetch.h"
 #include "../../parser.h"
 
-Value HTTP::GET(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& format) {
-    return Fetch::request(url, format, "GET", headers);
+Value HTTP::GET(const std::string& url, const std::unordered_map<std::string, std::string>& headers) {
+    return Fetch::request(url, "GET", headers);
 }

@@ -55,6 +55,8 @@ enum class DataType {
     INFINITE     = 18,
     SYNTAX_ERROR = 19,
     OCTAL        = 20,
+    CLASS        = 21,
+    SPACE        = 22,
     UNKNOWN      =-1
 };
 
@@ -79,6 +81,8 @@ inline std::string dataTypeToString(DataType type) {
         case DataType::SYNTAX_ERROR: return "Syntax Error";
         case DataType::OCTAL:        return "Octal number";
         case DataType::UNKNOWN:      return "unknown";
+        case DataType::CLASS:        return "class";
+        case DataType::SPACE:        return "space";
         default:                     return "unknown";
     }
 };
@@ -97,6 +101,7 @@ struct Value {
 
     Value() : type(DataType::UNKNOWN), number_value(0), name("unknown") {}
     Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)) {}
+    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)) {}
 
     std::string toString() const;
     double toNumber() const;

@@ -40,6 +40,8 @@ SOFTWARE.
 #include <vector>
 #include "import.hpp"
 #include "run.luau.hpp"
+#include <string>
+#include <unordered_map>
 
 #include "built-in/http/http.hpp"
 
@@ -130,6 +132,12 @@ std::string Value::toString() const {
             return "NaN";
         case DataType::INFINITE:
             return "Infinity";
+        case DataType::JUSTC_OBJECT:
+            return "[object " + name + "]";
+        case DataType::CLASS:
+            return "[class " + name + "]";
+        case DataType::SPACE:
+            return "[space " + name + "]";
         default:
             return "unknown";
     }
@@ -1812,8 +1820,13 @@ Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) 
     }
 
     std::string url = args[0].toString();
+    std::string headersStr = args[1].toString();
+    std::unordered_map<std::string, std::string> headers = Utility::ParseHeaders(headersStr);
+    if (headers.find("Accept") == headers.end()) {
+        headers["Accept"] = Utility::defaultHTTPAccept;
+    }
 
-    Value result = HTTP::GET(url, {}, "TEXT");
+    Value result = HTTP::GET(url, headers);
     if (result.type == DataType::STRING) {
         return result;
     } else {

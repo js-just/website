@@ -30,14 +30,14 @@ SOFTWARE.
 #include <string>
 #include "lexer.h"
 #include "parser.h"
+#include <utility>
 
 class Fetch {
 public:
-    static Value request(const std::string& url, const std::string& format = "TEXT", const std::string& method = "GET", const std::unordered_map<std::string, std::string>& headers = {}, const std::string& body = "");
+    static Value request(const std::string& url, const std::string& method = "GET", const std::unordered_map<std::string, std::string>& headers = {}, const std::string& body = "");
 
 private:
-    static Value fetchHttpContent(const std::string& url, const std::string& expectedType, const std::string& method, const std::string& body, const std::unordered_map<std::string, std::string>& headers);
-    static std::string executeHttpRequest(const std::string& url, const std::string& method, const std::string& body, const std::unordered_map<std::string, std::string>& headers);
+    static std::pair<std::string, std::pair<std::string, std::string>> executeHttpRequest(const std::string& url, const std::string& method, const std::string& body, const std::unordered_map<std::string, std::string>& headers);
     static void processHttpRequests(const ParseResult& result);
 };
 
