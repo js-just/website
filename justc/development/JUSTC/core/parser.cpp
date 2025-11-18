@@ -1827,11 +1827,19 @@ Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) 
     }
 
     Value result = HTTP::GET(url, headers);
-    if (result.type == DataType::STRING) {
-        return result;
-    } else {
-        return stringToValue(result.toString());
-    }
+    if ((match(".") || match(":")) && peekToken().type == "identifier") {
+        advance();
+        std::string funcName = currentToken().value;
+        advance();
+        if (currentToken().type == "(" && peekToken().type == ")") {
+            position += 2;
+            if (result.object_value.find(funcName) != result.object_value.end()) {
+                return result.object_value[funcName];
+            } else {
+                throw std::runtime_error("HTTP.Response: Unknown function \"" + funcName + "\" at " + Utility::position(startPos, input) + ".");
+            }
+        } else throw std::runtime_error("Expected function call at " + Utility::position(startPos, input) + ".");
+    } else return result;
 }
 
 Value Parser::functionJUSTC(const std::vector<Value>& args) { return Value(); }
