@@ -67,6 +67,7 @@ SOFTWARE.
     const BLOB = isBrowser ? Blob : null;
     const FETCH = fetch;
     const SCRIPT = isBrowser ? DOCUMENT.currentScript : null;
+    const INT = parseInt;
 
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(globalThis_.navigator.userAgent) : false;
     if (isBrowser && !SCRIPT) throw new JUSTC.Error(JUSTC.Errors.environment);
@@ -103,7 +104,7 @@ SOFTWARE.
     };
 
     if (isBrowser) {
-        JUSTC.Checks.sysFunc(OBJECT, ARRAY, __URL__, STRING, ERR, MAP, BLOB, FETCH);
+        JUSTC.Checks.sysFunc(OBJECT, ARRAY, __URL__, STRING, ERR, MAP, BLOB, FETCH, INT);
         JUSTC.Checks.sysObj(json_, CONSOLE);
         JUSTC.Checks.sysObj(globalThis_, DOCUMENT);
         if (!isSafari) JUSTC.Checks.sysFunc(
@@ -204,7 +205,15 @@ SOFTWARE.
                         typeof JavaScriptObjectNotation.version != 'string'
                     ) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
                     if (!JUSTC.GetVersion()) JUSTC.Public.version;
-                    if (JavaScriptObjectNotation.version != JUSTC.VERSION) throw new JUSTC.Error(JUSTC.Errors.version(JavaScriptObjectNotation.version));
+                    if (JavaScriptObjectNotation.version != JUSTC.VERSION && (()=>{
+                        try {
+                            const currVerInt = INT(STRING(JUSTC.VERSION).replaceAll('.',''), 10);
+                            const inptVerInt = INT(STRING(JavaScriptObjectNotation.version).replaceAll('.',''), 10);
+                            return currVerInt < inptVerInt;
+                        } catch (_) {
+                            return true
+                        }
+                    })()) throw new JUSTC.Error(JUSTC.Errors.version(JavaScriptObjectNotation.version));
                     for (const token of JavaScriptObjectNotation.tokens) {
                         if (typeof token != 'object' || token.type === undefined || token.start === undefined || typeof token.start != 'number' || token.value === undefined) throw new JUSTC.Error(JUSTC.Errors.lexerInput);
                     }

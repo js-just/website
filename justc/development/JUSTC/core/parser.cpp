@@ -435,13 +435,14 @@ ParseResult Parser::parse(bool doExecute) {
                     ast.push_back(parseAllowCommand());
                 } else if (keyword == "import") {
                     ast.push_back(parseImportCommand());
-                } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
-                    ast.push_back(parseCommand(doExecute));
                 } else {
                     ast.push_back(parseStatement(doExecute));
                 }
             } else if (match("identifier")) {
-                ast.push_back(parseStatement(doExecute));
+                std::string identifier = currentToken().value;
+                if (identifier == "echo" || identifier == "log" || identifier == "logfile") {
+                    ast.push_back(parseCommand(doExecute));
+                } else ast.push_back(parseStatement(doExecute));
             } else if (match(".")) {
                 advance();
                 if (!isEnd()) {
@@ -665,7 +666,7 @@ ASTNode Parser::parseImportCommand() {
     ASTNode node("IMPORT_COMMAND", "", currentToken().start);
     advance();
 
-    if (match("keyword", "JUSTC")) {
+    if (match("identifier", "JUSTC")) {
         advance();
         if (match("(")) {
             advance();
@@ -709,7 +710,10 @@ ASTNode Parser::parseImportCommand() {
 }
 
 ASTNode Parser::parseStatement(bool doExecute) {
-    if (match("identifier")) {
+    std::string keyword = currentToken().value;
+    if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
+        ast.push_back(parseCommand(doExecute));
+    } else if (match("identifier")) {
         return parseVariableDeclaration(doExecute);
     } else {
         return parseCommand(doExecute);
@@ -1159,13 +1163,13 @@ ASTNode Parser::parseCommand(bool doExecute) {
     advance();
     std::vector<Value> args;
 
-    if (doExecute && (command == "ECHO" || command == "LOGFILE" || command == "LOG") && !match("(")) {
+    if (doExecute && (command == "echo" || command == "logfile" || command == "log") && !match("(")) {
         while (!match(",") && !match(".") && !isEnd()) {
             args.push_back(parseExpression(doExecute));
         }
         if (match(",")) advance();
 
-        if (command == "ECHO") {
+        if (command == "echo") {
             for (const auto& arg : args) {
                 std::string message = arg.toString();
                 auto varval = resolveVariableValue(message, false);
@@ -1177,12 +1181,12 @@ ASTNode Parser::parseCommand(bool doExecute) {
                     std::cout << Utility::value2string(varval) << std::endl;
                 }
             }
-        } else if (command == "LOGFILE") {
+        } else if (command == "logfile") {
             if (!args.empty()) {
                 std::string path = args[0].toString();
                 setLogFile(path);
             }
-        } else if (command == "LOG") {
+        } else if (command == "log") {
             for (const auto& arg : args) {
                 std::string message = arg.toString();
                 auto varval = resolveVariableValue(message, false);
@@ -1206,7 +1210,7 @@ ASTNode Parser::parseCommand(bool doExecute) {
     }
 
     if (doExecute) {
-        if (command == "ECHO") {
+        if (command == "echo") {
             for (const auto& arg : args) {
                 std::string message = arg.toString();
                 auto varval = resolveVariableValue(message, false);
@@ -1218,12 +1222,12 @@ ASTNode Parser::parseCommand(bool doExecute) {
                     std::cout << Utility::value2string(varval) << std::endl;
                 }
             }
-        } else if (command == "LOGFILE") {
+        } else if (command == "logfile") {
             if (!args.empty()) {
                 std::string path = args[0].toString();
                 setLogFile(path);
             }
-        } else if (command == "LOG") {
+        } else if (command == "log") {
             for (const auto& arg : args) {
                 std::string message = arg.toString();
                 auto varval = resolveVariableValue(message, false);
@@ -1267,16 +1271,16 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     }
 
     // built-in
-    if (funcName == "VALUE") return functionVALUE(args);
-    if (funcName == "STRING") return functionSTRING(args);
-    if (funcName == "LINK") return functionLINK(args);
-    if (funcName == "NUMBER") return functionNUMBER(args);
-    if (funcName == "BINARY") return functionBINARY(args);
-    if (funcName == "OCTAL") return functionOCTAL(args);
-    if (funcName == "HEXADECIMAL") return functionHEXADECIMAL(args);
-    if (funcName == "TYPEID") return functionTYPEID(args);
-    if (funcName == "TYPEOF") return functionTYPEOF(args);
-    if (funcName == "ECHO") return functionECHO(args);
+    if (funcName == "value") return functionVALUE(args);
+    if (funcName == "string") return functionSTRING(args);
+    if (funcName == "link") return functionLINK(args);
+    if (funcName == "number") return functionNUMBER(args);
+    if (funcName == "binary") return functionBINARY(args);
+    if (funcName == "octal") return functionOCTAL(args);
+    if (funcName == "hexadecimal") return functionHEXADECIMAL(args);
+    if (funcName == "typeid") return functionTYPEID(args);
+    if (funcName == "typeof") return functionTYPEOF(args);
+    if (funcName == "echo") return functionECHO(args);
     if (funcName == "JSON") return functionJSON(args);
     if (funcName == "HTTPJSON") {
         if (!doExecute) {
@@ -1311,31 +1315,31 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     }
     if (funcName == "PARSEJUSTC") return functionPARSEJUSTC(args);
     if (funcName == "PARSEJSON") return functionPARSEJSON(args);
-    if (funcName == "FILE") {
+    if (funcName == "file") {
         if (runAsync) {
             auto future = functionFILEAsync(args);
             return future.get();
         }
         return functionFILE(args);
     }
-    if (funcName == "SIZE") return functionSTAT(args);
-    if (funcName == "ENV") return functionENV(args);
-    if (funcName == "CONFIG") return functionCONFIG(args);
+    if (funcName == "size") return functionSTAT(args);
+    if (funcName == "env") return functionENV(args);
+    if (funcName == "config") return functionCONFIG(args);
 
     // math
-    if (funcName == "V") return functionV(args);
-    if (funcName == "D") return functionD(args);
-    if (funcName == "SQ") return functionSQ(args);
-    if (funcName == "CU") return functionCU(args);
-    if (funcName == "P") return functionP(args);
-    if (funcName == "M") return functionM(args);
-    if (funcName == "S") return functionS(args);
-    if (funcName == "C") return functionC(args);
-    if (funcName == "T") return functionT(args);
-    if (funcName == "N") return functionN(args);
-    if (funcName == "ABSOLUTE") return functionABSOLUTE(args);
-    if (funcName == "CEIL") return functionCEIL(args);
-    if (funcName == "FLOOR") return functionFLOOR(args);
+    if (funcName == "v") return functionV(args);
+    if (funcName == "d") return functionD(args);
+    if (funcName == "sq") return functionSQ(args);
+    if (funcName == "cu") return functionCU(args);
+    if (funcName == "p") return functionP(args);
+    if (funcName == "m") return functionM(args);
+    if (funcName == "s") return functionS(args);
+    if (funcName == "c") return functionC(args);
+    if (funcName == "t") return functionT(args);
+    if (funcName == "n") return functionN(args);
+    if (funcName == "absolute") return functionABSOLUTE(args);
+    if (funcName == "ceil") return functionCEIL(args);
+    if (funcName == "floor") return functionFLOOR(args);
 
     throw std::runtime_error("Unknown function: " + funcName);
 }
