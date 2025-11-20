@@ -659,7 +659,7 @@ ASTNode Parser::parseAllowCommand() {
             #ifdef __EMSCRIPTEN__
             warn_cant_enable_js(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str(), scriptName.c_str(), scriptType.c_str());
             #endif
-            addLog("WARN", "Attempt to allow JavaScript at <import ", currentToken().start);
+            addLog("WARN", "Attempt to allow JavaScript at <import " + scriptType + " \"" + scriptName + "\"> at " + Utility::position(currentToken().start, input) + ".", currentToken().start);
         } else allowJavaScript = (command == "allow");
         node.value = booleanToValue(allowJavaScript);
     } else if (match("keyword", "Luau")) {
@@ -667,7 +667,7 @@ ASTNode Parser::parseAllowCommand() {
             #ifdef __EMSCRIPTEN__
             warn_cant_enable_luau(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str(), scriptName.c_str(), scriptType.c_str());
             #endif
-            addLog("WARN", "Attempt to allow Luau at <import ", currentToken().start);
+            addLog("WARN", "Attempt to allow Luau at <import " + scriptType + " \"" + scriptName + "\"> at " + Utility::position(currentToken().start, input) + ".", currentToken().start);
         } else allowLuau = (command == "allow");
         node.value = booleanToValue(allowLuau);
     } else parseAllowCommandError();
@@ -701,7 +701,15 @@ ASTNode Parser::parseImportCommand() {
             else throw std::runtime_error("Expected \")\", got \"" + currentToken().value + "\" at " + Utility::position(position, input));
             // if (match("keyword", "REQUIRE") || match("keyword", "EXECUTE"));
 
-            std::pair<ParseResult, std::string> imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode, allowLuau);
+            std::pair<ParseResult, std::string> imports;
+            try {
+                imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode, allowLuau);
+            } catch (const std::exception& e) {
+                std::string importType = mode ? "module" : "script";
+                throw std::runtime_error(std::string(e.what()) + "\n at <import " + importType + " \"" + path + "\"> at " + Utility::position(currentToken().start, input) + ".");
+            } catch (...) {
+                throw std::runtime_error("Invalid import \"JUSTC(" + path + ") at " + Utility::position(position, input));
+            }
             addImportLog(path, imports.second, "JUSTC");
             for (const auto& pair : imports.first.returnValues) {
                 ASTNode node = ASTNode("VARIABLE_DECLARATION", pair.first, position);
