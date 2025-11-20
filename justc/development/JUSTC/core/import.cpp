@@ -37,21 +37,25 @@ SOFTWARE.
 #include "utility.h"
 #include <utility>
 
-std::string Import::ReadFile(const std::string path, const std::string position) {
-    #ifndef __EMSCRIPTEN__
-        std::ifstream file(path);
-        if (!file.is_open()) {
-            throw std::runtime_error("Import error: Unable to read the file \"" + path + "\" at " + position + ".");
-        }
-        return std::string((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
-    #else
+std::string Import::ReadFile(const std::string path, const std::string position, const bool isLink) {
+    if (isLink) {
         return Utility::value2string(Fetch::request(path));
-    #endif
+    } else {
+        #ifndef __EMSCRIPTEN__
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                throw std::runtime_error("Import error: Unable to read the file \"" + path + "\" at " + position + ".");
+            }
+            return std::string((std::istreambuf_iterator<char>(file)),
+                                std::istreambuf_iterator<char>());
+        #else
+            return Utility::value2string(Fetch::request(path));
+        #endif
+    }
 }
 
-std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau) {
-    std::string File = ReadFile(path, position);
+std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau, const bool isLink) {
+    std::string File = ReadFile(path, position, isLink);
     auto lexerResult = Lexer::parse(File);
     return {Parser::parseTokens(lexerResult.second, doExecute, asynchronously, lexerResult.first, allowJavaScript, false, path, imports ? "module" : "script", allowLuau, false), File};
 }

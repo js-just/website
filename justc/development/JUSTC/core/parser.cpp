@@ -686,6 +686,7 @@ ASTNode Parser::parseImportCommand() {
             advance();
             std::string path;
             bool mode = true; // true = "export", false = "return"
+            bool isLink = false;
             if (match("string") || match("path") || match("identifier")) {
                 path = currentToken().value;
                 advance();
@@ -696,14 +697,18 @@ ASTNode Parser::parseImportCommand() {
                     path += currentToken().value;
                     advance();
                 }
-            } else throw std::runtime_error("Expected <path>, got <" + currentToken().type + "> at " + Utility::position(position, input));
+            } else if (match("link")) {
+                path = currentToken().value;
+                advance();
+                isLink = true;
+            } else throw std::runtime_error("Expected <path | link>, got <" + currentToken().type + "> at " + Utility::position(position, input));
             if (match(")")) {advance();}
             else throw std::runtime_error("Expected \")\", got \"" + currentToken().value + "\" at " + Utility::position(position, input));
             // if (match("keyword", "REQUIRE") || match("keyword", "EXECUTE"));
 
             std::pair<ParseResult, std::string> imports;
             try {
-                imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode, allowLuau);
+                imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode, allowLuau, isLink);
             } catch (const std::exception& e) {
                 std::string importType = mode ? "module" : "script";
                 throw std::runtime_error(std::string(e.what()) + "\n at <import " + importType + " \"" + path + "\"> at " + Utility::position(currentToken().start, input) + ".");
