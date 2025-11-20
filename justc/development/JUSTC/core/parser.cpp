@@ -333,9 +333,9 @@ long getCurrentTime() {
 
 }
 
-Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType)
+Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau)
     : tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript),
-      globalScope(false), strictMode(false), hasLogFile(false),
+      globalScope(false), strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau),
       doExecute(doExecute), runAsync(runAsync), canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType) {}
 
 std::string Parser::getCurrentTimestamp() {
@@ -478,7 +478,13 @@ ParseResult Parser::parse(bool doExecute) {
                 ast.push_back(ASTNode("JAVASCRIPT"));
                 advance();
             } else if (match("Luau")) {
-                RunLuau::runScript(currentToken().value);
+                if (doExecute && allowLuau) {
+                    RunLuau::runScript(currentToken().value);
+                } else if (!allowLuau) {
+                    #ifdef __EMSCRIPTEN__
+                    warn_luau_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
+                    #endif
+                }
                 ast.push_back(ASTNode("LUAU"));
                 advance();
             } else {
@@ -656,8 +662,16 @@ ASTNode Parser::parseAllowCommand() {
             addLog("WARN", "Attempt to allow JavaScript at <import ", currentToken().start);
         } else allowJavaScript = (command == "allow");
         node.value = booleanToValue(allowJavaScript);
-        advance();
+    } else if (match("keyword", "Luau")) {
+        if (!canAllowLuau && command == "allow") {
+            #ifdef __EMSCRIPTEN__
+            warn_cant_enable_luau(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str(), scriptName.c_str(), scriptType.c_str());
+            #endif
+            addLog("WARN", "Attempt to allow Luau at <import ", currentToken().start);
+        } else allowLuau = (command == "allow");
+        node.value = booleanToValue(allowLuau);
     } else parseAllowCommandError();
+    advance();
 
     return node;
 }
@@ -687,7 +701,7 @@ ASTNode Parser::parseImportCommand() {
             else throw std::runtime_error("Expected \")\", got \"" + currentToken().value + "\" at " + Utility::position(position, input));
             // if (match("keyword", "REQUIRE") || match("keyword", "EXECUTE"));
 
-            std::pair<ParseResult, std::string> imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode);
+            std::pair<ParseResult, std::string> imports = Import::JUSTC(path, Utility::position(position, input), doExecute, runAsync, allowJavaScript, mode, allowLuau);
             addImportLog(path, imports.second, "JUSTC");
             for (const auto& pair : imports.first.returnValues) {
                 ASTNode node = ASTNode("VARIABLE_DECLARATION", pair.first, position);
@@ -1093,6 +1107,7 @@ Value Parser::parsePrimary(bool doExecute) {
         Value result = runJavaScript(currentToken().value, Utility::position(currentToken().start, input), true);
         addLog("JAVASCRIPT", Utility::value2string(result), currentToken().start);
         advance();
+        result.name = "{{" + currentToken().value + "}}";
         return result;
 
         #else
@@ -1104,7 +1119,9 @@ Value Parser::parsePrimary(bool doExecute) {
             addLog("JAVASCRIPT", jsresult.first, currentToken().start);
         }
         advance();
-        return stringToValue(jsresult.first);
+        Value result = stringToValue(jsresult.first);
+        result.name = "{{" + currentToken().value + "}}";
+        return result;
 
         #endif
     }
@@ -1112,6 +1129,21 @@ Value Parser::parsePrimary(bool doExecute) {
         #ifdef __EMSCRIPTEN__
         if (!allowJavaScript) warn_js_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
         else warn_js_disabled(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
+        #endif
+        advance();
+        return Value::createNull();
+    }
+    else if (match("Luau") && doExecute && allowLuau) {
+        Value result = stringToValue(RunLuau::runScriptWithResult(currentToken().value));
+        addLog("LUAU", Utility::value2string(result), currentToken().start);
+        advance();
+        result.name = "<<" + currentToken().value + ">>";
+        return result;
+    }
+    else if (match("Luau")) {
+        #ifdef __EMSCRIPTEN__
+        if (!allowLuau) warn_luau_disabled_by_justc(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
+        else warn_luau_disabled(Utility::position(currentToken().start, input).c_str(), currentToken().value.c_str(), getCurrentTimestamp().c_str());
         #endif
         advance();
         return Value::createNull();
@@ -2086,7 +2118,7 @@ void Parser::evaluateAllVariablesAsync() {
 #endif
 }
 
-ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType) {
-    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType);
+ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
+    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau);
     return parser.parse(doExecute);
 }

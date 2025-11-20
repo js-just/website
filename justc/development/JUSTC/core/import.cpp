@@ -50,8 +50,8 @@ std::string Import::ReadFile(const std::string path, const std::string position)
     #endif
 }
 
-std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports) {
+std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau) {
     std::string File = ReadFile(path, position);
     auto lexerResult = Lexer::parse(File);
-    return {Parser::parseTokens(lexerResult.second, doExecute, asynchronously, lexerResult.first, allowJavaScript, false, path, imports ? "module" : "script"), File};
+    return {Parser::parseTokens(lexerResult.second, doExecute, asynchronously, lexerResult.first, allowJavaScript, false, path, imports ? "module" : "script", allowLuau, false), File};
 }

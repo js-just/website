@@ -43,6 +43,16 @@ EM_JS(void, warn_cant_enable_js, (const char* position, const char* timestamp, c
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Attempt to allow JavaScript at <import', UTF8ToString(filetype), '"'+UTF8ToString(filename)+'">', 'at', UTF8ToString(position));
 });
 
+EM_JS(void, warn_luau_disabled, (const char* position, const char* token_value, const char* timestamp), {
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot run Luau', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position));
+});
+EM_JS(void, warn_luau_disabled_by_justc, (const char* position, const char* token_value, const char* timestamp), {
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Luau disallowed - Cannot run Luau', '"' + UTF8ToString(token_value) + '"', 'at', UTF8ToString(position));
+});
+EM_JS(void, warn_cant_enable_luau, (const char* position, const char* timestamp, const char* filename, const char* filetype), {
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Attempt to allow Luau at <import', UTF8ToString(filetype), '"'+UTF8ToString(filename)+'">', 'at', UTF8ToString(position));
+});
+
 EM_JS(void, warn_http_disabled, (const char* position, const char* url, const char* timestamp), {
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot fetch', '"' + UTF8ToString(url) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for HTTP requests.');
 });
