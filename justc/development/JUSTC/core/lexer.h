@@ -31,6 +31,8 @@ SOFTWARE.
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <codecvt>
+#include <locale>
 #include "keywords.h"
 
 struct ParserToken {
@@ -62,6 +64,12 @@ private:
     bool isDigit(char ch) const;
     bool isHexDigit(char ch) const;
     bool isBase64Char(char ch) const;
+
+    bool isUnicodeLetter(char ch) const;
+    bool isIdentifierStart(char ch) const;
+    bool isIdentifierContinue(char ch) const;
+    std::string readUnicodeChar();
+
     char peek(size_t offset = 1) const;
     void readComment();
     void readMultiLineComment();
@@ -82,6 +90,10 @@ public:
     Lexer(const std::string& input, const bool& warn);
     std::vector<ParserToken> getTokens() const;
     static std::pair<std::string, std::vector<ParserToken>> parse(const std::string& input, const bool& warn = false);
+
+    static bool isValidUTF8(const std::string& str);
+    static std::string toUTF8(const std::wstring& wstr);
+    static std::wstring fromUTF8(const std::string& str);
 };
 
 #endif

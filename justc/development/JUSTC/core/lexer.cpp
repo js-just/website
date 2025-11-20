@@ -35,18 +35,75 @@ SOFTWARE.
 #include <sstream>
 #include "utility.h"
 #include <iostream>
+#include <codecvt>
+#include <locale>
 
 #ifdef __EMSCRIPTEN__
 #include "parser.h"
 #include "lexer.emscripten.h"
 #endif
 
+namespace {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+}
+
 Lexer::Lexer(const std::string& input, const bool& warn) : input(input), warn(warn), position(0), dollarBefore(false) {
     if (input.empty()) {
         throw std::invalid_argument("Invalid Input.");
     }
+    if (!isValidUTF8(input)) {
+        throw std::invalid_argument("Out of range. JUSTC supports only UTF-8.");
+    }
     initializeKeywords();
     tokenize();
+}
+
+bool Lexer::isValidUTF8(const std::string& str) {
+    try {
+        std::wstring wstr = converter.from_bytes(str);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+std::string Lexer::toUTF8(const std::wstring& wstr) {
+    return converter.to_bytes(wstr);
+}
+
+std::wstring Lexer::fromUTF8(const std::string& str) {
+    return converter.from_bytes(str);
+}
+
+bool Lexer::isUnicodeLetter(char ch) const {
+    return static_cast<unsigned char>(ch) > 127;
+}
+
+bool Lexer::isIdentifierStart(char ch) const {
+    return isLetter(ch) || isUnicodeLetter(ch) || ch == '_';
+}
+
+bool Lexer::isIdentifierContinue(char ch) const {
+    return isIdentifierStart(ch) || isDigit(ch) || ch == '\'';
+}
+
+std::string Lexer::readUnicodeChar() {
+    if (position >= input.length()) return "";
+
+    char first = input[position];
+
+    int charLen = 1;
+    if ((first & 0xE0) == 0xC0) charLen = 2;
+    else if ((first & 0xF0) == 0xE0) charLen = 3;
+    else if ((first & 0xF8) == 0xF0) charLen = 4;
+
+    if (position + charLen > input.length()) {
+        throw std::runtime_error("Encoding error: Invalid UTF-8 sequence at " + Utility::position(position, input) + ".");
+    }
+
+    std::string result = input.substr(position, charLen);
+    position += charLen;
+    return result;
 }
 
 void Lexer::initializeKeywords() {
@@ -179,14 +236,23 @@ ParserToken Lexer::readIdentifier() {
         start = position - 1;
     }
 
-    while (position < input.length() &&
-           (isLetter(input[position]) ||
-            isDigit(input[position]) ||
-            input[position] == '\'')) {
-        position++;
-    }
+    std::string id;
+    while (position < input.length()) {
+        char ch = input[position];
 
-    std::string id = input.substr(start, position - start);
+        if (isIdentifierContinue(ch)) {
+            if (isUnicodeLetter(ch)) {
+                size_t before = position;
+                std::string unicodeChar = readUnicodeChar();
+                id += unicodeChar;
+            } else {
+                id += ch;
+                position++;
+            }
+        } else {
+            break;
+        }
+    }
 
     std::string idWithoutDollar = id;
     if (!id.empty() && id[0] == '$') {
@@ -220,9 +286,6 @@ void Lexer::addDollarBefore() {
         dollarBefore = false;
         position--;
     }
-}
-bool Lexer::isNonAscii(char c) {
-    return static_cast<unsigned char>(c) > 127;
 }
 
 void Lexer::tokenize() {
@@ -501,7 +564,7 @@ void Lexer::tokenize() {
             continue;
         }
 
-        if (isLetter(ch)) {
+        if (isIdentifierStart(ch)) {
             tokens.push_back(readIdentifier());
             continue;
         }
@@ -525,11 +588,6 @@ void Lexer::tokenize() {
             addDollarBefore();
             tokens.push_back(ParserToken{std::string(1, ch), std::string(1, ch), position});
             position++;
-            continue;
-        }
-
-        if (isNonAscii(ch)) {
-            tokens.push_back(readIdentifier());
             continue;
         }
 

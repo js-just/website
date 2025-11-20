@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "parser.h"
 #include <string>
+#include <codecvt>
+#include <locale>
 
 class Utility {
 public:
@@ -46,6 +48,71 @@ public:
     static bool isGitHubActions();
     static std::unordered_map<std::string, std::string> ParseHeaders(const std::string& headers);
     static std::string defaultHTTPAccept;
+};
+class UnicodeUtility {
+public:
+    static bool isValidUTF8(const std::string& str) {
+        try {
+            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+            std::wstring wstr = converter.from_bytes(str);
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    static std::string toUTF8(const std::wstring& wstr) {
+        try {
+            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+            return converter.to_bytes(wstr);
+        } catch (...) {
+            return "";
+        }
+    }
+
+    static std::wstring fromUTF8(const std::string& str) {
+        try {
+            std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+            return converter.from_bytes(str);
+        } catch (...) {
+            return L"";
+        }
+    }
+
+    static std::string toLowerUTF8(const std::string& str) {
+        try {
+            std::wstring wstr = fromUTF8(str);
+            std::transform(wstr.begin(), wstr.end(), wstr.begin(), ::towlower);
+            return toUTF8(wstr);
+        } catch (...) {
+            std::string result = str;
+            std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+            return result;
+        }
+    }
+
+    static bool isUnicodeIdentifier(const std::string& str) {
+        if (str.empty()) return false;
+
+        try {
+            std::wstring wstr = fromUTF8(str);
+
+            wchar_t first = wstr[0];
+            if (first != L'_' && !iswalpha(first)) {
+                return false;
+            }
+
+            for (wchar_t c : wstr) {
+                if (c != L'_' && !iswalnum(c)) {
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
 };
 
 #endif
