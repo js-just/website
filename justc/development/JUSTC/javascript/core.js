@@ -70,6 +70,7 @@ SOFTWARE.
     const INT = parseInt;
 
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(globalThis_.navigator.userAgent) : false;
+    const isNode   = isModule ? typeof process !== 'undefined' && process.versions && process.versions.node : false;
     if (isBrowser && !SCRIPT) throw new JUSTC.Error(JUSTC.Errors.environment);
 
     JUSTC.VERSION = null;
@@ -241,13 +242,30 @@ SOFTWARE.
                 Return: ()=>{return(
                     isAMD ? 'AMD' : isModule ? 'Module/CommonJS' : isBrowser ? 'Browser' : 'unknown' + JUSTC.NodeWASM != undefined ? " (Node.js)" : ''
                 )}
-            }
+            },
+            CLI: {
+                NeedsWASM: false,
+                Name: "core.cli",
+                Return: ()=>{
+                    require('./cli.js');
+                    return {
+                        readFile: function(filename) {
+                            const fs = require('fs');
+                            return fs.readFileSync(filename, 'utf8');
+                        },
+                        writeFile: function(filename, content) {
+                            const fs = require('fs');
+                            fs.writeFileSync(filename, content, 'utf8');
+                        }
+                    }
+                }
+            },
         },
         Available: [
             'errorsEnabled',
             'logsEnabled',
             'isSilent',
-            'detectedEnvironment'
+            'detectedEnvironment',
         ],
         WhatToName: {
             "core.lexer": "Lexer",
@@ -255,8 +273,9 @@ SOFTWARE.
             "errorsEnabled": "CoreErrors",
             "logsEnabled": "CoreLogs",
             "isSilent": "Silent",
-            "detectedEnvironment": "env"
-        }
+            "detectedEnvironment": "env",
+            "core.cli": "CLI",
+        },
     };
 
     JUSTC.ScriptsAdded = [];
@@ -828,12 +847,13 @@ SOFTWARE.
             } catch (_) {}
         },0);
     } else if (isModule) {
-        module.exports = JUSTC.CreateAsyncExports()
+        if (isNode) JUSTC.PrivateFunctions.Available.push('core.cli');
+        module.exports = JUSTC.CreateAsyncExports();
     } else if (isAMD) {
         define(['require'], function(require) {
-            return JUSTC.CreateAsyncExports()
-        })
+            return JUSTC.CreateAsyncExports();
+        });
     } else {
-        throw new JUSTC.Error('Unsupported environment.')
+        throw new JUSTC.Error('Unsupported environment.');
     }
-})()
+})();
