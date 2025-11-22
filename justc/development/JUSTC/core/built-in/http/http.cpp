@@ -31,3 +31,21 @@ SOFTWARE.
 Value HTTP::GET(const std::string& url, const std::unordered_map<std::string, std::string>& headers) {
     return Fetch::request(url, "GET", headers);
 }
+Value HTTP::POST(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body) {
+    return Fetch::request(url, "POST", headers, body);
+}
+Value HTTP::PUT(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body) {
+    return Fetch::request(url, "PUT", headers, body);
+}
+Value HTTP::PATCH(const std::string& url, const std::unordered_map<std::string, std::string>& headers, const std::string& body) {
+    return Fetch::request(url, "PATCH", headers, body);
+}
+Value HTTP::DELETE(const std::string& url, const std::unordered_map<std::string, std::string>& headers) {
+    return Fetch::request(url, "DELETE", headers);
+}
+Value HTTP::HEAD(const std::string& url, const std::unordered_map<std::string, std::string>& headers) {
+    return Fetch::request(url, "HEAD", headers);
+}
+Value HTTP::OPTIONS(const std::string& url, const std::unordered_map<std::string, std::string>& headers) {
+    return Fetch::request(url, "OPTIONS", headers);
+}
