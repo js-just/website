@@ -1327,37 +1327,77 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     if (funcName == "typeof") return functionTYPEOF(args);
     if (funcName == "echo") return functionECHO(args);
     if (funcName == "JSON") return functionJSON(args);
-    if (funcName == "HTTPJSON") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
-        if (runAsync) {
-            auto future = functionHTTPJSONAsync(args);
-            return future.get();
-        }
-        return functionHTTPJSON(args);
-    }
     if (funcName == "HTTP::GET") {
         if (!doExecute) {
             return onHTTPDisabled(startPos, args[0].string_value);
         }
         if (runAsync) {
-            auto future = functionHTTPTEXTAsync(startPos, args);
+            auto future = functionHTTPAsync(startPos, "GET", args);
             return future.get();
         }
-        return functionHTTPTEXT(startPos, args);
+        return functionHTTP(startPos, "GET", args);
     }
-    if (funcName == "JUSTC") return functionJUSTC(args);
-    if (funcName == "HTTPJUSTC") {
+    if (funcName == "HTTP::POST") {
         if (!doExecute) {
             return onHTTPDisabled(startPos, args[0].string_value);
         }
         if (runAsync) {
-            auto future = functionHTTPJUSTCAsync(args);
+            auto future = functionHTTPAsync(startPos, "POST", args);
             return future.get();
         }
-        return functionHTTPJUSTC(args);
+        return functionHTTP(startPos, "POST", args);
     }
+    if (funcName == "HTTP::PUT") {
+        if (!doExecute) {
+            return onHTTPDisabled(startPos, args[0].string_value);
+        }
+        if (runAsync) {
+            auto future = functionHTTPAsync(startPos, "PUT", args);
+            return future.get();
+        }
+        return functionHTTP(startPos, "PUT", args);
+    }
+    if (funcName == "HTTP::PATCH") {
+        if (!doExecute) {
+            return onHTTPDisabled(startPos, args[0].string_value);
+        }
+        if (runAsync) {
+            auto future = functionHTTPAsync(startPos, "PATCH", args);
+            return future.get();
+        }
+        return functionHTTP(startPos, "PATCH", args);
+    }
+    if (funcName == "HTTP::DELETE") {
+        if (!doExecute) {
+            return onHTTPDisabled(startPos, args[0].string_value);
+        }
+        if (runAsync) {
+            auto future = functionHTTPAsync(startPos, "DELETE", args);
+            return future.get();
+        }
+        return functionHTTP(startPos, "DELETE", args);
+    }
+    if (funcName == "HTTP::HEAD") {
+        if (!doExecute) {
+            return onHTTPDisabled(startPos, args[0].string_value);
+        }
+        if (runAsync) {
+            auto future = functionHTTPAsync(startPos, "HEAD", args);
+            return future.get();
+        }
+        return functionHTTP(startPos, "HEAD", args);
+    }
+    if (funcName == "HTTP::OPTIONS") {
+        if (!doExecute) {
+            return onHTTPDisabled(startPos, args[0].string_value);
+        }
+        if (runAsync) {
+            auto future = functionHTTPAsync(startPos, "OPTIONS", args);
+            return future.get();
+        }
+        return functionHTTP(startPos, "OPTIONS", args);
+    }
+    if (funcName == "JUSTC") return functionJUSTC(args);
     if (funcName == "PARSEJUSTC") return functionPARSEJUSTC(args);
     if (funcName == "PARSEJSON") return functionPARSEJSON(args);
     if (funcName == "file") {
@@ -1732,21 +1772,9 @@ void Parser::extractReferences(const Value& value, std::vector<std::string>& ref
     // TODO: get links from complex things
 }
 
-std::future<Value> Parser::functionHTTPJSONAsync(const std::vector<Value>& args) {
-    return executeAsyncIfEnabled([this, args]() {
-        return functionHTTPJSON(args);
-    });
-}
-
-std::future<Value> Parser::functionHTTPTEXTAsync(size_t startPos, const std::vector<Value>& args) {
-    return executeAsyncIfEnabled([this, startPos, args]() {
-        return functionHTTPTEXT(startPos, args);
-    });
-}
-
-std::future<Value> Parser::functionHTTPJUSTCAsync(const std::vector<Value>& args) {
-    return executeAsyncIfEnabled([this, args]() {
-        return functionHTTPJUSTC(args);
+std::future<Value> Parser::functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args) {
+    return executeAsyncIfEnabled([this, startPos, method, args]() {
+        return functionHTTP(startPos, method, args);
     });
 }
 
@@ -1859,9 +1887,8 @@ Value Parser::functionECHO(const std::vector<Value>& args) {
 }
 
 Value Parser::functionJSON(const std::vector<Value>& args) { return Value(); }
-Value Parser::functionHTTPJSON(const std::vector<Value>& args) { return Value(); }
 
-Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) {
+Value Parser::functionHTTP(size_t startPos, const std::string& method, const std::vector<Value>& args) {
     if (args.empty()) {
         throw std::runtime_error("Expected one argument at function HTTPTEXT at " + Utility::position(startPos, input) + ".");
     } else if (args[0].type != DataType::LINK) {
@@ -1870,12 +1897,31 @@ Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) 
 
     std::string url = args[0].toString();
     std::string headersStr = args[1].toString();
+    std::string body = args[2].toString();
     std::unordered_map<std::string, std::string> headers = Utility::ParseHeaders(headersStr);
     if (headers.find("Accept") == headers.end()) {
         headers["Accept"] = Utility::defaultHTTPAccept;
     }
 
-    Value result = HTTP::GET(url, headers);
+    Value result;
+    if (method == "POST") {
+        result = HTTP::POST(url, headers, body);
+    } else if (method == "PUT") {
+        result = HTTP::PUT(url, headers, body);
+    } else if (method == "PATCH") {
+        result = HTTP::PATCH(url, headers, body);
+    } else if (method == "DELETE") {
+        result = HTTP::DELETE(url, headers);
+    } else if (method == "HEAD") {
+        result = HTTP::HEAD(url, headers);
+    } else if (method == "OPTIONS") {
+        result = HTTP::OPTIONS(url, headers);
+    } else {
+        result = HTTP::GET(url, headers);
+    }
+    if (!body.empty() && method != "POST" && method != "PUT" && method != "PATCH") {
+        Utility::Warn("HTTP: Cannot send body with method \"" + method + "\" at " + Utility::position(startPos, input) + ".");
+    }
     if ((match(".") || match(":")) && peekToken().type == "identifier") {
         advance();
         std::string funcName = currentToken().value;
@@ -1892,7 +1938,6 @@ Value Parser::functionHTTPTEXT(size_t startPos, const std::vector<Value>& args) 
 }
 
 Value Parser::functionJUSTC(const std::vector<Value>& args) { return Value(); }
-Value Parser::functionHTTPJUSTC(const std::vector<Value>& args) { return Value(); }
 Value Parser::functionPARSEJUSTC(const std::vector<Value>& args) { return Value(); }
 Value Parser::functionPARSEJSON(const std::vector<Value>& args) { return Value(); }
 Value Parser::functionFILE(const std::vector<Value>& args) { return Value(); }

@@ -34,6 +34,10 @@ SOFTWARE.
 #include <sstream>
 #include <cstddef>
 #include <unordered_map>
+#include <iostream>
+#ifdef __EMSCRIPTEN__
+#include "utility.emscripten.h"
+#endif
 
 std::string Utility::numberValue2string(const Value& value) {
     if (value.number_value == std::floor(value.number_value)) {
@@ -218,3 +222,15 @@ std::unordered_map<std::string, std::string> Utility::ParseHeaders(const std::st
 }
 
 std::string Utility::defaultHTTPAccept = "text/*, application/x-justc, application/json, application/lua, application/hocon, application/xml, application/yaml, */*";
+
+void Utility::Warn(const std::string& warning) {
+    #ifdef __EMSCRIPTEN__
+    console_warn(Parser::getCurrentTimestamp().c_str(), warning.c_str());
+    #else
+    if (isGitHubActions()) {
+        std::cout << "::warning::" + warning << std::endl;
+    } else {
+        std::cout << "JUSTC: Warning: " + warning << std::endl;
+    }
+    #endif
+}

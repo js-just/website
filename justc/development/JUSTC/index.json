@@ -29,4 +29,5 @@
 "core/run.js.cpp",
 "core/run.js.hpp",
 "core/run.luau.hpp",
-"core/built-in/http/http.hpp"]}
+"core/built-in/http/http.hpp",
+"core/utility.emscripten.h"]}

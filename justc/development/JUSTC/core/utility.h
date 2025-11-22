@@ -48,6 +48,7 @@ public:
     static bool isGitHubActions();
     static std::unordered_map<std::string, std::string> ParseHeaders(const std::string& headers);
     static std::string defaultHTTPAccept;
+    static void Warn(const std::string& warning);
 };
 class UnicodeUtility {
 public:

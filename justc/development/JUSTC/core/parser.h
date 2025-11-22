@@ -298,31 +298,24 @@ private:
 
     Value convertToDecimal(const Value& value);
 
-    template<typename Func, typename... Args>
-    std::future<typename std::result_of<Func(Args...)>::type>
-    executeAsyncIfEnabled(Func&& func, Args&&... args) {
-        typedef typename std::result_of<Func(Args...)>::type ResultType;
+    template<class Func>
+    auto executeAsyncIfEnabled(Func&& func) -> std::future<decltype(func())> {
+        typedef decltype(func()) ResultType;
 
         if (runAsync) {
-#ifdef __EMSCRIPTEN__
-            return std::async(std::launch::deferred,
-                            std::forward<Func>(func),
-                            std::forward<Args>(args)...);
-#else
-            return std::async(std::launch::async,
-                            std::forward<Func>(func),
-                            std::forward<Args>(args)...);
-#endif
+    #ifdef __EMSCRIPTEN__
+            return std::async(std::launch::deferred, std::forward<Func>(func));
+    #else
+            return std::async(std::launch::async, std::forward<Func>(func));
+    #endif
         } else {
-            ResultType result = func(std::forward<Args>(args)...);
+            ResultType result = func();
             return std::async(std::launch::deferred, [result]() { return result; });
         }
     }
 
     // built-in
-    std::future<Value> functionHTTPJSONAsync(const std::vector<Value>& args);
-    std::future<Value> functionHTTPTEXTAsync(size_t startPos, const std::vector<Value>& args);
-    std::future<Value> functionHTTPJUSTCAsync(const std::vector<Value>& args);
+    std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
     std::future<Value> functionFILEAsync(const std::vector<Value>& args);
     Value functionVALUE(const std::vector<Value>& args);
     Value functionSTRING(const std::vector<Value>& args);
@@ -335,10 +328,8 @@ private:
     Value functionTYPEOF(const std::vector<Value>& args);
     Value functionECHO(const std::vector<Value>& args);
     Value functionJSON(const std::vector<Value>& args);
-    Value functionHTTPJSON(const std::vector<Value>& args);
-    Value functionHTTPTEXT(size_t startPos, const std::vector<Value>& args);
+    Value functionHTTP(size_t startPos, const std::string& method, const std::vector<Value>& args);
     Value functionJUSTC(const std::vector<Value>& args);
-    Value functionHTTPJUSTC(const std::vector<Value>& args);
     Value functionPARSEJUSTC(const std::vector<Value>& args);
     Value functionPARSEJSON(const std::vector<Value>& args);
     Value functionFILE(const std::vector<Value>& args);
