@@ -46,8 +46,15 @@ function monacoJUSTClang() {
 
         constants: /\b(True|TRUE|False|FALSE|Yes|YES|No|NO|Y|N|Null|NULL|Nil|NIL|Infinity|NaN|undefined)\b/,
 
+        numberBeforeShift: /[\d\w\)\]\}]\s*<<$/,
+
+        luauEmbeddingStart: /(?:^|[^\w\d\)\]\}\s])<<$/,
+
         tokenizer: {
             root: [
+                [/@numberBeforeShift/, { token: '@rematch', next: '@shiftOperator' }],
+                [/@luauEmbeddingStart/, { token: 'keyword.luau', next: '@luauEmbedded', nextEmbedded: 'lua' }],
+
                 // Comments
                 [/--.*$/, 'comment'],
                 [/-\{/, { token: 'comment', next: '@multiLineComment' }],
@@ -57,21 +64,17 @@ function monacoJUSTClang() {
                 [/'/, { token: 'string.quote', bracket: '@open', next: '@singleQuoteString' }],
 
                 // Links
-                [/</, { token: 'string.link', next: '@link' }],
+                [/<(?![<])/, { token: 'string.link', next: '@link' }],
 
                 // JavaScript
                 [/\{\{/, { token: 'keyword.js', next: '@jsEmbedded', nextEmbedded: 'javascript' }],
 
-                // Luau
-                [/(?<![\d\w])<</, { token: 'keyword.luau', next: '@luauEmbedded', nextEmbedded: 'lua' }],
-
                 // Numbers
                 [/0[xX][0-9a-fA-F_]+/, 'number.hex'],
-                [/0[oO][0-7_]+/, 'number.octal'],
-                [/\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?/, 'number'],
                 [/[xX#][0-9a-fA-F_]+/, 'number.hex'],
                 [/[bB][01_]+/, 'number.binary'],
                 [/[oO][0-7_]+/, 'number.octal'],
+                [/\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?/, 'number'],
 
                 // Built-ins
                 [/@builtinFunctions(?=\s*\()/, 'type.identifier'],
@@ -92,7 +95,9 @@ function monacoJUSTClang() {
                 [/\$[a-zA-Z_][\w']*/, 'variable'],
 
                 // Operators
-                [/@symbols/, {
+                [/<</, { token: '@rematch', next: '@shiftOperator' }],
+                [/>>/, 'operator'],
+                [/[=><!~?:&|+\-*\/\^%]/, {
                     cases: {
                         '@operators': 'operator',
                         '@default': ''
@@ -103,7 +108,13 @@ function monacoJUSTClang() {
                 [/[()\[\]{}]/, '@brackets'],
                 [/[,.:;]/, 'delimiter'],
 
+                // whitespace
                 { include: '@whitespace' },
+            ],
+
+            shiftOperator: [
+                [/<</, { token: 'operator', next: '@pop' }],
+                [/./, { token: '@rematch', next: '@pop' }]
             ],
 
             string: [
@@ -180,15 +191,15 @@ monacoScript.onload = function() {
                 ['<', '>']
             ],
             autoClosingPairs: [
-                { open: '{{', close: '}}' },
-                { open: '<<', close: '>>' },
-                { open: '-{', close: '}-' },
+                { open: '{{', close: '}}', notIn: ['string', 'comment'] },
+                { open: '<<', close: '>>', notIn: ['string', 'comment'] },
+                { open: '-{', close: '}-', notIn: ['string', 'comment'] },
                 { open: '(', close: ')' },
                 { open: '[', close: ']' },
                 { open: '{', close: '}' },
-                { open: '"', close: '"' },
-                { open: "'", close: "'" },
-                { open: '<', close: '>' },
+                { open: '"', close: '"', notIn: ['string'] },
+                { open: "'", close: "'", notIn: ['string'] },
+                { open: '<', close: '>', notIn: ['string'] },
             ],
             surroundingPairs: [
                 { open: '(', close: ')' },
@@ -212,7 +223,11 @@ monacoScript.onload = function() {
             //wordWrap: "on",
             minimap: { enabled: true },
             scrollBeyondLastLine: false,
-            automaticLayout: true
+            automaticLayout: true,
+            lineNumbers: "on",
+            folding: true,
+            lineDecorationsWidth: 10,
+            lineNumbersMinChars: 3
         });
 
         const editorElement = document.getElementById("editor");
@@ -226,15 +241,10 @@ monacoScript.onload = function() {
 
         document.documentElement.setAttribute('justc','');
         window.JUSTC_MonacoEditor = editor;
-
-        document.documentElement.setAttribute('data-justc-editor', 'true');
-
-        console.log("JUSTC Monaco Editor loaded successfully!");
     });
 };
 
 monacoScript.onerror = function() {
-    console.error("Failed to load Monaco Editor script");
     monacoElement.innerHTML = "<p style='color: red; padding: 20px;'>Failed to load code editor. Please check your internet connection.</p>";
 };
 
