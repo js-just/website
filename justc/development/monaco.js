@@ -23,7 +23,7 @@ function monacoJUSTClang() {
             "nor", "xor", "xnor", "imply", "nimply",
 
             "true", "false", "yes", "no", "y", "n",
-            "null", "nil",
+            "null", "nil"
         ],
 
         typeKeywords: [ // lowercase
@@ -63,7 +63,7 @@ function monacoJUSTClang() {
                 [/\{\{/, { token: 'keyword.js', next: '@jsEmbedded', nextEmbedded: 'javascript' }],
 
                 // Luau
-                [/<</, { token: 'keyword.luau', next: '@luauEmbedded', nextEmbedded: 'lua' }],
+                [/(?<![\d\w])<</, { token: 'keyword.luau', next: '@luauEmbedded', nextEmbedded: 'lua' }],
 
                 // Numbers
                 [/0[xX][0-9a-fA-F_]+/, 'number.hex'],
@@ -180,14 +180,15 @@ monacoScript.onload = function() {
                 ['<', '>']
             ],
             autoClosingPairs: [
+                { open: '{{', close: '}}' },
+                { open: '<<', close: '>>' },
+                { open: '-{', close: '}-' },
                 { open: '(', close: ')' },
                 { open: '[', close: ']' },
                 { open: '{', close: '}' },
                 { open: '"', close: '"' },
                 { open: "'", close: "'" },
                 { open: '<', close: '>' },
-                { open: '{{', close: '}}' },
-                { open: '<<', close: '>>' }
             ],
             surroundingPairs: [
                 { open: '(', close: ')' },
@@ -206,7 +207,7 @@ monacoScript.onload = function() {
         var editor = monaco.editor.create(document.getElementById("editor"), {
             value: `-- Type JUSTC code here...`,
             language: "justc",
-            theme: "vs-dark",
+            //theme: "vs-dark",
             fontSize: 14,
             //wordWrap: "on",
             minimap: { enabled: true },
@@ -223,6 +224,7 @@ monacoScript.onload = function() {
         });
         resizeObserver.observe(editorElement);
 
+        document.documentElement.setAttribute('justc','');
         window.JUSTC_MonacoEditor = editor;
 
         document.documentElement.setAttribute('data-justc-editor', 'true');
