@@ -13,6 +13,7 @@
 "core/run.luau.cpp",
 "core/built-in/http/http.cpp",
 "core/built-in/math/math.cpp",
+"core/built-in/binary/binary.cpp",
 "core/main.cpp",
 "core/lexer.h",
 "core/parser.h",
@@ -32,4 +33,5 @@
 "core/run.luau.hpp",
 "core/built-in/http/http.hpp",
 "core/utility.emscripten.h",
-"core/built-in/math/math.hpp"]}
+"core/built-in/math/math.hpp",
+"core/built-in/binary/binary.hpp"]}
