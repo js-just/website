@@ -1,0 +1,4 @@
+body::after{content:'How to use this experimental JUSTC demo website:' "\A    "
+    '1. Click the "Initialize" button and wait until an alert appears saying "Initialized.", Accept it.' "\A    "
+    '2. Type JUSTC code into the Monaco Editor window (if there is no Monaco Editor window, skip this step - you\'ll be prompted to enter the code)' "\A    "
+    '3. Click "Execute" button to run the code. You can also click "Parse" button instead to run without executing, or "Parser" or "Lexer" to only run the parser or lexer.' "\A\A";white-space:pre-wrap;font-family:monospace}
