@@ -206,17 +206,17 @@ async function main() {
             let result;
 
             if (flags.mode === "lexer") {
-                const lexer = JUSTC.requestPermissions("core.lexer");
+                const lexer = await JUSTC.requestPermissions("core.lexer");
                 result = lexer(flags.input);
                 result = JSON.stringify(result, null, 2);
             } else if (flags.mode === "parser" || flags.mode === "parserExecute") {
-                const parser = JUSTC.requestPermissions("core.parser");
+                const parser = await JUSTC.requestPermissions("core.parser");
                 const lexerOutput = JSON.parse(flags.input);
                 result = parser(lexerOutput);
                 result = JSON.stringify(result, null, 2);
             } else if (flags.mode === "stringify") {
                 const obj = JSON.parse(flags.input);
-                result = JUSTC.stringify(obj);
+                result = await JUSTC.stringify(obj);
                 if (flags.outputMode !== "justc") {
                     throwError(`Cannot output JSON converted to JUSTC as "${flags.outputMode}".`, outputRedirector);
                 }
