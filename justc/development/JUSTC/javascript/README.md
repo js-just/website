@@ -2,6 +2,8 @@
 > ### JUSTC language is currently in development and is experimental!
 > Documentation is coming after release of new Just an Ultimate Site Tool update. Currently, you can use [experimental JUSTC demo website](https://just.js.org/justc/development/test.html).
 
+![JUSTC](.github/image.png)
+
 # <img align="top" src="https://just.js.org/justc/logo-50.svg" alt="JUSTC Logo" width="40" height="40"> JUSTC [![Compile](https://github.com/js-just/JUSTC/actions/workflows/compile.yml/badge.svg)](https://github.com/js-just/JUSTC/actions/workflows/compile.yml)
 JUSTC (Just an Ultimate Site Tool Configuration language) is a powerful, small, safe, human-optimized, easy-to-use object notation (or configuration) language designed to replace JSON (JavaScript Object Notation) and also designed to be backwards compatible with JSON, with embeddable JavaScript and Luau.
 
