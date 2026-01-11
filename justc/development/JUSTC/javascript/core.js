@@ -315,7 +315,7 @@ SOFTWARE.
             }
         }
         try {
-            JUSTC.WASM = isDev ? await JUSTC.JUSTC() : await JUSTC.JUSTC(JUSTC.Config);
+            JUSTC.WASM = isDev || !isBrowser ? await JUSTC.JUSTC() : await JUSTC.JUSTC(JUSTC.Config);
             if (JUSTC.CoreLogsEnabled) JUSTC.Console("log", "JUSTC WebAssembly module initialized.");
             JUSTC.JUSTC = null;
             delete JUSTC.JUSTC;
