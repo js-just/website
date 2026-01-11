@@ -282,7 +282,7 @@ SOFTWARE.
     JUSTC.Initialize = async function() {
         if (isBrowser) {
             try {
-                const urlprefix = SCRIPT.src.slice(0,-8);
+                const urlprefix = globalThis_.window.location.hostname == 'just.js.org' ? SCRIPT.src.slice(0,-8) : 'https://unpkg.com/justc/';
                 JUSTC.FetchSource = async (path, _error) => {
                     if (JUSTC.CoreLogsEnabled) JUSTC.Console("log", "Fetching", path + "...");
                     return await(await FETCH(urlprefix + path).catch((error)=>{
@@ -823,7 +823,7 @@ SOFTWARE.
             },
             configurable: false
         });
-        if (!isSafari) setTimeout(async()=>{
+        if (!isSafari && globalThis_.window.location.hostname == 'just.js.org') setTimeout(async()=>{
             const RegisterSource = async function(url, vfs) {
                 const text = await(await FETCH(url)).text();
                 vfs.createFile(url, text, {
