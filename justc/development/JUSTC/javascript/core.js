@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2025 JustStudio. <https://juststudio.is-a.dev/>
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -72,6 +72,8 @@ SOFTWARE.
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(globalThis_.navigator.userAgent) : false;
     const isNode   = isModule ? typeof process !== 'undefined' && process.versions && process.versions.node : false;
     if (isBrowser && !SCRIPT) throw new JUSTC.Error(JUSTC.Errors.environment);
+
+    const isDev = isBrowser && globalThis_.window.location.hostname == 'just.js.org' && DOCUMENT.documentElement.getAttribute('JUSTC') == 'dev';
 
     JUSTC.VERSION = null;
     JUSTC['+VERSION'] = null;
@@ -279,10 +281,19 @@ SOFTWARE.
     };
 
     JUSTC.ScriptsAdded = [];
+    JUSTC.UNPKG = 'https://unpkg.com/justc/';
+    JUSTC.Config = {
+        locateFile(path) {
+            if (path.endsWith('.wasm')) {
+                return JUSTC.UNPKG + path;
+            }
+            return path;
+        }
+    };
     JUSTC.Initialize = async function() {
         if (isBrowser) {
             try {
-                const urlprefix = globalThis_.window.location.hostname == 'just.js.org' ? SCRIPT.src.slice(0,-8) : 'https://unpkg.com/justc/';
+                const urlprefix = isDev ? SCRIPT.src.slice(0,-8) : JUSTC.UNPKG;
                 JUSTC.FetchSource = async (path, _error) => {
                     if (JUSTC.CoreLogsEnabled) JUSTC.Console("log", "Fetching", path + "...");
                     return await(await FETCH(urlprefix + path).catch((error)=>{
@@ -304,7 +315,7 @@ SOFTWARE.
             }
         }
         try {
-            JUSTC.WASM = await JUSTC.JUSTC();
+            JUSTC.WASM = isDev ? await JUSTC.JUSTC() : await JUSTC.JUSTC(JUSTC.Config);
             if (JUSTC.CoreLogsEnabled) JUSTC.Console("log", "JUSTC WebAssembly module initialized.");
             JUSTC.JUSTC = null;
             delete JUSTC.JUSTC;
@@ -388,7 +399,7 @@ SOFTWARE.
                         );
 
                         const resultJson = JUSTC.WASM.UTF8ToString(resultPtr);
-                        JUSTC.WASM.ccall('free_string', null, ['number'], resultPtr);
+                        JUSTC.WASM.ccall('free_string', null, ['number'], [resultPtr]);
 
                         const result = JUSTC.TryCatchLog(()=>json_.parse(resultJson), resultJson);
 
@@ -823,7 +834,7 @@ SOFTWARE.
             },
             configurable: false
         });
-        if (!isSafari && globalThis_.window.location.hostname == 'just.js.org') setTimeout(async()=>{
+        if (!isSafari && isDev) setTimeout(async()=>{
             const RegisterSource = async function(url, vfs) {
                 const text = await(await FETCH(url)).text();
                 vfs.createFile(url, text, {

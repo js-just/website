@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2025 JustStudio. <https://juststudio.is-a.dev/>
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,6 @@ SOFTWARE.
 
 #include <string>
 
-static const std::string JUSTC_VERSION = "0.1.0";
+static const std::string JUSTC_VERSION = "0.1.2";
 
 #endif

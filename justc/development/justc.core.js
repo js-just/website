@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2025 JustStudio. <https://juststudio.is-a.dev/>
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ SOFTWARE.
 
 /*
 
-Just an Ultimate Site Tool Configuration language v0.1.0 (development)
+Just an Ultimate Site Tool Configuration language v0.1.2 (development)
 
 */
 
