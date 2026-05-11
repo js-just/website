@@ -27,6 +27,7 @@ SOFTWARE.
 #ifndef MATH_HPP
 #define MATH_HPP
 
+#include <string>
 #include <vector>
 #include <cmath>
 #include <random>

@@ -536,7 +536,7 @@ ParseResult Parser::parse(bool doExecute) {
                         std::cout << Utility::value2string(result) << std::endl;
                     }
 
-                    #else
+                    #elif !defined(_MSC_VER)
 
                     std::pair<std::string, bool> jsresult = JavaScript::Eval(currentToken().value);
                     if (jsresult.second) {
@@ -1529,7 +1529,7 @@ Value Parser::parsePrimary(bool doExecute) {
         result.name = "{{" + currentToken().value + "}}";
         return result;
 
-        #else
+        #elif !defined(_MSC_VER)
 
         std::pair<std::string, bool> jsresult = JavaScript::Eval(currentToken().value);
         if (jsresult.second) {

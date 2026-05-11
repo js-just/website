@@ -32,14 +32,18 @@ SOFTWARE.
 #include <sstream>
 #include <utility>
 #include <stdexcept>
+#ifndef _MSC_VER
 extern "C" {
     #include <quickjs.h>
 }
+#endif
 
 class JavaScript {
     private:
+#ifndef _MSC_VER
         static JSValue Print(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
         static void DefineConsole(JSRuntime *qjs_rt, JSContext *qjs_ctx, void* userdata);
+#endif
     public:
         static std::pair<std::string, bool> Eval(const std::string& script, bool Console = false);
 };
