@@ -411,7 +411,6 @@ private:
     void parseAllowCommandError();
 
     Value evaluateLengthOperator(const Value& value);
-    Value parseLuauStyleArray(bool doExecute);
 
     static std::vector<double> values2numbers(const std::vector<Value>& values) {
         std::vector<double> result;

@@ -1489,15 +1489,7 @@ Value Parser::parsePrimary(bool doExecute) {
     }
     else if (match("{")) {
         size_t savedPos = position;
-        try {
-            return parseLuauStyleArray(doExecute);
-        } catch (const std::runtime_error& e) {
-            if (std::string(e.what()).find("Object detected") != std::string::npos) {
-                position = savedPos;
-                return parseJsonObject(doExecute);
-            }
-            throw;
-        }
+        return parseJsonObject(doExecute);
     }
     else if (match("[")) {
         return parseJsonArray(doExecute);
@@ -1692,57 +1684,6 @@ ASTNode Parser::parseCommand(bool doExecute) {
     }
 
     return node;
-}
-
-Value Parser::parseLuauStyleArray(bool doExecute) {
-    if (!match("{")) {
-        throw std::runtime_error("Expected '{' for Luau-style array");
-    }
-
-    size_t startPos = position;
-    advance();
-
-    std::vector<Value> elements;
-
-    skipCommas();
-    while (!match("}") && !isEnd()) {
-        size_t savedPos = position;
-        try {
-            Value key = parseExpression(doExecute, true);
-
-            if ((match(":") || match("=") || match("-") || match("keyword", "is")) &&
-                !match("}") && !match(",") && !match(";")) {
-                position = savedPos;
-                throw std::runtime_error("Object detected, not array");
-            }
-
-            elements.push_back(key);
-        } catch (...) {
-            position = savedPos;
-            Value element = parseExpression(doExecute);
-            elements.push_back(element);
-        }
-
-        skipCommas();
-        if (match(",") || match(";")) {
-            advance();
-            skipCommas();
-        }
-    }
-
-    if (!match("}")) {
-        throw std::runtime_error("Expected '}' to close Luau-style array at " +
-                                Utility::position(startPos, input));
-    }
-    advance();
-
-    auto arrayContext = createObjectContext(true);
-
-    Value result = Value::createJsonArray(elements);
-    result.object_context = arrayContext;
-    result.name = "[Array]";
-
-    return result;
 }
 
 Value Parser::onHTTPDisabled(size_t startPos, std::string args0string_value) {
