@@ -721,10 +721,25 @@ void Lexer::tokenize() {
 
         if (isIdentifierStart(ch)) {
             const ParserToken currToken = readIdentifier();
+            const size_t currPos = position;
+
             if (currToken.type == "keyword" && currToken.value == "goto") {
-                position = std::stod(readNumber().value);
-                continue;
+                try {
+                    while(position < input.length() &&
+                        isWhitespace(input[position]))
+                    {
+                        position++;
+                    }
+
+                    ParserToken target = readNumber();
+                    position = static_cast<size_t>(std::stod(target.value));
+
+                    continue;
+                } catch (...) {
+                    throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input));
+                }
             }
+
             tokens.push_back(currToken);
             continue;
         }
