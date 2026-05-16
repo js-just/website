@@ -724,6 +724,15 @@ void Lexer::tokenize() {
             const size_t currPos = position;
 
             if (currToken.type == "keyword" && currToken.value == "goto") {
+                if (std::find(gotopos.begin(), gotopos.end(), currPos) != gotopos.end()) {
+                    #ifdef __EMSCRIPTEN__
+                    warn_lexer_goto(Parser::getCurrentTimestamp().c_str(), Utility::position(currPos, input).c_str());
+                    #else
+                    std::cout << warnPrefix + "Warning: Found goto loop at " + Utility::position(currPos, input) + "." << std::endl;
+                    #endif
+                    continue;
+                }
+                gotopos.push_back(currPos);
                 try {
                     while(position < input.length() &&
                         isWhitespace(input[position]))
@@ -736,7 +745,7 @@ void Lexer::tokenize() {
 
                     continue;
                 } catch (...) {
-                    throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input));
+                    throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input) + ".");
                 }
             }
 

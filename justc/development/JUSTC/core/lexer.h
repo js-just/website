@@ -57,6 +57,7 @@ private:
     std::unordered_map<std::string, std::string> bigkeywords;
     std::vector<std::string> skw;
     std::vector<std::string> bkw;
+    std::vector<size_t> gotopos;
 
     void initializeKeywords();
     bool isWhitespace(char ch) const;
