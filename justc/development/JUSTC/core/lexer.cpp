@@ -195,6 +195,22 @@ ParserToken Lexer::readNumber() {
     bool bigNumber = false;
     bool allowCommaDecimal = true;
 
+    enum class BigType {
+        BigNum,     // 123B | up to 50 digits
+        LargeNum,   // 123L | up to 100 digits
+        HugeNum,    // 122H | up to 1000 digits
+        GiantNum,   // 123G | up to 10000 digits
+        ColossalNum // 123C | up to 100000 digits
+    };
+    BigType bigtype = BigType::BigNum;
+    static const std::unordered_map<char, BigType> BigTypes = {
+        {'b', BigType::BigNum},
+        {'l', BigType::LargeNum},
+        {'h', BigType::HugeNum},
+        {'g', BigType::GiantNum},
+        {'c', BigType::ColossalNum}
+    };
+
     int braceDepth = 0;
     int bracketDepth = 0;
     for (size_t i = 0; i < position; i++) {
@@ -224,7 +240,9 @@ ParserToken Lexer::readNumber() {
 
     while (position < input.length()) {
         char ch = input[position];
+        char c = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         bool isValidChar = false;
+        auto it = BigTypes.find(c);
 
         if (isBin) {
             isValidChar = (ch == '0' || ch == '1');
@@ -237,12 +255,13 @@ ParserToken Lexer::readNumber() {
                          (ch == '.' && position + 1 < input.length()) ||
                          (ch == ',' && allowCommaDecimal && position + 1 < input.length()) ||
                          ch == '_' ||
-                         (std::tolower(ch) == 'b' && position > start && isDigit(input[position - 1]));
+                         (it != BigTypes.end() && position > start && isDigit(input[position - 1]));
         }
 
         if (isValidChar) {
-            if (std::tolower(ch) == 'b' && !isBin && !isOct && !isHex) {
+            if (it != BigTypes.end() && !isBin && !isOct && !isHex) {
                 bigNumber = true;
+                bigtype = it->second;
             }
 
             if (ch == ',') {
@@ -288,18 +307,34 @@ ParserToken Lexer::readNumber() {
     } else {
         type = "number";
 
-        if (bigNumber && !checkstr.empty() &&
-            std::tolower(checkstr.back()) == 'b') {
+        if (bigNumber && !checkstr.empty() && BigTypes.find(std::tolower(checkstr.back())) != BigTypes.end()) {
             checkstr.pop_back();
             numStr.pop_back();
+            switch (bigtype) {
+                case BigType::BigNum:
+                    type = "big";
+                    break;
+
+                case BigType::LargeNum:
+                    type = "large";
+                    break;
+
+                case BigType::HugeNum:
+                    type = "huge";
+                    break;
+
+                case BigType::GiantNum:
+                    type = "giant";
+                    break;
+
+                case BigType::ColossalNum:
+                    type = "colossal";
+                    break;
+            }
         }
     }
 
     ParserToken token(type, numStr, start);
-    if (bigNumber) {
-        token.value += "B";
-    }
-
     return token;
 }
 
@@ -685,7 +720,12 @@ void Lexer::tokenize() {
         }
 
         if (isIdentifierStart(ch)) {
-            tokens.push_back(readIdentifier());
+            const ParserToken currToken = readIdentifier();
+            if (currToken.type == "keyword" && currToken.value == "goto") {
+                position = std::stod(readNumber().value);
+                continue;
+            }
+            tokens.push_back(currToken);
             continue;
         }
 
