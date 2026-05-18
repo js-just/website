@@ -112,7 +112,7 @@ std::string Value::toString() const {
         case DataType::HUGENUM:
         case DataType::GIANTNUM:
         case DataType::COLOSSALNUM:
-            return Utility::numberToString(number_value);
+            return Utility::numToString(number_value);
         case DataType::HEXADECIMAL:
             return "x" + Utility::numToString(number_value);
         case DataType::BINARY: {
@@ -333,35 +333,35 @@ Value Value::createBigNum(BigNum num) {
     Value result;
     result.type = DataType::BIGNUM;
     result.number_value = num;
-    result.name = Utility::numberToString(num);
+    result.name = Utility::numToString(num);
     return result;
 }
 Value Value::createLargeNum(LargeNum num) {
     Value result;
     result.type = DataType::LARGENUM;
     result.number_value = num;
-    result.name = Utility::numberToString(num);
+    result.name = Utility::numToString(num);
     return result;
 }
 Value Value::createHugeNum(HugeNum num) {
     Value result;
     result.type = DataType::HUGENUM;
     result.number_value = num;
-    result.name = Utility::numberToString(num);
+    result.name = Utility::numToString(num);
     return result;
 }
 Value Value::createGiantNum(GiantNum num) {
     Value result;
     result.type = DataType::GIANTNUM;
     result.number_value = num;
-    result.name = Utility::numberToString(num);
+    result.name = Utility::numToString(num);
     return result;
 }
 Value Value::createColossalNum(ColossalNum num) {
     Value result;
     result.type = DataType::COLOSSALNUM;
     result.number_value = num;
-    result.name = Utility::numberToString(num);
+    result.name = Utility::numToString(num);
     return result;
 }
 
@@ -1393,7 +1393,7 @@ Value Parser::evaluateLengthOperator(const Value& value) {
         case DataType::GIANTNUM:
         case DataType::COLOSSALNUM: {
             // For numbers, get digit count
-            std::string str = Utility::numberToString(value.number_value);
+            std::string str = Utility::numToString(value.number_value);
             str.erase(str.find_last_not_of('0') + 1, std::string::npos);
             if (str.back() == '.') str.pop_back();
             result.type = DataType::NUMBER;
@@ -2748,7 +2748,7 @@ Value Parser::numberToValue(JUSTCnum num, DataType type) {
     result.type = type;
     result.number_value = num;
 
-    std::string str = Utility::numberToString(num);
+    std::string str = Utility::numToString(num);
 
     return result;
 }
