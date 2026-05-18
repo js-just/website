@@ -272,6 +272,7 @@ private:
     std::unordered_map<std::string, std::vector<std::string>> dependencies;
     std::vector<std::string> outputVariables;
     std::vector<std::string> outputNames;
+    Value returnValue;
     std::string outputMode;
     bool allowJavaScript;
     bool globalScope;
@@ -292,6 +293,8 @@ private:
     bool isJSONArray;
     std::string endOfScript;
     std::vector<Value> arrayItems;
+
+    bool isFunction;
 
     ParserToken currentToken() const;
     ParserToken peekToken(size_t offset = 1) const;
@@ -431,7 +434,6 @@ private:
 
     Value onHTTPDisabled(size_t startPos, std::string args0string_value);
     void parseOutputCommandError(const std::string mode);
-    void parseReturnCommandError(const bool a, const bool b = false);
     void parseScopeCommandError(const std::string scope);
     void parseAllowCommandError();
 
@@ -464,7 +466,7 @@ private:
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
-    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true);
+    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true, const bool isFunction = false);
     ParseResult parse(bool doExecute = true);
     static ParseResult parseTokens(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true);
 };

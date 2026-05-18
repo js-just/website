@@ -368,11 +368,11 @@ long getCurrentTime() {
 
 }
 
-Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau)
+Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau, const bool isFunction)
     : tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript),
       globalScope(false), strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau),
       doExecute(doExecute), runAsync(runAsync), canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType),
-      asJSON(false), isJSONArray(false), endOfScript(".") {}
+      asJSON(false), isJSONArray(false), endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction) {}
 
 std::string Parser::getCurrentTimestamp() {
     auto now = std::chrono::system_clock::now();
@@ -599,33 +599,62 @@ ParseResult Parser::parse(bool doExecute) {
                 result.returnValues[std::to_string(i)] = convertToDecimal(itemVal);
             }
         } else {
+            bool done = false;
             if (outputMode == "specified") {
-                if (outputVariables.empty()) {
-                    throw std::runtime_error("Output mode \"specified\" requires \"return\" command with variables.");
-                }
-                for (const auto& varName : outputVariables) {
-                    auto it = variables.find(varName);
-                    if (it != variables.end()) {
-                        size_t index = &varName - &outputVariables[0];
-                        std::string outputName = (index < outputNames.size()) ? outputNames[index] : varName;
-                        if (outputName != "_") {
-                            result.returnValues[outputName] = convertToDecimal(it->second);
-                        } else {
-                            result.returnValues[varName] = convertToDecimal(it->second);
+                if (returnValue.type == DataType::UNKNOWN && !outputVariables.empty()) {
+                    for (const auto& varName : outputVariables) {
+                        auto it = variables.find(varName);
+                        if (it != variables.end()) {
+                            size_t index = &varName - &outputVariables[0];
+                            std::string outputName = (index < outputNames.size()) ? outputNames[index] : varName;
+                            if (outputName != "_") {
+                                result.returnValues[outputName] = convertToDecimal(it->second);
+                            } else {
+                                result.returnValues[varName] = convertToDecimal(it->second);
+                            }
                         }
+                    }
+                } else if (returnValue.type != DataType::UNKNOWN) {
+                    Value finalValue = returnValue;
+
+                    if (finalValue.type == DataType::VARIABLE) {
+                        finalValue = resolveVariableValue(finalValue.string_value, true);
+                    }
+
+                    if (finalValue.type == DataType::JUSTC_OBJECT ||
+                        finalValue.type == DataType::JSON_OBJECT) {
+                        for (const auto& [key, val] : finalValue.properties) {
+                            result.returnValues[key] = convertToDecimal(val);
+                        }
+                    } else if (finalValue.type == DataType::JSON_ARRAY) {
+                        for (size_t i = 0; i < finalValue.array_elements.size(); i++) {
+                            result.returnValues[std::to_string(i)] = convertToDecimal(finalValue.array_elements[i]);
+                        }
+                    } else {
+                        result.returnValues["return"] = convertToDecimal(finalValue);
+                        done = true;
                     }
                 }
             } else if (outputMode == "everything") {
-                if (!outputVariables.empty()) {
+                if (returnValue.type != DataType::UNKNOWN || !outputVariables.empty()) {
                     throw std::runtime_error("Got \"return\" command with output mode \"everything\". Output mode \"everything\" returns every variable without \"return\" command.");
                 }
                 for (const auto& pair : variables) {
                     result.returnValues[pair.first] = convertToDecimal(pair.second);
                 }
             } else if (outputMode == "disabled") {
-                if (!outputVariables.empty()) {
+                if (returnValue.type != DataType::UNKNOWN || !outputVariables.empty()) {
                     throw std::runtime_error("Cannot return anything with output mode \"disabled\".");
                 }
+                if (isFunction) {
+                    result.returnValues["return"] = Value::createNull();
+                    done = true;
+                }
+            }
+            if (isFunction && !done) {
+                Value returnObject = Value::createJsonObject(result.returnValues);
+                result.returnValues.clear();
+                result.returnValues["return"] = returnObject;
             }
         }
 
@@ -705,12 +734,6 @@ ASTNode Parser::parseOutputCommand() {
     return node;
 }
 
-void Parser::parseReturnCommandError(const bool a, const bool b) {
-    if (a && b) throw std::runtime_error("Expected identifier, got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
-    else if (b) throw std::runtime_error("Expected variable name, got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
-    else if (a) throw std::runtime_error("Expected \"[\", got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
-    else throw std::runtime_error("Expected \"]\" (to close \"[\"), got \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
-}
 ASTNode Parser::parseReturnCommand() {
     if (asJSON) {
         throw std::runtime_error("Running as JSON - Cannot parse return command at " + Utility::position(currentToken().start, input) + ".");
@@ -719,33 +742,15 @@ ASTNode Parser::parseReturnCommand() {
     ASTNode node("RETURN_COMMAND", "", currentToken().start);
     advance();
 
-    if (match("[")) {
-        advance();
-        while (!match("]") && !isEnd()) {
-            if (match("identifier")) {
-                outputVariables.push_back(currentToken().value);
-                advance();
-            } else parseReturnCommandError(true, true);
-            if (match(",") || match(";")) advance();
-        }
-        if (match("]")) advance();
-        else parseReturnCommandError(false);
-    } else parseReturnCommandError(true);
+    size_t exprStartPos = position;
 
-    if (match("keyword", "as")) {
-        advance();
-        if (match("[")) {
-            advance();
-            while (!match("]") && !isEnd()) {
-                if (match("identifier") || match("string") || match("number")) {
-                    outputNames.push_back(currentToken().value);
-                    advance();
-                } else parseReturnCommandError(false, true);
-                if (match(",") || match(";")) advance();
-            }
-            if (match("]")) advance();
-            else parseReturnCommandError(false);
-        } else parseReturnCommandError(true);
+    Value exprValue = parseExpression(doExecute);
+
+    returnValue = exprValue;
+    node.value = exprValue;
+
+    if (outputMode == "everything") {
+        outputMode = "specified";
     }
 
     return node;
@@ -858,7 +863,7 @@ ASTNode Parser::parseStatement(bool doExecute) {
         return node;
 
     } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
-        ast.push_back(parseCommand(doExecute));
+        return parseCommand(doExecute);
     } else if ((match("identifier") || match("string")) && !isJSONArray) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
@@ -2601,8 +2606,10 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
     auto lexerResult = Lexer::parse(code);
 
     std::string currName = "function";
+    bool isFunction = true;
     if (context == nullptr) {
         currName = "justc";
+        isFunction = false;
     }
 
     Parser isolatedParser(
@@ -2615,7 +2622,8 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         this->scriptName + "::" + currName,
         currName,
         this->allowLuau,
-        this->canAllowLuau
+        this->canAllowLuau,
+        isFunction
     );
 
     if (context) {
@@ -2865,6 +2873,13 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
     }
 
     Value result = isolated(function.string_value, true, startPos, &functionContext);
+
+    if (result.type == DataType::JUSTC_OBJECT || result.type == DataType::JSON_OBJECT) {
+        auto it = result.properties.find("return");
+        if (it != result.properties.end()) {
+            return it->second;
+        }
+    }
 
     return result;
 }
@@ -3459,6 +3474,6 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
-    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau);
+    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false);
     return parser.parse(doExecute);
 }
