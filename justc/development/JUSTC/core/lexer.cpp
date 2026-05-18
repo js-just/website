@@ -33,10 +33,10 @@ SOFTWARE.
 #include <string>
 #include <cstring>
 #include <sstream>
+#include "utility.h"
 #include <iostream>
 #include <codecvt>
 #include <locale>
-#include "utility.h"
 
 #ifdef __EMSCRIPTEN__
 #include "parser.h"

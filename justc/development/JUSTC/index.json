@@ -39,7 +39,5 @@
 "core/lexer.emscripten.h",
 "core/lib.cpp",
 "core/lib.hpp",
-"core/number.hpp",
 "LICENSE",
-"README.md",
-"core/datatype.hpp"]}
+"README.md"]}

@@ -26,7 +26,6 @@ SOFTWARE.
 
 #include "binary.hpp"
 #include "../../parser.h"
-#include "../../utility.h"
 
 Value Binary::ToText(const std::vector<Value>& args) {
         if (args.empty() || args[0].type != DataType::BINARY_DATA) {
@@ -283,11 +282,11 @@ Value Binary::Data(const std::vector<Value>& args) {
     }
 
     try {
-        double num = Utility::numToDouble(args[0].toNumber());
+        double num = args[0].toNumber();
 
         size_t byteCount = 4;
         if (args.size() > 1) {
-            byteCount = static_cast<size_t>(Utility::numToDouble(args[1].toNumber()));
+            byteCount = static_cast<size_t>(args[1].toNumber());
             if (byteCount < 1 || byteCount > 8) {
                 throw std::runtime_error("Byte count must be between 1 and 8");
             }

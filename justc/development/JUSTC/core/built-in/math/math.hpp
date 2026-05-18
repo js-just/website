@@ -34,7 +34,6 @@ SOFTWARE.
 #include <type_traits>
 #include <initializer_list>
 #include <stdexcept>
-#include "../../number.hpp"
 
 class Math {
 private:

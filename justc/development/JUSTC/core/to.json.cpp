@@ -104,11 +104,6 @@ std::string JsonSerializer::valueToJson(const Value& value) {
         case DataType::HEXADECIMAL:
         case DataType::BINARY:
         case DataType::OCTAL:
-        case DataType::BIGNUM:
-        case DataType::LARGENUM:
-        case DataType::HUGENUM:
-        case DataType::GIANTNUM:
-        case DataType::COLOSSALNUM:
             return Utility::numberValue2string(value);
         case DataType::STRING:
         case DataType::LINK:
