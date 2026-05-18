@@ -2640,15 +2640,9 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
     try {
         result = isolatedParser.parse(doExecute);
 
-        auto objectContext = std::make_shared<ObjectContext>();
-        objectContext->parser = std::make_shared<Parser>(isolatedParser);
-        objectContext->variables = result.returnValues;
-        objectContext->outputMode = isolatedParser.outputMode;
-        objectContext->outputVariables = isolatedParser.outputVariables;
-        objectContext->allowJavaScript = isolatedParser.allowJavaScript;
-        objectContext->allowLuau = isolatedParser.allowLuau;
-
-        Value isolatedObject = Value::createJustcObject(objectContext);
+        Value isolatedObject;
+        isolatedObject.type = DataType::JUSTC_OBJECT;
+        isolatedObject.object_type = DataType::JUSTC_OBJECT;
         isolatedObject.name = "[JUSTC Object]";
 
         if (isolatedParser.outputMode == "everything") {
@@ -2670,8 +2664,22 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             isolatedObject.properties["return"] = Value::createNull();
         }
 
+        if (isolatedObject.properties.empty() && !result.returnValues.empty()) {
+            isolatedObject.properties = result.returnValues;
+        }
+
+        auto objectContext = std::make_shared<ObjectContext>();
+        objectContext->parser = std::make_shared<Parser>(isolatedParser);
+        objectContext->variables = result.returnValues;
+        objectContext->outputMode = isolatedParser.outputMode;
+        objectContext->outputVariables = isolatedParser.outputVariables;
+        objectContext->allowJavaScript = isolatedParser.allowJavaScript;
+        objectContext->allowLuau = isolatedParser.allowLuau;
+        isolatedObject.object_context = objectContext;
+
         std::cout << "Isolated parser outputMode: " << isolatedParser.outputMode << std::endl;
         std::cout << "Return values count: " << result.returnValues.size() << std::endl;
+        std::cout << "Properties count after copy: " << isolatedObject.properties.size() << std::endl;
         for (const auto& [key, val] : result.returnValues) {
             std::cout << "  Return value: " << key << " = " << val.toString() << std::endl;
         }
@@ -2884,29 +2892,29 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
 
     std::cout << "Function result type: " << static_cast<int>(result.type) << std::endl;
     std::cout << "Function result properties size: " << result.properties.size() << std::endl;
-
     for (const auto& [key, val] : result.properties) {
         std::cout << "  Property: " << key << " = " << val.toString() << std::endl;
     }
 
-    if (result.type == DataType::JUSTC_OBJECT || result.type == DataType::JSON_OBJECT) {
+    if (!result.properties.empty()) {
         auto it = result.properties.find("return");
         if (it != result.properties.end()) {
             std::cout << "Found 'return' property with value: " << it->second.toString() << std::endl;
             return it->second;
         }
 
-        if (!result.properties.empty()) {
-            std::cout << "No 'return' property, returning whole object" << std::endl;
-            return result;
+        if (result.properties.size() == 1) {
+            auto& singleValue = result.properties.begin()->second;
+            std::cout << "Single property, returning value: " << singleValue.toString() << std::endl;
+            return singleValue;
         }
 
-        std::cout << "Empty object, returning null" << std::endl;
-        return Value::createNull();
+        std::cout << "Multiple properties, returning object" << std::endl;
+        return result;
     }
 
-    std::cout << "Returning non-object result: " << result.toString() << std::endl;
-    return result;
+    std::cout << "Empty object, returning null" << std::endl;
+    return Value::createNull();
 }
 
 Value Parser::functionFILE(const std::vector<Value>& args) { return Value(); }
