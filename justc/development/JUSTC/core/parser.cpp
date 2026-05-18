@@ -2666,6 +2666,14 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                     }
                 }
             }
+        } else if (isolatedParser.outputMode == "disabled" && isFunction && result.returnValues.empty()) {
+            isolatedObject.properties["return"] = Value::createNull();
+        }
+
+        std::cout << "Isolated parser outputMode: " << isolatedParser.outputMode << std::endl;
+        std::cout << "Return values count: " << result.returnValues.size() << std::endl;
+        for (const auto& [key, val] : result.returnValues) {
+            std::cout << "  Return value: " << key << " = " << val.toString() << std::endl;
         }
 
         for (const auto& log : result.logs) {
@@ -2874,13 +2882,30 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
 
     Value result = isolated(function.string_value, true, startPos, &functionContext);
 
+    std::cout << "Function result type: " << static_cast<int>(result.type) << std::endl;
+    std::cout << "Function result properties size: " << result.properties.size() << std::endl;
+
+    for (const auto& [key, val] : result.properties) {
+        std::cout << "  Property: " << key << " = " << val.toString() << std::endl;
+    }
+
     if (result.type == DataType::JUSTC_OBJECT || result.type == DataType::JSON_OBJECT) {
         auto it = result.properties.find("return");
         if (it != result.properties.end()) {
+            std::cout << "Found 'return' property with value: " << it->second.toString() << std::endl;
             return it->second;
         }
+
+        if (!result.properties.empty()) {
+            std::cout << "No 'return' property, returning whole object" << std::endl;
+            return result;
+        }
+
+        std::cout << "Empty object, returning null" << std::endl;
+        return Value::createNull();
     }
 
+    std::cout << "Returning non-object result: " << result.toString() << std::endl;
     return result;
 }
 
