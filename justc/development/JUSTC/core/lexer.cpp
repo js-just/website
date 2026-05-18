@@ -758,19 +758,20 @@ void Lexer::tokenize() {
                     } catch (...) {
                         throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input) + ".");
                     }
-                }
-
-                tokens.push_back(currToken);
-                continue;
-            } else if (currToken.value == "embeds" && tokens[tokens.size() - 1].type == "keyword" && (
-                tokens[tokens.size() - 1].value == "enable" || tokens[tokens.size() - 1].value == "disable"
-            )) {
-                if (tokens[tokens.size() - 1].value == "enable") {
-                    embeds = true;
-                } else {
-                    embeds = false;
+                } else if (currToken.value == "embeds" && tokens[tokens.size() - 1].type == "keyword" && (
+                    tokens[tokens.size() - 1].value == "enable" || tokens[tokens.size() - 1].value == "disable"
+                )) {
+                    if (tokens[tokens.size() - 1].value == "enable") {
+                        embeds = true;
+                    } else {
+                        embeds = false;
+                    }
+                    continue;
                 }
             }
+
+            tokens.push_back(currToken);
+            continue;
         }
 
         if (ch == '-') {
