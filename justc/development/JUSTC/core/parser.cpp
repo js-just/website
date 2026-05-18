@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2025 JustStudio. <https://juststudio.is-a.dev/>
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ SOFTWARE.
 #include <unordered_map>
 #include "built-in/s.hpp"
 #include <variant>
+#include "number.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -106,11 +107,16 @@ std::string Value::toString() const {
         case DataType::VARIABLE:
             return string_value;
         case DataType::NUMBER:
-            return std::to_string(number_value);
+        case DataType::BIGNUM:
+        case DataType::LARGENUM:
+        case DataType::HUGENUM:
+        case DataType::GIANTNUM:
+        case DataType::COLOSSALNUM:
+            return Utility::numberToString(number_value);
         case DataType::HEXADECIMAL:
-            return "x" + std::to_string(static_cast<int>(number_value));
+            return "x" + Utility::numToString(number_value);
         case DataType::BINARY: {
-            int num = static_cast<int>(number_value);
+            int num = Utility::numToInt(number_value);
             if (num == 0) return "b0";
             std::string binary;
             while (num > 0) {
@@ -121,7 +127,7 @@ std::string Value::toString() const {
         }
         case DataType::OCTAL: {
             std::stringstream ss;
-            ss << "o" << std::oct << static_cast<int>(number_value);
+            ss << "o" << std::oct << Utility::numToInt(number_value);
             return ss.str();
         }
         case DataType::BOOLEAN:
@@ -143,16 +149,21 @@ std::string Value::toString() const {
     }
 }
 
-double Value::toNumber() const {
+JUSTCnum Value::toNumber() const {
     switch (type) {
         case DataType::NUMBER:
         case DataType::HEXADECIMAL:
         case DataType::BINARY:
         case DataType::OCTAL:
+        case DataType::BIGNUM:
+        case DataType::LARGENUM:
+        case DataType::HUGENUM:
+        case DataType::GIANTNUM:
+        case DataType::COLOSSALNUM:
             return number_value;
         case DataType::STRING:
             try {
-                return std::stod(string_value);
+                return Utility::longToJUSTCnum(static_cast<long>(std::stod(string_value)), DataType::NUMBER);
             } catch (...) {
                 return 0.0;
             }
@@ -177,7 +188,7 @@ bool Value::toBoolean() const {
         case DataType::HEXADECIMAL:
         case DataType::BINARY:
         case DataType::OCTAL:
-            return number_value != 0.0;
+            return !Utility::numIsZero(number_value);
         case DataType::STRING: {
             if (string_value.empty()) return false;
             auto toLower = [](const std::string& str) {
@@ -318,6 +329,42 @@ Value Value::createJsonArray(const std::vector<Value>& arr) {
     return result;
 }
 
+Value Value::createBigNum(BigNum num) {
+    Value result;
+    result.type = DataType::BIGNUM;
+    result.number_value = num;
+    result.name = Utility::numberToString(num);
+    return result;
+}
+Value Value::createLargeNum(LargeNum num) {
+    Value result;
+    result.type = DataType::LARGENUM;
+    result.number_value = num;
+    result.name = Utility::numberToString(num);
+    return result;
+}
+Value Value::createHugeNum(HugeNum num) {
+    Value result;
+    result.type = DataType::HUGENUM;
+    result.number_value = num;
+    result.name = Utility::numberToString(num);
+    return result;
+}
+Value Value::createGiantNum(GiantNum num) {
+    Value result;
+    result.type = DataType::GIANTNUM;
+    result.number_value = num;
+    result.name = Utility::numberToString(num);
+    return result;
+}
+Value Value::createColossalNum(ColossalNum num) {
+    Value result;
+    result.type = DataType::COLOSSALNUM;
+    result.number_value = num;
+    result.name = Utility::numberToString(num);
+    return result;
+}
+
 namespace {
 
 std::string toLower(const std::string& str) {
@@ -347,11 +394,20 @@ bool isOctalDigit(char c) {
     return c >= '0' && c <= '7';
 }
 
-double parseNumber(const std::string& str) {
+double parseDouble(const std::string& str) {
     try {
         return std::stod(str);
     } catch (...) {
         return 0.0;
+    }
+}
+
+template<typename T>
+T parseNumber(const std::string& str) {
+    try {
+        return T(str);
+    } catch (...) {
+        return T(0.0);
     }
 }
 
@@ -863,7 +919,8 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
     return (match("string") || match("number") || match("null") || match("path") || match("link") ||
             match("hex") || match("binary") || match("boolean") || match("identifier") || match("|") ||
             match("JavaScript") || match("Luau") || match(endOfScript) || match(".") || match(",") ||
-            match("{") || match("["));
+            match("{") || match("[") || match("bignum") || match("largenum") || match("hugenum") ||
+            match("giantnum") || match("colossalnum"));
 }
 ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
     std::string identifier = currentToken().value;
@@ -1329,9 +1386,14 @@ Value Parser::evaluateLengthOperator(const Value& value) {
             result.name = std::to_string(value.binary_data.size());
             break;
 
-        case DataType::NUMBER: {
+        case DataType::NUMBER:
+        case DataType::BIGNUM:
+        case DataType::LARGENUM:
+        case DataType::HUGENUM:
+        case DataType::GIANTNUM:
+        case DataType::COLOSSALNUM: {
             // For numbers, get digit count
-            std::string str = std::to_string(static_cast<int>(value.number_value));
+            std::string str = Utility::numberToString(value.number_value);
             str.erase(str.find_last_not_of('0') + 1, std::string::npos);
             if (str.back() == '.') str.pop_back();
             result.type = DataType::NUMBER;
@@ -1364,15 +1426,39 @@ Value Parser::astNodeToValue(const ASTNode& node) {
 Value Parser::parsePrimary(bool doExecute) {
     if (match("number")) {
         std::string numStr = currentToken().value;
-        double num = parseNumber(numStr);
+        double num = parseDouble(numStr);
         advance();
-        Value result = numberToValue(num);
-
-        if (!numStr.empty() && std::tolower(numStr.back()) == 'b') {
-            result.name = std::to_string(num) + "B";
-        }
-
-        return result;
+        return numberToValue(num);
+    }
+    else if (match("bignum")) {
+        std::string numStr = currentToken().value;
+        BigNum num = parseNumber<BigNum>(numStr);
+        advance();
+        return numberToValue(num, DataType::BIGNUM);
+    }
+    else if (match("largenum")) {
+        std::string numStr = currentToken().value;
+        LargeNum num = parseNumber<LargeNum>(numStr);
+        advance();
+        return numberToValue(num, DataType::LARGENUM);
+    }
+    else if (match("hugenum")) {
+        std::string numStr = currentToken().value;
+        HugeNum num = parseNumber<HugeNum>(numStr);
+        advance();
+        return numberToValue(num, DataType::HUGENUM);
+    }
+    else if (match("giantnum")) {
+        std::string numStr = currentToken().value;
+        GiantNum num = parseNumber<GiantNum>(numStr);
+        advance();
+        return numberToValue(num, DataType::GIANTNUM);
+    }
+    else if (match("colossalnum")) {
+        std::string numStr = currentToken().value;
+        ColossalNum num = parseNumber<ColossalNum>(numStr);
+        advance();
+        return numberToValue(num, DataType::COLOSSALNUM);
     }
     else if (match("hex")) {
         std::string hexStr = currentToken().value;
@@ -1480,7 +1566,7 @@ Value Parser::parsePrimary(bool doExecute) {
     }
     else if ((match(".") || match(",")) && position + 1 < tokens.size() && tokens[position + 1].type == "number") {
         advance();
-        double num = parseNumber("0." + currentToken().value);
+        double num = parseDouble("0." + currentToken().value);
         advance();
         return numberToValue(num);
     }
@@ -1701,7 +1787,7 @@ Value Parser::onHTTPDisabled(size_t startPos, std::string args0string_value) {
 Value Parser::executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos) {
     if (funcName == "TIME") {
         long timestamp = getCurrentTime();
-        return numberToValue(timestamp);
+        return numberToValue(Utility::longToJUSTCnum(timestamp));
     }
     else if (funcName == "Math::PI" || funcName == "PI") {
         return numberToValue(Math::PI);
@@ -1741,6 +1827,26 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     if (funcName == "number") {
         if (args.empty()) return numberToValue(0.0);
         return numberToValue(args[0].toNumber());
+    }
+    if (funcName == "bignum") {
+        if (args.empty()) return numberToValue(BigNum(0.0), DataType::BIGNUM);
+        return numberToValue(BigNum(args[0].string_value), DataType::BIGNUM);
+    }
+    if (funcName == "largenum") {
+        if (args.empty()) return numberToValue(LargeNum(0.0), DataType::LARGENUM);
+        return numberToValue(LargeNum(args[0].string_value), DataType::LARGENUM);
+    }
+    if (funcName == "hugenum") {
+        if (args.empty()) return numberToValue(HugeNum(0.0), DataType::HUGENUM);
+        return numberToValue(HugeNum(args[0].string_value), DataType::HUGENUM);
+    }
+    if (funcName == "giantnum") {
+        if (args.empty()) return numberToValue(GiantNum(0.0), DataType::GIANTNUM);
+        return numberToValue(GiantNum(args[0].string_value), DataType::GIANTNUM);
+    }
+    if (funcName == "colossalnum") {
+        if (args.empty()) return numberToValue(ColossalNum(0.0), DataType::COLOSSALNUM);
+        return numberToValue(ColossalNum(args[0].string_value), DataType::COLOSSALNUM);
     }
     if (funcName == "JSON") return functionJSON(args);
     if (funcName == "HTTP::GET") {
@@ -1831,7 +1937,9 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     if (args.empty() && funcName != "Math::Random") {
         throw std::runtime_error("Expected at least one argument, got 0 at " + Utility::position(startPos, input) + ".");
     }
-    double inpnum = args[0].number_value;
+    double inpnum = std::visit([](auto&& arg) -> double {
+        return static_cast<double>(arg);
+    }, args[0].number_value);
     try {
         if (funcName == "Binary::ToText") {
             return Binary::ToText(args);
@@ -1861,7 +1969,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             return Value::createNumber(Math::Atan(inpnum));
         }
         if (funcName == "Math::Atan2") {
-            return Value::createNumber(Math::Atan2(inpnum, args[1].number_value));
+            return Value::createNumber(Math::Atan2(inpnum, Utility::numToDouble(args[1].number_value)));
         }
         if (funcName == "Math::Ceil") {
             return Value::createNumber(Math::Ceil(inpnum));
@@ -1870,7 +1978,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             return Value::createNumber(Math::Cos(inpnum));
         }
         if (funcName == "Math::Clamp") {
-            return Value::createNumber(Math::Clamp(inpnum, args[1].number_value, args[2].number_value));
+            return Value::createNumber(Math::Clamp(inpnum, Utility::numToDouble(args[1].number_value), Utility::numToDouble(args[2].number_value)));
         }
         if (funcName == "Math::Cube") {
             return Value::createNumber(inpnum * inpnum * inpnum);
@@ -1891,14 +1999,14 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             return Value::createNumber(Math::Floor(inpnum));
         }
         if (funcName == "Math::Hypot") {
-            return Value::createNumber(Math::Hypot(inpnum, args[1].number_value));
+            return Value::createNumber(Math::Hypot(inpnum, Utility::numToDouble(args[1].number_value)));
         }
         if (funcName == "Math::IsPrime") {
             int intValue = static_cast<int>(std::round(inpnum));
             return Value::createBoolean(Math::IsPrime(intValue));
         }
         if (funcName == "Math::Lerp") {
-            return Value::createNumber(Math::Lerp(inpnum, args[1].number_value, args[2].number_value));
+            return Value::createNumber(Math::Lerp(inpnum, Utility::numToDouble(args[1].number_value), Utility::numToDouble(args[2].number_value)));
         }
         if (funcName == "Math::Log") {
             return Value::createNumber(Math::Log(inpnum));
@@ -1913,12 +2021,12 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             return Value::createNumber(Math::Min(values2numbers(args)));
         }
         if (funcName == "Math::Pow") {
-            return Value::createNumber(Math::Pow(inpnum, args[1].number_value));
+            return Value::createNumber(Math::Pow(inpnum, Utility::numToDouble(args[1].number_value)));
         }
         if (funcName == "Math::Random") {
             if (args.empty()) return Value::createNumber(Math::Random());
             if (args.size() == 1) return Value::createNumber(Math::Random(0, inpnum));
-            return Value::createNumber(Math::Random(inpnum, args[1].number_value));
+            return Value::createNumber(Math::Random(inpnum, Utility::numToDouble(args[1].number_value)));
         }
         if (funcName == "Math::Round") {
             return Value::createNumber(Math::Round(inpnum));
@@ -1949,7 +2057,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             int radix = 10;
 
             if (args.size() > 1) {
-                radix = static_cast<int>(args[1].toNumber());
+                radix = Utility::numToInt(args[1].toNumber());
                 if (radix < 2 || radix > 64) {
                     throw std::runtime_error("Math::ParseNum: Radix must be between 2 and 64");
                 }
@@ -2017,71 +2125,111 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             throw std::runtime_error("Cannot add string to " + Utility::value2string(right) + " at " + Utility::position(position, input) + ".");
         } else if (right.type == DataType::STRING) {
             throw std::runtime_error("Cannot add " + Utility::value2string(left) + " to string at " + Utility::position(position, input) + ".");
-        } else if (left.type == DataType::NUMBER && right.type == DataType::NUMBER) {
-            result = numberToValue(left.toNumber() + right.toNumber());
         } else if (left.type == DataType::UNKNOWN) {
             result = stringToValue(left.name + Utility::value2string(right));
         } else if (right.type == DataType::UNKNOWN) {
             result = stringToValue(Utility::value2string(left) + right.name);
+        } else if (Utility::checkNumbers(left, right)) {
+            JUSTCnum resultNum = Utility::add(
+                left.toNumber(), right.toNumber(),
+                left.type, right.type
+            );
+            result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
         } else {
             result = stringToValue(left.toString() + right.toString());
         }
     }
     else if (op == "minus" || op == "-") {
         if (left.type == DataType::UNKNOWN) {
-            result = numberToValue(-right.toNumber());
+            JUSTCnum resultNum = Utility::subtract(
+                0.0, right.toNumber(),
+                DataType::NUMBER, right.type
+            );
+            result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
         } else if (Utility::checkNumbers(left, right)) {
-            result = numberToValue(left.toNumber() - right.toNumber());
+            JUSTCnum resultNum = Utility::subtract(
+                left.toNumber(), right.toNumber(),
+                left.type, right.type
+            );
+            result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
         } else {
             throw std::runtime_error("Unexpected operator \"-\" at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == "*" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(left.toNumber() * right.toNumber());
+        JUSTCnum resultNum = Utility::multiply(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        );
+        result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
     }
     else if ((op == "/" || op == ":") && Utility::checkNumbers(left, right)) {
-        double divisor = right.toNumber();
-        if (divisor == 0) {
-            result.type = DataType::INFINITE;
-            result.name = "infinity";
-        } else {
-            result = numberToValue(left.toNumber() / divisor);
-        }
+        JUSTCnum resultNum = Utility::divide(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        );
+        result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
     }
     else if (op == "**" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(std::pow(left.toNumber(), right.toNumber()));
+        JUSTCnum resultNum = Utility::power(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        );
+        result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
     }
     else if (op == "%" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(std::fmod(left.toNumber(), right.toNumber()));
+        JUSTCnum resultNum = Utility::mod(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        );
+        result = numberToValue(resultNum, Utility::getLargestType(left.type, right.type));
     }
     else if (op == "..") {
         result = concatenateStrings(left, right);
     }
 
     else if (op == "=" || op == "is") {
-        result = booleanToValue(left.toNumber() == right.toNumber());
+        result = booleanToValue(Utility::equals(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
     else if (op == "!=" || op == "isn't") {
-        result = booleanToValue(left.toNumber() != right.toNumber());
+        result = booleanToValue(!Utility::equals(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
     else if (op == "<" && Utility::checkNumbers(left, right)) {
-        result = booleanToValue(left.toNumber() < right.toNumber());
+        result = booleanToValue(Utility::lessThan(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
     else if (op == ">" && Utility::checkNumbers(left, right)) {
-        result = booleanToValue(left.toNumber() > right.toNumber());
+        result = booleanToValue(Utility::greaterThan(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
     else if (op == "<=" && Utility::checkNumbers(left, right)) {
-        result = booleanToValue(left.toNumber() <= right.toNumber());
+        result = booleanToValue(Utility::lessOrEqual(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
     else if (op == ">=" && Utility::checkNumbers(left, right)) {
-        result = booleanToValue(left.toNumber() >= right.toNumber());
+        result = booleanToValue(Utility::greaterOrEqual(
+            left.toNumber(), right.toNumber(),
+            left.type, right.type
+        ));
     }
 
     else if (op == "&" || op == "AND") {
         if (Utility::checkNumbers(left, right)) {
-            int leftInt = static_cast<int>(left.toNumber());
-            int rightInt = static_cast<int>(right.toNumber());
-            result = numberToValue(leftInt & rightInt);
+            int leftInt = Utility::numToInt(left.toNumber());
+            int rightInt = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(leftInt & rightInt));
         } else {
             bool leftBool = left.toBoolean();
             bool rightBool = right.toBoolean();
@@ -2092,9 +2240,9 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     }
     else if (op == "|" || op == "OR") {
         if (Utility::checkNumbers(left, right)) {
-            int leftInt = static_cast<int>(left.toNumber());
-            int rightInt = static_cast<int>(right.toNumber());
-            result = numberToValue(leftInt | rightInt);
+            int leftInt = Utility::numToInt(left.toNumber());
+            int rightInt = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(leftInt | rightInt));
         } else {
             bool leftBool = left.toBoolean();
             bool rightBool = right.toBoolean();
@@ -2105,9 +2253,9 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     }
     else if (op == "^" || op == "XOR") {
         if (Utility::checkNumbers(left, right)) {
-            int leftInt = static_cast<int>(left.toNumber());
-            int rightInt = static_cast<int>(right.toNumber());
-            result = numberToValue(leftInt ^ rightInt);
+            int leftInt = Utility::numToInt(left.toNumber());
+            int rightInt = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(leftInt ^ rightInt));
         } else {
             throw std::runtime_error("Expected numbers for bitwise XOR operation at " + Utility::position(position, input) + ".");
         }
@@ -2115,26 +2263,26 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     else if (op == "~" || op == "NOT") {
         if (right.type == DataType::NUMBER || right.type == DataType::HEXADECIMAL ||
             right.type == DataType::BINARY || right.type == DataType::OCTAL) {
-            int num = static_cast<int>(right.toNumber());
-            result = numberToValue(~num);
+            int num = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(~num));
         } else {
             throw std::runtime_error("Expected number for bitwise NOT operation at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == "<<") {
         if (Utility::checkNumbers(left, right)) {
-            int leftInt = static_cast<int>(left.toNumber());
-            int rightInt = static_cast<int>(right.toNumber());
-            result = numberToValue(leftInt << rightInt);
+            int leftInt = Utility::numToInt(left.toNumber());
+            int rightInt = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(leftInt << rightInt));
         } else {
             throw std::runtime_error("Expected numbers at left shift at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == ">>") {
         if (Utility::checkNumbers(left, right)) {
-            int leftInt = static_cast<int>(left.toNumber());
-            int rightInt = static_cast<int>(right.toNumber());
-            result = numberToValue(leftInt >> rightInt);
+            int leftInt = Utility::numToInt(left.toNumber());
+            int rightInt = Utility::numToInt(right.toNumber());
+            result = numberToValue(static_cast<double>(leftInt >> rightInt));
         } else {
             throw std::runtime_error("Expected numbers at right shift  at " + Utility::position(position, input) + ".");
         }
@@ -2187,7 +2335,10 @@ Value Parser::handleInequality(const Value& value) {
 
     switch (value.type) {
         case DataType::NUMBER:
-            result = booleanToValue(value.toNumber() > 0);
+            result = booleanToValue(Utility::greaterThan(
+                value.toNumber(), 0.0,
+                value.type, DataType::NUMBER
+            ));
             break;
         case DataType::LINK:
             result = stringToValue(value.toString());
@@ -2317,6 +2468,11 @@ Value Parser::applyTypeDeclaration(const Value value, const ASTNode node) {
         case DataType::HEXADECIMAL:
         case DataType::OCTAL:
         case DataType::BINARY:
+        case DataType::BIGNUM:
+        case DataType::LARGENUM:
+        case DataType::HUGENUM:
+        case DataType::GIANTNUM:
+        case DataType::COLOSSALNUM:
             if (typeDeclaration == DataType::BINARY_DATA && result.type == DataType::BINARY) {
                 try {
                     result = Binary::Data({result});
@@ -2329,6 +2485,11 @@ Value Parser::applyTypeDeclaration(const Value value, const ASTNode node) {
                 case DataType::HEXADECIMAL:
                 case DataType::OCTAL:
                 case DataType::BINARY:
+                case DataType::BIGNUM:
+                case DataType::LARGENUM:
+                case DataType::HUGENUM:
+                case DataType::GIANTNUM:
+                case DataType::COLOSSALNUM:
                     result = Utility::convert(result, typeDeclaration);
                     break;
                 default:
@@ -2355,7 +2516,12 @@ Value Parser::applyTypeDeclaration(const Value value, const ASTNode node) {
                 case DataType::HEXADECIMAL:
                 case DataType::OCTAL:
                 case DataType::BINARY:
-                    result.boolean_value = (value.number_value > 0);
+                case DataType::BIGNUM:
+                case DataType::LARGENUM:
+                case DataType::HUGENUM:
+                case DataType::GIANTNUM:
+                case DataType::COLOSSALNUM:
+                    result.boolean_value = !Utility::numIsZero(result.number_value);
                     break;
                 case DataType::STRING:
                     result.boolean_value = value.toBoolean();
@@ -2445,9 +2611,9 @@ Value Parser::functionLINK(const std::vector<Value>& args) {
 Value Parser::functionBINARY(const std::vector<Value>& args) {
     if (args.empty()) return binaryToValue("0");
 
-    double num = args[0].toNumber();
+    JUSTCnum num = args[0].toNumber();
     std::string binary;
-    int intNum = static_cast<int>(num);
+    int intNum = Utility::numToInt(num);
 
     if (intNum == 0) return binaryToValue("0");
 
@@ -2462,18 +2628,18 @@ Value Parser::functionBINARY(const std::vector<Value>& args) {
 Value Parser::functionOCTAL(const std::vector<Value>& args) {
     if (args.empty()) return octalToValue("0");
 
-    double num = args[0].toNumber();
+    JUSTCnum num = args[0].toNumber();
     std::stringstream ss;
-    ss << std::oct << static_cast<int>(num);
+    ss << std::oct << Utility::numToInt(num);
     return octalToValue(ss.str());
 }
 
 Value Parser::functionHEXADECIMAL(const std::vector<Value>& args) {
     if (args.empty()) return hexToValue("0");
 
-    double num = args[0].toNumber();
+    JUSTCnum num = args[0].toNumber();
     std::stringstream ss;
-    ss << std::hex << static_cast<int>(num);
+    ss << std::hex << Utility::numToInt(num);
     return hexToValue(ss.str());
 }
 
@@ -2486,21 +2652,7 @@ Value Parser::functionTYPEID(const std::vector<Value>& args) {
 Value Parser::functionTYPEOF(const std::vector<Value>& args) {
     if (args.empty()) return stringToValue("unknown");
 
-    switch (args[0].type) {
-        case DataType::JUSTC_OBJECT: return stringToValue("justc_object");
-        case DataType::NUMBER: return stringToValue("number");
-        case DataType::STRING: return stringToValue("string");
-        case DataType::LINK: return stringToValue("link");
-        case DataType::BOOLEAN: return stringToValue("boolean");
-        case DataType::JSON_OBJECT: return stringToValue("json_object");
-        case DataType::JSON_ARRAY: return stringToValue("json_array");
-        case DataType::NULL_TYPE: return stringToValue("null");
-        case DataType::HEXADECIMAL: return stringToValue("hexadecimal");
-        case DataType::BINARY: return stringToValue("binary");
-        case DataType::PATH: return stringToValue("path");
-        case DataType::OCTAL: return stringToValue("octal");
-        default: return stringToValue("unknown");
-    }
+    return stringToValue(dataTypeToString(args[0].type));
 }
 
 Value Parser::functionECHO(const std::vector<Value>& args) {
@@ -2591,18 +2743,12 @@ Value Parser::stringToValue(const std::string& str) {
     return result;
 }
 
-Value Parser::numberToValue(double num) {
+Value Parser::numberToValue(JUSTCnum num, DataType type) {
     Value result;
-    result.type = DataType::NUMBER;
+    result.type = type;
     result.number_value = num;
 
-    std::string str = std::to_string(num);
-    if (!str.empty() && std::tolower(str.back()) == 'b') {
-        str.pop_back();
-        result.name = str + "B";
-    } else {
-        result.name = str;
-    }
+    std::string str = Utility::numberToString(num);
 
     return result;
 }
@@ -2670,7 +2816,7 @@ Value Parser::hexToValue(const std::string& hexStr) {
         result.number_value = 0.0;
     }
 
-    result.name = Utility::double2hexString(result.number_value);
+    result.name = Utility::double2hexString(Utility::numToDouble(result.number_value));
     if (isBigNumber) {
         result.name += "B";
     }
@@ -2714,7 +2860,7 @@ Value Parser::binaryToValue(const std::string& binStr) {
         result.number_value = 0.0;
     }
 
-    result.name = Utility::double2binString(result.number_value);
+    result.name = Utility::double2binString(Utility::numToDouble(result.number_value));
     if (isBigNumber) {
         result.name += "B";
     }
@@ -2755,7 +2901,9 @@ Value Parser::octalToValue(const std::string& octStr) {
         result.number_value = 0.0;
     }
 
-    result.name = Utility::double2octString(result.number_value);
+    result.name = Utility::double2octString(std::visit([](auto&& arg) -> double {
+        return static_cast<double>(arg);
+    }, result.number_value));
     if (isBigNumber) {
         result.name += "B";
     }
@@ -3091,7 +3239,7 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
                 throw std::runtime_error("Expected numeric index in array access, got <" + dataTypeToString(indexVal.type) + "> at " + Utility::position(position, input) + ".");
             }
 
-            size_t index = static_cast<size_t>(indexVal.toNumber());
+            size_t index = static_cast<size_t>(Utility::numToDouble(indexVal.toNumber()));
             accessChain.push_back(index);
 
             if (!match("]")) {
@@ -3165,6 +3313,36 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     }
 
     return currentValue;
+}
+
+std::vector<double> Parser::values2numbers(const std::vector<Value>& values) {
+    std::vector<double> result;
+    result.reserve(values.size());
+
+    for (size_t i = 0; i < values.size(); ++i) {
+        const auto& value = values[i];
+        switch (value.type) {
+            case DataType::NUMBER:
+            case DataType::HEXADECIMAL:
+            case DataType::BINARY:
+            case DataType::OCTAL:
+            case DataType::BIGNUM:
+            case DataType::LARGENUM:
+            case DataType::HUGENUM:
+            case DataType::GIANTNUM:
+            case DataType::COLOSSALNUM:
+                result.push_back(Utility::numToDouble(value.number_value));
+                break;
+
+            default:
+                throw std::runtime_error(
+                    "Expected number at argument " + std::to_string(i) +
+                    ", got <" + dataTypeToString(value.type) + ">"
+                );
+                break;
+        }
+    }
+    return result;
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {

@@ -63,4 +63,5 @@ body::after{content:'How to use this experimental JUSTC demo website:' "\A    "
     '* bitwise or: "|", "OR"' "\A        "
     '* bitwise xor: "^", "XOR"' "\A        "
     '* bitwise left shift: "<<"' "\A        "
-    '* bitwise right shift: ">>"' "\A        ";white-space:pre-wrap;font-family:monospace}
+    '* bitwise right shift: ">>"' "\A        "
+    "\A" 'Copyright © 2025-2026 JustStudio.';white-space:pre-wrap;font-family:monospace}

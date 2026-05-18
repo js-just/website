@@ -34,4 +34,12 @@
 "core/built-in/http/http.hpp",
 "core/utility.emscripten.h",
 "core/built-in/math/math.hpp",
-"core/built-in/binary/binary.hpp"]}
+"core/built-in/binary/binary.hpp",
+"core/built-in/s.hpp",
+"core/lexer.emscripten.h",
+"core/lib.cpp",
+"core/lib.hpp",
+"core/number.hpp",
+"LICENSE",
+"README.md",
+"core/datatype.hpp"]}

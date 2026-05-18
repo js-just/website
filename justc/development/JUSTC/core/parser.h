@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2025 JustStudio. <https://juststudio.is-a.dev/>
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,7 @@ SOFTWARE.
 #include <variant>
 #include "lexer.h"
 #include "version.h"
+#include "number.hpp"
 
 struct Value;
 class Parser;
@@ -53,30 +54,7 @@ struct ObjectContext {
     std::unordered_map<std::string, std::shared_ptr<ObjectContext>> childObjects;
 };
 
-enum class DataType {
-    JUSTC_OBJECT =  0,
-    NUMBER       =  1,
-    STRING       =  2,
-    LINK         =  3,
-    BOOLEAN      =  4,
-    JSON_OBJECT  =  5,
-    JSON_ARRAY   =  6,
-    NULL_TYPE    =  7,
-    HEXADECIMAL  =  9,
-    BINARY       = 11,
-    PATH         = 12,
-    ERROR        = 13,
-    VARIABLE     = 14,
-    FUNCTION     = 15,
-    NOT_A_NUMBER = 17,
-    INFINITE     = 18,
-    SYNTAX_ERROR = 19,
-    OCTAL        = 20,
-    CLASS        = 21,
-    SPACE        = 22,
-    BINARY_DATA  = 23,
-    UNKNOWN      =-1
-};
+#include "datatype.hpp"
 
 inline std::string dataTypeToString(DataType type) {
     switch (type) {
@@ -102,6 +80,11 @@ inline std::string dataTypeToString(DataType type) {
         case DataType::CLASS:        return "class";
         case DataType::SPACE:        return "space";
         case DataType::BINARY_DATA:  return "Binary Data";
+        case DataType::BIGNUM:       return "Big Number";
+        case DataType::LARGENUM:     return "Large Number";
+        case DataType::HUGENUM:      return "Huge Number";
+        case DataType::GIANTNUM:     return "Giant Number";
+        case DataType::COLOSSALNUM:  return "Colossal Number";
         default:                     return "invalid";
     }
 };
@@ -109,10 +92,9 @@ inline std::string dataTypeToString(DataType type) {
 struct Value {
     DataType type;
 
-    union {
-        double number_value;
-        bool boolean_value;
-    };
+    JUSTCnum number_value;
+    bool boolean_value = false;
+
     std::string string_value;
     std::shared_ptr<void> complex_value;
     std::string name;
@@ -124,12 +106,12 @@ struct Value {
     std::vector<Value> array_elements;
     DataType object_type;
 
-    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN) {}
-    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
+    Value() : type(DataType::UNKNOWN), number_value(0.0), boolean_value(false), name("unknown"), object_type(DataType::UNKNOWN) {}
+    Value(DataType t) : type(t), number_value(0.0), boolean_value(false), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
     Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
 
     std::string toString() const;
-    double toNumber() const;
+    JUSTCnum toNumber() const;
     bool toBoolean() const;
 
     std::wstring toWString() const {
@@ -172,6 +154,12 @@ struct Value {
     static Value createJustcObject(const std::shared_ptr<ObjectContext>& context);
     static Value createJsonObject(const std::unordered_map<std::string, Value>& obj);
     static Value createJsonArray(const std::vector<Value>& arr);
+
+    static Value createBigNum(BigNum num);
+    static Value createLargeNum(LargeNum num);
+    static Value createHugeNum(HugeNum num);
+    static Value createGiantNum(GiantNum num);
+    static Value createColossalNum(ColossalNum num);
 
     static Value createString(const std::wstring& wstr) {
         Value result;
@@ -356,7 +344,7 @@ private:
     Value evaluateASTNode(const ASTNode& node);
     void extractReferences(const Value& value, std::vector<std::string>& references);
 
-    Value numberToValue(double num);
+    Value numberToValue(JUSTCnum num, DataType type = DataType::NUMBER);
     Value booleanToValue(bool b);
     Value linkToValue(const std::string& link);
     Value pathToValue(const std::string& path);
@@ -412,29 +400,7 @@ private:
 
     Value evaluateLengthOperator(const Value& value);
 
-    static std::vector<double> values2numbers(const std::vector<Value>& values) {
-        std::vector<double> result;
-        result.reserve(values.size());
-
-        for (size_t i = 0; i < values.size(); ++i) {
-            const auto& value = values[i];
-            switch (value.type) {
-                case DataType::NUMBER:
-                case DataType::HEXADECIMAL:
-                case DataType::BINARY:
-                case DataType::OCTAL:
-                    result.push_back(value.number_value);
-                    break;
-                default:
-                    throw std::runtime_error(
-                        "Expected number at argument " + std::to_string(i) +
-                        ", got <" + dataTypeToString(value.type) + ">"
-                    );
-                    break;
-            }
-        }
-        return result;
-    }
+    static std::vector<double> values2numbers(const std::vector<Value>& values);
 
 public:
     static std::string getCurrentTimestamp();
