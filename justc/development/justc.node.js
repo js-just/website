@@ -2014,7 +2014,7 @@ var getHeapMax = () => // Stay one Wasm page short of 4GB: while e.g. Chrome is 
 // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
 // for any code that deals with heap sizes, which would require special
 // casing all heap size related code to treat 0 specially.
-536870912;
+1073741824;
 
 var alignMemory = (size, alignment) => {
   assert(alignment, "alignment argument is required");
@@ -4942,7 +4942,7 @@ var handleException = e => {
   checkStackCookie();
   if (e instanceof WebAssembly.RuntimeError) {
     if (_emscripten_stack_get_current() <= 0) {
-      err("Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 8388608)");
+      err("Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 67108864)");
     }
   }
   quit_(1, e);
@@ -5457,13 +5457,13 @@ function checkIncomingModuleAPI() {
 }
 
 var ASM_CONSTS = {
-  8552931: $0 => {
+  147827: $0 => {
     console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the JSON output.");
   },
-  8553034: $0 => {
+  147930: $0 => {
     console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the XML output.");
   },
-  8553136: $0 => {
+  148032: $0 => {
     console.warn("[JUSTC] (" + $0 + ") string is too long. It will be truncated in the YAML output.");
   }
 };
@@ -5573,45 +5573,49 @@ var ___cxa_get_exception_ptr = makeInvalidEarlyAccess("___cxa_get_exception_ptr"
 
 var ___set_stack_limits = Module["___set_stack_limits"] = makeInvalidEarlyAccess("___set_stack_limits");
 
-var dynCall_vi = makeInvalidEarlyAccess("dynCall_vi");
-
-var dynCall_iii = makeInvalidEarlyAccess("dynCall_iii");
-
-var dynCall_viii = makeInvalidEarlyAccess("dynCall_viii");
-
-var dynCall_viiii = makeInvalidEarlyAccess("dynCall_viiii");
+var dynCall_v = makeInvalidEarlyAccess("dynCall_v");
 
 var dynCall_ii = makeInvalidEarlyAccess("dynCall_ii");
 
+var dynCall_viii = makeInvalidEarlyAccess("dynCall_viii");
+
+var dynCall_iii = makeInvalidEarlyAccess("dynCall_iii");
+
+var dynCall_viiii = makeInvalidEarlyAccess("dynCall_viiii");
+
 var dynCall_vii = makeInvalidEarlyAccess("dynCall_vii");
-
-var dynCall_v = makeInvalidEarlyAccess("dynCall_v");
-
-var dynCall_iiiiii = makeInvalidEarlyAccess("dynCall_iiiiii");
 
 var dynCall_iiii = makeInvalidEarlyAccess("dynCall_iiii");
 
+var dynCall_iiiii = makeInvalidEarlyAccess("dynCall_iiiii");
+
 var dynCall_viiiiiiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiiiiiii");
 
-var dynCall_iiiii = makeInvalidEarlyAccess("dynCall_iiiii");
+var dynCall_vi = makeInvalidEarlyAccess("dynCall_vi");
 
 var dynCall_dii = makeInvalidEarlyAccess("dynCall_dii");
 
-var dynCall_iiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiii");
-
 var dynCall_iiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiii");
 
-var dynCall_viiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiii");
-
-var dynCall_iiiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiiii");
+var dynCall_iiiiii = makeInvalidEarlyAccess("dynCall_iiiiii");
 
 var dynCall_viiiii = makeInvalidEarlyAccess("dynCall_viiiii");
 
-var dynCall_di = makeInvalidEarlyAccess("dynCall_di");
+var dynCall_iiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiii");
+
+var dynCall_diii = makeInvalidEarlyAccess("dynCall_diii");
 
 var dynCall_vid = makeInvalidEarlyAccess("dynCall_vid");
 
+var dynCall_viiiiii = makeInvalidEarlyAccess("dynCall_viiiiii");
+
 var dynCall_viiiiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiiiii");
+
+var dynCall_viiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiii");
+
+var dynCall_iid = makeInvalidEarlyAccess("dynCall_iid");
+
+var dynCall_di = makeInvalidEarlyAccess("dynCall_di");
 
 var dynCall_dd = makeInvalidEarlyAccess("dynCall_dd");
 
@@ -5623,6 +5627,8 @@ var dynCall_ji = makeInvalidEarlyAccess("dynCall_ji");
 
 var dynCall_d = makeInvalidEarlyAccess("dynCall_d");
 
+var dynCall_viiiiiiiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiiiiiiii");
+
 var dynCall_iiiiiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiiiiii");
 
 var dynCall_i = makeInvalidEarlyAccess("dynCall_i");
@@ -5631,19 +5637,15 @@ var dynCall_viiji = makeInvalidEarlyAccess("dynCall_viiji");
 
 var dynCall_vijjii = makeInvalidEarlyAccess("dynCall_vijjii");
 
-var dynCall_viiiiiiiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiiiiiiii");
-
-var dynCall_iid = makeInvalidEarlyAccess("dynCall_iid");
+var dynCall_diiiii = makeInvalidEarlyAccess("dynCall_diiiii");
 
 var dynCall_iij = makeInvalidEarlyAccess("dynCall_iij");
 
-var dynCall_diii = makeInvalidEarlyAccess("dynCall_diii");
+var dynCall_iiiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiiii");
 
 var dynCall_iiiiiiiiiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiiiiiiiiii");
 
 var dynCall_iiiiiiiiiiiii = makeInvalidEarlyAccess("dynCall_iiiiiiiiiiiii");
-
-var dynCall_viiiiii = makeInvalidEarlyAccess("dynCall_viiiiii");
 
 var dynCall_viiiiiiii = makeInvalidEarlyAccess("dynCall_viiiiiiii");
 
@@ -5752,46 +5754,50 @@ function assignWasmExports(wasmExports) {
   ___cxa_get_exception_ptr = createExportWrapper("__cxa_get_exception_ptr", 1);
   assert(typeof wasmExports["__set_stack_limits"] != "undefined", "missing Wasm export: __set_stack_limits");
   ___set_stack_limits = Module["___set_stack_limits"] = createExportWrapper("__set_stack_limits", 2);
-  assert(typeof wasmExports["dynCall_vi"] != "undefined", "missing Wasm export: dynCall_vi");
-  dynCall_vi = dynCalls["vi"] = createExportWrapper("dynCall_vi", 2);
-  assert(typeof wasmExports["dynCall_iii"] != "undefined", "missing Wasm export: dynCall_iii");
-  dynCall_iii = dynCalls["iii"] = createExportWrapper("dynCall_iii", 3);
-  assert(typeof wasmExports["dynCall_viii"] != "undefined", "missing Wasm export: dynCall_viii");
-  dynCall_viii = dynCalls["viii"] = createExportWrapper("dynCall_viii", 4);
-  assert(typeof wasmExports["dynCall_viiii"] != "undefined", "missing Wasm export: dynCall_viiii");
-  dynCall_viiii = dynCalls["viiii"] = createExportWrapper("dynCall_viiii", 5);
-  assert(typeof wasmExports["dynCall_ii"] != "undefined", "missing Wasm export: dynCall_ii");
-  dynCall_ii = dynCalls["ii"] = createExportWrapper("dynCall_ii", 2);
-  assert(typeof wasmExports["dynCall_vii"] != "undefined", "missing Wasm export: dynCall_vii");
-  dynCall_vii = dynCalls["vii"] = createExportWrapper("dynCall_vii", 3);
   assert(typeof wasmExports["dynCall_v"] != "undefined", "missing Wasm export: dynCall_v");
   dynCall_v = dynCalls["v"] = createExportWrapper("dynCall_v", 1);
-  assert(typeof wasmExports["dynCall_iiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiii");
-  dynCall_iiiiii = dynCalls["iiiiii"] = createExportWrapper("dynCall_iiiiii", 6);
+  assert(typeof wasmExports["dynCall_ii"] != "undefined", "missing Wasm export: dynCall_ii");
+  dynCall_ii = dynCalls["ii"] = createExportWrapper("dynCall_ii", 2);
+  assert(typeof wasmExports["dynCall_viii"] != "undefined", "missing Wasm export: dynCall_viii");
+  dynCall_viii = dynCalls["viii"] = createExportWrapper("dynCall_viii", 4);
+  assert(typeof wasmExports["dynCall_iii"] != "undefined", "missing Wasm export: dynCall_iii");
+  dynCall_iii = dynCalls["iii"] = createExportWrapper("dynCall_iii", 3);
+  assert(typeof wasmExports["dynCall_viiii"] != "undefined", "missing Wasm export: dynCall_viiii");
+  dynCall_viiii = dynCalls["viiii"] = createExportWrapper("dynCall_viiii", 5);
+  assert(typeof wasmExports["dynCall_vii"] != "undefined", "missing Wasm export: dynCall_vii");
+  dynCall_vii = dynCalls["vii"] = createExportWrapper("dynCall_vii", 3);
   assert(typeof wasmExports["dynCall_iiii"] != "undefined", "missing Wasm export: dynCall_iiii");
   dynCall_iiii = dynCalls["iiii"] = createExportWrapper("dynCall_iiii", 4);
-  assert(typeof wasmExports["dynCall_viiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiiiiii");
-  dynCall_viiiiiiiiiii = dynCalls["viiiiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiiiii", 12);
   assert(typeof wasmExports["dynCall_iiiii"] != "undefined", "missing Wasm export: dynCall_iiiii");
   dynCall_iiiii = dynCalls["iiiii"] = createExportWrapper("dynCall_iiiii", 5);
+  assert(typeof wasmExports["dynCall_viiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiiiiii");
+  dynCall_viiiiiiiiiii = dynCalls["viiiiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiiiii", 12);
+  assert(typeof wasmExports["dynCall_vi"] != "undefined", "missing Wasm export: dynCall_vi");
+  dynCall_vi = dynCalls["vi"] = createExportWrapper("dynCall_vi", 2);
   assert(typeof wasmExports["dynCall_dii"] != "undefined", "missing Wasm export: dynCall_dii");
   dynCall_dii = dynCalls["dii"] = createExportWrapper("dynCall_dii", 3);
-  assert(typeof wasmExports["dynCall_iiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiii");
-  dynCall_iiiiiiiii = dynCalls["iiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiii", 9);
   assert(typeof wasmExports["dynCall_iiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiii");
   dynCall_iiiiiii = dynCalls["iiiiiii"] = createExportWrapper("dynCall_iiiiiii", 7);
-  assert(typeof wasmExports["dynCall_viiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiii");
-  dynCall_viiiiiii = dynCalls["viiiiiii"] = createExportWrapper("dynCall_viiiiiii", 8);
-  assert(typeof wasmExports["dynCall_iiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiiii");
-  dynCall_iiiiiiiiii = dynCalls["iiiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiiii", 10);
+  assert(typeof wasmExports["dynCall_iiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiii");
+  dynCall_iiiiii = dynCalls["iiiiii"] = createExportWrapper("dynCall_iiiiii", 6);
   assert(typeof wasmExports["dynCall_viiiii"] != "undefined", "missing Wasm export: dynCall_viiiii");
   dynCall_viiiii = dynCalls["viiiii"] = createExportWrapper("dynCall_viiiii", 6);
-  assert(typeof wasmExports["dynCall_di"] != "undefined", "missing Wasm export: dynCall_di");
-  dynCall_di = dynCalls["di"] = createExportWrapper("dynCall_di", 2);
+  assert(typeof wasmExports["dynCall_iiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiii");
+  dynCall_iiiiiiiii = dynCalls["iiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiii", 9);
+  assert(typeof wasmExports["dynCall_diii"] != "undefined", "missing Wasm export: dynCall_diii");
+  dynCall_diii = dynCalls["diii"] = createExportWrapper("dynCall_diii", 4);
   assert(typeof wasmExports["dynCall_vid"] != "undefined", "missing Wasm export: dynCall_vid");
   dynCall_vid = dynCalls["vid"] = createExportWrapper("dynCall_vid", 3);
+  assert(typeof wasmExports["dynCall_viiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiii");
+  dynCall_viiiiii = dynCalls["viiiiii"] = createExportWrapper("dynCall_viiiiii", 7);
   assert(typeof wasmExports["dynCall_viiiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiiii");
   dynCall_viiiiiiiii = dynCalls["viiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiii", 10);
+  assert(typeof wasmExports["dynCall_viiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiii");
+  dynCall_viiiiiii = dynCalls["viiiiiii"] = createExportWrapper("dynCall_viiiiiii", 8);
+  assert(typeof wasmExports["dynCall_iid"] != "undefined", "missing Wasm export: dynCall_iid");
+  dynCall_iid = dynCalls["iid"] = createExportWrapper("dynCall_iid", 3);
+  assert(typeof wasmExports["dynCall_di"] != "undefined", "missing Wasm export: dynCall_di");
+  dynCall_di = dynCalls["di"] = createExportWrapper("dynCall_di", 2);
   assert(typeof wasmExports["dynCall_dd"] != "undefined", "missing Wasm export: dynCall_dd");
   dynCall_dd = dynCalls["dd"] = createExportWrapper("dynCall_dd", 2);
   assert(typeof wasmExports["dynCall_ddd"] != "undefined", "missing Wasm export: dynCall_ddd");
@@ -5802,6 +5808,8 @@ function assignWasmExports(wasmExports) {
   dynCall_ji = dynCalls["ji"] = createExportWrapper("dynCall_ji", 2);
   assert(typeof wasmExports["dynCall_d"] != "undefined", "missing Wasm export: dynCall_d");
   dynCall_d = dynCalls["d"] = createExportWrapper("dynCall_d", 1);
+  assert(typeof wasmExports["dynCall_viiiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiiiiiii");
+  dynCall_viiiiiiiiiiii = dynCalls["viiiiiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiiiiii", 13);
   assert(typeof wasmExports["dynCall_iiiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiiiiii");
   dynCall_iiiiiiiiiiii = dynCalls["iiiiiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiiiiii", 12);
   assert(typeof wasmExports["dynCall_i"] != "undefined", "missing Wasm export: dynCall_i");
@@ -5810,20 +5818,16 @@ function assignWasmExports(wasmExports) {
   dynCall_viiji = dynCalls["viiji"] = createExportWrapper("dynCall_viiji", 5);
   assert(typeof wasmExports["dynCall_vijjii"] != "undefined", "missing Wasm export: dynCall_vijjii");
   dynCall_vijjii = dynCalls["vijjii"] = createExportWrapper("dynCall_vijjii", 6);
-  assert(typeof wasmExports["dynCall_viiiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiiiiiii");
-  dynCall_viiiiiiiiiiii = dynCalls["viiiiiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiiiiii", 13);
-  assert(typeof wasmExports["dynCall_iid"] != "undefined", "missing Wasm export: dynCall_iid");
-  dynCall_iid = dynCalls["iid"] = createExportWrapper("dynCall_iid", 3);
+  assert(typeof wasmExports["dynCall_diiiii"] != "undefined", "missing Wasm export: dynCall_diiiii");
+  dynCall_diiiii = dynCalls["diiiii"] = createExportWrapper("dynCall_diiiii", 6);
   assert(typeof wasmExports["dynCall_iij"] != "undefined", "missing Wasm export: dynCall_iij");
   dynCall_iij = dynCalls["iij"] = createExportWrapper("dynCall_iij", 3);
-  assert(typeof wasmExports["dynCall_diii"] != "undefined", "missing Wasm export: dynCall_diii");
-  dynCall_diii = dynCalls["diii"] = createExportWrapper("dynCall_diii", 4);
+  assert(typeof wasmExports["dynCall_iiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiiii");
+  dynCall_iiiiiiiiii = dynCalls["iiiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiiii", 10);
   assert(typeof wasmExports["dynCall_iiiiiiiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiiiiiiiiii");
   dynCall_iiiiiiiiiiiiiiii = dynCalls["iiiiiiiiiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiiiiiiiiii", 16);
   assert(typeof wasmExports["dynCall_iiiiiiiiiiiii"] != "undefined", "missing Wasm export: dynCall_iiiiiiiiiiiii");
   dynCall_iiiiiiiiiiiii = dynCalls["iiiiiiiiiiiii"] = createExportWrapper("dynCall_iiiiiiiiiiiii", 13);
-  assert(typeof wasmExports["dynCall_viiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiii");
-  dynCall_viiiiii = dynCalls["viiiiii"] = createExportWrapper("dynCall_viiiiii", 7);
   assert(typeof wasmExports["dynCall_viiiiiiii"] != "undefined", "missing Wasm export: dynCall_viiiiiiii");
   dynCall_viiiiiiii = dynCalls["viiiiiiii"] = createExportWrapper("dynCall_viiiiiiii", 9);
   assert(typeof wasmExports["dynCall_jiiiii"] != "undefined", "missing Wasm export: dynCall_jiiiii");
@@ -5928,6 +5932,7 @@ var wasmImports = {
   /** @export */ invoke_di,
   /** @export */ invoke_dii,
   /** @export */ invoke_diii,
+  /** @export */ invoke_diiiii,
   /** @export */ invoke_fiii,
   /** @export */ invoke_i,
   /** @export */ invoke_ii,
@@ -5985,32 +5990,10 @@ var wasmImports = {
   /** @export */ warn_unsupported_js_type
 };
 
-function invoke_iii(index, a1, a2) {
+function invoke_v(index) {
   var sp = stackSave();
   try {
-    return dynCall_iii(index, a1, a2);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viii(index, a1, a2, a3) {
-  var sp = stackSave();
-  try {
-    dynCall_viii(index, a1, a2, a3);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiii(index, a1, a2, a3, a4) {
-  var sp = stackSave();
-  try {
-    dynCall_viiii(index, a1, a2, a3, a4);
+    dynCall_v(index);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6029,10 +6012,10 @@ function invoke_ii(index, a1) {
   }
 }
 
-function invoke_vii(index, a1, a2) {
+function invoke_viii(index, a1, a2, a3) {
   var sp = stackSave();
   try {
-    dynCall_vii(index, a1, a2);
+    dynCall_viii(index, a1, a2, a3);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6040,10 +6023,32 @@ function invoke_vii(index, a1, a2) {
   }
 }
 
-function invoke_v(index) {
+function invoke_iii(index, a1, a2) {
   var sp = stackSave();
   try {
-    dynCall_v(index);
+    return dynCall_iii(index, a1, a2);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiii(index, a1, a2, a3, a4) {
+  var sp = stackSave();
+  try {
+    dynCall_viiii(index, a1, a2, a3, a4);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_vii(index, a1, a2) {
+  var sp = stackSave();
+  try {
+    dynCall_vii(index, a1, a2);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6062,10 +6067,10 @@ function invoke_iiii(index, a1, a2, a3) {
   }
 }
 
-function invoke_viiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+function invoke_iiiii(index, a1, a2, a3, a4) {
   var sp = stackSave();
   try {
-    dynCall_viiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+    return dynCall_iiiii(index, a1, a2, a3, a4);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6073,10 +6078,10 @@ function invoke_viiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11
   }
 }
 
-function invoke_iiiii(index, a1, a2, a3, a4) {
+function invoke_viiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
   var sp = stackSave();
   try {
-    return dynCall_iiiii(index, a1, a2, a3, a4);
+    dynCall_viiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6095,10 +6100,10 @@ function invoke_vi(index, a1) {
   }
 }
 
-function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+function invoke_dii(index, a1, a2) {
   var sp = stackSave();
   try {
-    return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
+    return dynCall_dii(index, a1, a2);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6106,10 +6111,10 @@ function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
   }
 }
 
-function invoke_dii(index, a1, a2) {
+function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
   var sp = stackSave();
   try {
-    return dynCall_dii(index, a1, a2);
+    return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6128,10 +6133,10 @@ function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
   }
 }
 
-function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
   var sp = stackSave();
   try {
-    dynCall_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7);
+    return dynCall_iiiiiii(index, a1, a2, a3, a4, a5, a6);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6150,32 +6155,10 @@ function invoke_viiiii(index, a1, a2, a3, a4, a5) {
   }
 }
 
-function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
+function invoke_diii(index, a1, a2, a3) {
   var sp = stackSave();
   try {
-    return dynCall_iiiiiii(index, a1, a2, a3, a4, a5, a6);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
-  var sp = stackSave();
-  try {
-    return dynCall_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_di(index, a1) {
-  var sp = stackSave();
-  try {
-    return dynCall_di(index, a1);
+    return dynCall_diii(index, a1, a2, a3);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6194,10 +6177,54 @@ function invoke_vid(index, a1, a2) {
   }
 }
 
+function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
+  var sp = stackSave();
+  try {
+    dynCall_viiiiii(index, a1, a2, a3, a4, a5, a6);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
   var sp = stackSave();
   try {
     dynCall_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+  var sp = stackSave();
+  try {
+    dynCall_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iid(index, a1, a2) {
+  var sp = stackSave();
+  try {
+    return dynCall_iid(index, a1, a2);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_di(index, a1) {
+  var sp = stackSave();
+  try {
+    return dynCall_di(index, a1);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6261,6 +6288,17 @@ function invoke_d(index) {
   }
 }
 
+function invoke_viiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) {
+  var sp = stackSave();
+  try {
+    dynCall_viiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_iiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
   var sp = stackSave();
   try {
@@ -6305,21 +6343,10 @@ function invoke_vijjii(index, a1, a2, a3, a4, a5) {
   }
 }
 
-function invoke_viiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) {
+function invoke_diiiii(index, a1, a2, a3, a4, a5) {
   var sp = stackSave();
   try {
-    dynCall_viiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iid(index, a1, a2) {
-  var sp = stackSave();
-  try {
-    return dynCall_iid(index, a1, a2);
+    return dynCall_diiiii(index, a1, a2, a3, a4, a5);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6338,10 +6365,10 @@ function invoke_iij(index, a1, a2) {
   }
 }
 
-function invoke_diii(index, a1, a2, a3) {
+function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
   var sp = stackSave();
   try {
-    return dynCall_diii(index, a1, a2, a3);
+    return dynCall_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -6364,17 +6391,6 @@ function invoke_iiiiiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10,
   var sp = stackSave();
   try {
     return dynCall_iiiiiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
-  var sp = stackSave();
-  try {
-    dynCall_viiiiii(index, a1, a2, a3, a4, a5, a6);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
