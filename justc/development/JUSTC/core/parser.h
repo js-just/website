@@ -75,6 +75,10 @@ enum class DataType {
     CLASS        = 21,
     SPACE        = 22,
     BINARY_DATA  = 23,
+    BIGNUM       = 24,
+    INTEGER      = 25,
+    BASE64       = 26,
+    HTTP_ERROR   = 27,
     UNKNOWN      =-1
 };
 
@@ -87,7 +91,7 @@ inline std::string dataTypeToString(DataType type) {
         case DataType::BOOLEAN:      return "Boolean";
         case DataType::JSON_OBJECT:  return "JSON Object";
         case DataType::JSON_ARRAY:   return "JSON Array";
-        case DataType::NULL_TYPE:    return "null";
+        case DataType::NULL_TYPE:    return "Null";
         case DataType::HEXADECIMAL:  return "Hexadecimal number";
         case DataType::BINARY:       return "Binary number";
         case DataType::PATH:         return "Path";
@@ -98,10 +102,14 @@ inline std::string dataTypeToString(DataType type) {
         case DataType::INFINITE:     return "Infinity";
         case DataType::SYNTAX_ERROR: return "Syntax Error";
         case DataType::OCTAL:        return "Octal number";
+        case DataType::CLASS:        return "Class";
+        case DataType::SPACE:        return "Space";
+        case DataType::BINARY_DATA:  return "Data";
+        case DataType::BIGNUM:       return "Big number";
+        case DataType::INTEGER:      return "Integer";
+        case DataType::BASE64:       return "Base64 number";
+        case DataType::HTTP_ERROR:   return "HTTP Error";
         case DataType::UNKNOWN:      return "unknown";
-        case DataType::CLASS:        return "class";
-        case DataType::SPACE:        return "space";
-        case DataType::BINARY_DATA:  return "Binary Data";
         default:                     return "invalid";
     }
 };
@@ -382,6 +390,8 @@ private:
         }
     }
 
+    Value isolated(const std::string& code, bool doExecute, size_t startPos);
+
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
     std::future<Value> functionFILEAsync(const std::vector<Value>& args);
@@ -396,9 +406,7 @@ private:
     Value functionECHO(const std::vector<Value>& args);
     Value functionJSON(const std::vector<Value>& args);
     Value functionHTTP(size_t startPos, const std::string& method, const std::vector<Value>& args);
-    Value functionJUSTC(const std::vector<Value>& args);
-    Value functionPARSEJUSTC(const std::vector<Value>& args);
-    Value functionPARSEJSON(const std::vector<Value>& args);
+    Value functionJUSTC(const std::vector<Value>& args, size_t startPos);
     Value functionFILE(const std::vector<Value>& args);
     Value functionSTAT(const std::vector<Value>& args);
     Value functionENV(const std::vector<Value>& args);

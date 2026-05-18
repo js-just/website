@@ -1813,9 +1813,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         }
         return functionHTTP(startPos, "OPTIONS", args);
     }
-    if (funcName == "JUSTC") return functionJUSTC(args);
-    if (funcName == "PARSEJUSTC") return functionPARSEJUSTC(args);
-    if (funcName == "PARSEJSON") return functionPARSEJSON(args);
+    if (funcName == "JUSTC") return functionJUSTC(args, startPos);
     if (funcName == "file") {
         if (runAsync) {
             auto future = functionFILEAsync(args);
@@ -2486,21 +2484,7 @@ Value Parser::functionTYPEID(const std::vector<Value>& args) {
 Value Parser::functionTYPEOF(const std::vector<Value>& args) {
     if (args.empty()) return stringToValue("unknown");
 
-    switch (args[0].type) {
-        case DataType::JUSTC_OBJECT: return stringToValue("justc_object");
-        case DataType::NUMBER: return stringToValue("number");
-        case DataType::STRING: return stringToValue("string");
-        case DataType::LINK: return stringToValue("link");
-        case DataType::BOOLEAN: return stringToValue("boolean");
-        case DataType::JSON_OBJECT: return stringToValue("json_object");
-        case DataType::JSON_ARRAY: return stringToValue("json_array");
-        case DataType::NULL_TYPE: return stringToValue("null");
-        case DataType::HEXADECIMAL: return stringToValue("hexadecimal");
-        case DataType::BINARY: return stringToValue("binary");
-        case DataType::PATH: return stringToValue("path");
-        case DataType::OCTAL: return stringToValue("octal");
-        default: return stringToValue("unknown");
-    }
+    return stringToValue(dataTypeToString(args[0].type));
 }
 
 Value Parser::functionECHO(const std::vector<Value>& args) {
@@ -2575,9 +2559,108 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
     } else return result;
 }
 
-Value Parser::functionJUSTC(const std::vector<Value>& args) { return Value(); }
-Value Parser::functionPARSEJUSTC(const std::vector<Value>& args) { return Value(); }
-Value Parser::functionPARSEJSON(const std::vector<Value>& args) { return Value(); }
+Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos) {
+    auto lexerResult = Lexer::parse(code);
+
+    Parser isolatedParser(
+        lexerResult.second,
+        doExecute && this->doExecute,
+        this->runAsync,
+        code,
+        this->allowJavaScript,
+        this->canAllowJS,
+        this->scriptName + "::justc",
+        "justc",
+        this->allowLuau,
+        this->canAllowLuau
+    );
+
+    ParseResult result;
+    Value justcObject;
+
+    try {
+        result = isolatedParser.parse(doExecute);
+
+        auto objectContext = std::make_shared<ObjectContext>();
+        objectContext->parser = std::make_shared<Parser>(isolatedParser);
+        objectContext->variables = result.returnValues;
+        objectContext->outputMode = isolatedParser.outputMode;
+        objectContext->outputVariables = isolatedParser.outputVariables;
+        objectContext->allowJavaScript = isolatedParser.allowJavaScript;
+        objectContext->allowLuau = isolatedParser.allowLuau;
+
+        justcObject = Value::createJustcObject(objectContext);
+        justcObject.name = "[JUSTC Object]";
+
+        if (isolatedParser.outputMode == "everything") {
+            justcObject.properties = result.returnValues;
+        } else if (isolatedParser.outputMode == "specified") {
+            for (size_t i = 0; i < isolatedParser.outputVariables.size(); i++) {
+                const auto& varName = isolatedParser.outputVariables[i];
+                std::string outputName = (i < isolatedParser.outputNames.size()) ?
+                                        isolatedParser.outputNames[i] : varName;
+                if (result.returnValues.find(varName) != result.returnValues.end()) {
+                    if (outputName != "_") {
+                        justcObject.properties[outputName] = result.returnValues.at(varName);
+                    } else {
+                        justcObject.properties[varName] = result.returnValues.at(varName);
+                    }
+                }
+            }
+        }
+
+        for (const auto& log : result.logs) {
+            this->addLog(log.type, log.message, log.position);
+        }
+        for (const auto& importLog : result.importLogs) {
+            this->addImportLog(importLog[0], importLog[1], importLog[2]);
+        }
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\"" + Utility::position(startPos, input) + ")");
+    }
+
+    if (!result.error.empty()) {
+        throw std::runtime_error(result.error + " (at \"" + this->scriptName + "\"" + Utility::position(startPos, input) + ")");
+    }
+
+    return justcObject;
+}
+
+Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
+    if (args.empty()) {
+        auto emptyContext = std::make_shared<ObjectContext>();
+        emptyContext->allowJavaScript = this->allowJavaScript;
+        emptyContext->allowLuau = this->allowLuau;
+        emptyContext->outputMode = "everything";
+
+        Value emptyObject = Value::createJustcObject(emptyContext);
+        emptyObject.name = "[JUSTC Object (empty)]";
+        return emptyObject;
+    }
+
+    std::string code;
+
+    if (args[0].type == DataType::STRING) {
+        code = args[0].string_value;
+    } else if (args[0].type == DataType::VARIABLE) {
+        Value resolved = resolveVariableValue(args[0].string_value, true);
+        if (resolved.type == DataType::STRING) {
+            code = resolved.string_value;
+        } else {
+            code = args[0].toString();
+        }
+    } else {
+        code = args[0].toString();
+    }
+
+    bool execute = this->doExecute;
+    if (args.size() > 1) {
+        execute = args[1].toBoolean();
+    }
+
+    return isolated(code, execute, startPos);
+}
+
 Value Parser::functionFILE(const std::vector<Value>& args) { return Value(); }
 Value Parser::functionSTAT(const std::vector<Value>& args) { return Value(); }
 Value Parser::functionENV(const std::vector<Value>& args) { return Value(); }
