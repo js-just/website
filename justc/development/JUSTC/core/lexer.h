@@ -51,6 +51,7 @@ private:
     bool warn;
     size_t position;
     std::vector<ParserToken> tokens;
+    bool embeds = false;
 
     std::vector<std::string> keywords;
     std::unordered_map<std::string, std::string> smallkeywords;

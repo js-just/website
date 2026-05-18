@@ -600,7 +600,7 @@ void Lexer::tokenize() {
             continue;
         }
 
-        if (ch == '{' && peek() == '{') {
+        if (embeds && ch == '{' && peek() == '{') {
             addDollarBefore();
             std::stringstream JavaScript;
             size_t brackets = 2;
@@ -650,7 +650,7 @@ void Lexer::tokenize() {
             tokens.push_back(ParserToken{"JavaScript", result, startPos});
             continue;
         }
-        if (ch == '<' && peek() == '<' && (tokens.empty() || (
+        if (embeds && ch == '<' && peek() == '<' && (tokens.empty() || (
             tokens[tokens.size() - 1].type != "number" &&
             tokens[tokens.size() - 1].type != "base64" &&
             tokens[tokens.size() - 1].type != "binary" &&
@@ -733,34 +733,44 @@ void Lexer::tokenize() {
             const ParserToken currToken = readIdentifier();
             const size_t currPos = position;
 
-            if (currToken.type == "keyword" && currToken.value == "goto") {
-                if (std::find(gotopos.begin(), gotopos.end(), currPos) != gotopos.end()) {
-                    #ifdef __EMSCRIPTEN__
-                    warn_lexer_goto(Parser::getCurrentTimestamp().c_str(), Utility::position(currPos, input).c_str());
-                    #else
-                    std::cout << warnPrefix + "Warning: Found goto loop at " + Utility::position(currPos, input) + "." << std::endl;
-                    #endif
-                    continue;
-                }
-                gotopos.push_back(currPos);
-                try {
-                    while(position < input.length() &&
-                        isWhitespace(input[position]))
-                    {
-                        position++;
+            if (currToken.type == "keyword") {
+                if (currToken.value == "goto") {
+                    if (std::find(gotopos.begin(), gotopos.end(), currPos) != gotopos.end()) {
+                        #ifdef __EMSCRIPTEN__
+                        warn_lexer_goto(Parser::getCurrentTimestamp().c_str(), Utility::position(currPos, input).c_str());
+                        #else
+                        std::cout << warnPrefix + "Warning: Found goto loop at " + Utility::position(currPos, input) + "." << std::endl;
+                        #endif
+                        continue;
                     }
+                    gotopos.push_back(currPos);
+                    try {
+                        while(position < input.length() &&
+                            isWhitespace(input[position]))
+                        {
+                            position++;
+                        }
 
-                    ParserToken target = readNumber();
-                    position = static_cast<size_t>(std::stod(target.value));
+                        ParserToken target = readNumber();
+                        position = static_cast<size_t>(std::stod(target.value));
 
-                    continue;
-                } catch (...) {
-                    throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input) + ".");
+                        continue;
+                    } catch (...) {
+                        throw std::runtime_error("Invalid goto usage at " + Utility::position(currPos, input) + ".");
+                    }
+                }
+
+                tokens.push_back(currToken);
+                continue;
+            } else if (currToken.value == "embeds" && tokens[tokens.size() - 1].type == "keyword" && (
+                tokens[tokens.size() - 1].value == "enable" || tokens[tokens.size() - 1].value == "disable"
+            )) {
+                if (tokens[tokens.size() - 1].value == "enable") {
+                    embeds = true;
+                } else {
+                    embeds = false;
                 }
             }
-
-            tokens.push_back(currToken);
-            continue;
         }
 
         if (ch == '-') {
