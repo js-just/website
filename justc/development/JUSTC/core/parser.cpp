@@ -844,7 +844,20 @@ ASTNode Parser::parseImportCommand() {
 
 ASTNode Parser::parseStatement(bool doExecute) {
     std::string keyword = currentToken().value;
-    if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
+
+    if (keyword == "function" || keyword == "isolated") {
+        Value funcValue = parseFunctionDeclaration(doExecute);
+
+        ASTNode node("VARIABLE_DECLARATION", funcValue.name, currentToken().start);
+        node.value = funcValue;
+        node.constant = true;
+
+        variables[funcValue.name] = funcValue;
+        constVars[funcValue.name] = true;
+
+        return node;
+
+    } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
         ast.push_back(parseCommand(doExecute));
     } else if ((match("identifier") || match("string")) && !isJSONArray) {
         return parseVariableDeclaration(doExecute);
@@ -1566,25 +1579,50 @@ Value Parser::parsePrimary(bool doExecute) {
 Value Parser::parseFunctionCall(bool doExecute) {
     std::string funcName = currentToken().value;
     size_t startPos = currentToken().start;
-    advance();
 
-    if (!match("(")) {
-        throw std::runtime_error("Expected \"(\" after function name at " + Utility::position(startPos, input) + ".");
+    Value funcValue = resolveVariableValue(funcName, false);
+
+    if (funcValue.type == DataType::FUNCTION) {
+        advance();
+
+        if (!match("(")) {
+            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
+        }
+        advance();
+
+        std::vector<Value> args;
+        while (!match(")") && !isEnd()) {
+            args.push_back(parseExpression(doExecute));
+            if (match(",") || match(";")) advance();
+        }
+
+        if (!match(")")) {
+            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input));
+        }
+        advance();
+
+        return callFunction(funcValue, args, startPos);
+    } else {
+        advance();
+
+        if (!match("(")) {
+            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
+        }
+        advance();
+
+        std::vector<Value> args;
+        while (!match(")") && !isEnd()) {
+            args.push_back(parseExpression(doExecute));
+            if (match(",") || match(";")) advance();
+        }
+
+        if (!match(")")) {
+            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input));
+        }
+        advance();
+
+        return executeFunction(funcName, args, startPos);
     }
-    advance();
-
-    std::vector<Value> args;
-    while (!match(")") && !isEnd()) {
-        args.push_back(parseExpression(doExecute));
-        if (match(",") || match(";")) advance();
-    }
-
-    if (!match(")")) {
-        throw std::runtime_error("Expected \")\" after function arguments at" + Utility::position(startPos, input) + ".");
-    }
-    advance();
-
-    return executeFunction(funcName, args, startPos);
 }
 Value Parser::parseSpaceCall(bool doExecute) {
     std::string spaceName = currentToken().value;
@@ -2559,8 +2597,13 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
     } else return result;
 }
 
-Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos) {
+Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context) {
     auto lexerResult = Lexer::parse(code);
+
+    std::string currName = "function";
+    if (context == nullptr) {
+        currName = "justc";
+    }
 
     Parser isolatedParser(
         lexerResult.second,
@@ -2569,14 +2612,22 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos)
         code,
         this->allowJavaScript,
         this->canAllowJS,
-        this->scriptName + "::justc",
-        "justc",
+        this->scriptName + "::" + currName,
+        currName,
         this->allowLuau,
         this->canAllowLuau
     );
 
+    if (context) {
+        for (const auto& [key, value] : *context) {
+            isolatedParser.variables[key] = value;
+            if (isolatedParser.constVars.find(key) == isolatedParser.constVars.end()) {
+                isolatedParser.constVars[key] = false;
+            }
+        }
+    }
+
     ParseResult result;
-    Value justcObject;
 
     try {
         result = isolatedParser.parse(doExecute);
@@ -2589,11 +2640,11 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos)
         objectContext->allowJavaScript = isolatedParser.allowJavaScript;
         objectContext->allowLuau = isolatedParser.allowLuau;
 
-        justcObject = Value::createJustcObject(objectContext);
-        justcObject.name = "[JUSTC Object]";
+        Value isolatedObject = Value::createJustcObject(objectContext);
+        isolatedObject.name = "[JUSTC Object]";
 
         if (isolatedParser.outputMode == "everything") {
-            justcObject.properties = result.returnValues;
+            isolatedObject.properties = result.returnValues;
         } else if (isolatedParser.outputMode == "specified") {
             for (size_t i = 0; i < isolatedParser.outputVariables.size(); i++) {
                 const auto& varName = isolatedParser.outputVariables[i];
@@ -2601,9 +2652,9 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos)
                                         isolatedParser.outputNames[i] : varName;
                 if (result.returnValues.find(varName) != result.returnValues.end()) {
                     if (outputName != "_") {
-                        justcObject.properties[outputName] = result.returnValues.at(varName);
+                        isolatedObject.properties[outputName] = result.returnValues.at(varName);
                     } else {
-                        justcObject.properties[varName] = result.returnValues.at(varName);
+                        isolatedObject.properties[varName] = result.returnValues.at(varName);
                     }
                 }
             }
@@ -2615,15 +2666,12 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos)
         for (const auto& importLog : result.importLogs) {
             this->addImportLog(importLog[0], importLog[1], importLog[2]);
         }
+
+        return isolatedObject;
+
     } catch (const std::exception& e) {
-        throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\"" + Utility::position(startPos, input) + ")");
+        throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\" " + Utility::position(startPos, input) + ")");
     }
-
-    if (!result.error.empty()) {
-        throw std::runtime_error(result.error + " (at \"" + this->scriptName + "\"" + Utility::position(startPos, input) + ")");
-    }
-
-    return justcObject;
 }
 
 Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
@@ -2659,6 +2707,166 @@ Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
     }
 
     return isolated(code, execute, startPos);
+}
+
+Value Parser::parseFunctionDeclaration(bool doExecute) {
+    size_t startPos = currentToken().start;
+    bool isIsolated = false;
+
+    if (match("keyword", "isolated")) {
+        isIsolated = true;
+        advance();
+    }
+    if (!match("keyword", "function")) {
+        throw std::runtime_error("Expected 'function'/'isolated function' keyword at " + Utility::position(startPos, input));
+    }
+    advance();
+
+    if (!match("identifier")) {
+        throw std::runtime_error("Expected function name at " + Utility::position(startPos, input));
+    }
+    std::string funcName = currentToken().value;
+    advance();
+
+    if (!match("(")) {
+        throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
+    }
+    advance();
+
+    FunctionInfo funcInfo;
+    funcInfo.isIsolated = isIsolated;
+    std::vector<std::string> paramNames;
+
+    while (!match(")") && !isEnd()) {
+        if (match("identifier")) {
+            std::string paramName = currentToken().value;
+            advance();
+
+            DataType paramType = DataType::UNKNOWN;
+            Value defaultValue;
+            bool hasDefault = false;
+
+            if (match(":")) {
+                advance();
+                if (match("identifier")) {
+                    std::string typeName = currentToken().value;
+                    try {
+                        paramType = Utility::typeDeclaration2dataType(typeName,
+                                    Utility::position(position, input));
+                    } catch (...) {
+                        paramType = DataType::UNKNOWN;
+                    }
+                    advance();
+                }
+            }
+
+            if (match("=") || match("keyword", "is")) {
+                advance();
+                defaultValue = parseExpression(doExecute);
+                hasDefault = true;
+            }
+
+            funcInfo.paramNames.push_back(paramName);
+            funcInfo.paramTypes.push_back(paramType);
+            funcInfo.defaultValues.push_back(hasDefault ? defaultValue : Value::createNull());
+
+            if (match(",")) {
+                advance();
+            }
+        } else {
+            throw std::runtime_error("Expected parameter name at " + Utility::position(position, input));
+        }
+    }
+
+    if (!match(")")) {
+        throw std::runtime_error("Expected ')' after parameters at " + Utility::position(startPos, input));
+    }
+    advance();
+
+    if (!match("{")) {
+        throw std::runtime_error("Expected '{' for function body at " + Utility::position(startPos, input));
+    }
+    advance();
+
+    std::stringstream body;
+    int braceCount = 1;
+
+    while (!isEnd() && braceCount > 0) {
+        if (match("{")) braceCount++;
+        else if (match("}")) braceCount--;
+
+        if (braceCount > 0) {
+            body << currentToken().value;
+            if (currentToken().type != "{" && currentToken().type != "}") {
+                body << " ";
+            }
+        }
+        advance();
+    }
+
+    if (braceCount != 0) {
+        throw std::runtime_error("Unclosed function body at " + Utility::position(startPos, input));
+    }
+
+    std::string functionBody = body.str();
+
+    Value result;
+    result.type = DataType::FUNCTION;
+    result.string_value = functionBody;
+    result.name = funcName;
+    result.function_info = funcInfo;
+
+    auto closureContext = std::make_shared<ObjectContext>();
+    if (!isIsolated) {
+        for (const auto& [key, value] : this->variables) {
+            closureContext->variables[key] = value;
+        }
+    }
+    closureContext->allowJavaScript = this->allowJavaScript;
+    closureContext->allowLuau = this->allowLuau;
+    result.closure_context = closureContext;
+
+    return result;
+}
+
+Value Parser::callFunction(const Value& function, const std::vector<Value>& args, size_t startPos) {
+    if (function.type != DataType::FUNCTION) {
+        throw std::runtime_error("Cannot call non-function value at " + Utility::position(startPos, input));
+    }
+
+    const auto& funcInfo = function.function_info;
+
+    std::unordered_map<std::string, Value> functionContext;
+
+    if (function.closure_context) {
+        for (const auto& [key, value] : function.closure_context->variables) {
+            functionContext[key] = value;
+        }
+    }
+
+    for (size_t i = 0; i < funcInfo.paramNames.size(); i++) {
+        Value paramValue;
+
+        if (i < args.size()) {
+            paramValue = args[i];
+
+            if (funcInfo.paramTypes[i] != DataType::UNKNOWN) {
+                ASTNode typeNode("TYPE_CHECK", "", startPos);
+                typeNode.typeDeclaration = funcInfo.paramTypes[i];
+                paramValue = applyTypeDeclaration(paramValue, typeNode);
+            }
+        } else if (funcInfo.defaultValues[i].type != DataType::NULL_TYPE) {
+            paramValue = funcInfo.defaultValues[i];
+        } else {
+            throw std::runtime_error("Missing required argument '" + funcInfo.paramNames[i] + "' for function '" + function.name + "' at " + Utility::position(startPos, input));
+        }
+
+        functionContext[funcInfo.paramNames[i]] = paramValue;
+    }
+
+    Value result = isolated(function.string_value, true, startPos, &functionContext);
+
+    return result;
 }
 
 Value Parser::functionFILE(const std::vector<Value>& args) { return Value(); }

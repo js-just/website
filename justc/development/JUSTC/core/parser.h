@@ -114,6 +114,17 @@ inline std::string dataTypeToString(DataType type) {
     }
 };
 
+struct FunctionInfo {
+    std::string code;
+    std::vector<std::string> paramNames;
+    std::vector<DataType> paramTypes;
+    std::vector<struct Value> defaultValues;
+    bool hasVarArgs;
+    bool isIsolated;
+
+    FunctionInfo() : hasVarArgs(false), isIsolated(false) {}
+};
+
 struct Value {
     DataType type;
 
@@ -131,6 +142,9 @@ struct Value {
     std::unordered_map<std::string, Value> properties;
     std::vector<Value> array_elements;
     DataType object_type;
+
+    FunctionInfo function_info;
+    std::shared_ptr<ObjectContext> closure_context;
 
     Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN) {}
     Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
@@ -390,7 +404,8 @@ private:
         }
     }
 
-    Value isolated(const std::string& code, bool doExecute, size_t startPos);
+    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr);
+    Value parseFunctionDeclaration(bool doExecute);
 
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
@@ -411,6 +426,8 @@ private:
     Value functionSTAT(const std::vector<Value>& args);
     Value functionENV(const std::vector<Value>& args);
     Value functionCONFIG(const std::vector<Value>& args);
+
+    Value callFunction(const Value& function, const std::vector<Value>& args, size_t startPos);
 
     Value onHTTPDisabled(size_t startPos, std::string args0string_value);
     void parseOutputCommandError(const std::string mode);
