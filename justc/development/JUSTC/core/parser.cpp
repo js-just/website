@@ -652,9 +652,15 @@ ParseResult Parser::parse(bool doExecute) {
                 }
             }
             if (isFunction && !done) {
-                Value returnObject = Value::createJsonObject(result.returnValues);
-                result.returnValues.clear();
-                result.returnValues["return"] = returnObject;
+                if (result.returnValues.empty()) {
+                    result.returnValues["return"] = Value::createNull();
+                } else if (result.returnValues.size() == 1 && result.returnValues.find("return") != result.returnValues.end()) {
+                    // already has return, nothing to do
+                } else {
+                    Value returnObject = Value::createJsonObject(result.returnValues);
+                    result.returnValues.clear();
+                    result.returnValues["return"] = returnObject;
+                }
             }
         }
 
@@ -2647,6 +2653,10 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
 
         if (isolatedParser.outputMode == "everything") {
             isolatedObject.properties = result.returnValues;
+
+            if (result.returnValues.find("return") != result.returnValues.end()) {
+                isolatedObject.properties["return"] = result.returnValues.at("return");
+            }
         } else if (isolatedParser.outputMode == "specified") {
             for (size_t i = 0; i < isolatedParser.outputVariables.size(); i++) {
                 const auto& varName = isolatedParser.outputVariables[i];
@@ -2660,12 +2670,10 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                     }
                 }
             }
-        } else if (isolatedParser.outputMode == "disabled" && isFunction && result.returnValues.empty()) {
-            isolatedObject.properties["return"] = Value::createNull();
         }
 
-        if (isolatedObject.properties.empty() && !result.returnValues.empty()) {
-            isolatedObject.properties = result.returnValues;
+        if (isolatedObject.properties.empty() && isFunction) {
+            isolatedObject.properties["return"] = Value::createNull();
         }
 
         auto objectContext = std::make_shared<ObjectContext>();
@@ -2676,13 +2684,6 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         objectContext->allowJavaScript = isolatedParser.allowJavaScript;
         objectContext->allowLuau = isolatedParser.allowLuau;
         isolatedObject.object_context = objectContext;
-
-        std::cout << "Isolated parser outputMode: " << isolatedParser.outputMode << std::endl;
-        std::cout << "Return values count: " << result.returnValues.size() << std::endl;
-        std::cout << "Properties count after copy: " << isolatedObject.properties.size() << std::endl;
-        for (const auto& [key, val] : result.returnValues) {
-            std::cout << "  Return value: " << key << " = " << val.toString() << std::endl;
-        }
 
         for (const auto& log : result.logs) {
             this->addLog(log.type, log.message, log.position);
@@ -2868,6 +2869,12 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         }
     }
 
+    for (const auto& [key, value] : this->variables) {
+        if (functionContext.find(key) == functionContext.end()) {
+            functionContext[key] = value;
+        }
+    }
+
     for (size_t i = 0; i < funcInfo.paramNames.size(); i++) {
         Value paramValue;
 
@@ -2890,30 +2897,17 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
 
     Value result = isolated(function.string_value, true, startPos, &functionContext);
 
-    std::cout << "Function result type: " << static_cast<int>(result.type) << std::endl;
-    std::cout << "Function result properties size: " << result.properties.size() << std::endl;
-    for (const auto& [key, val] : result.properties) {
-        std::cout << "  Property: " << key << " = " << val.toString() << std::endl;
-    }
-
     if (!result.properties.empty()) {
         auto it = result.properties.find("return");
         if (it != result.properties.end()) {
-            std::cout << "Found 'return' property with value: " << it->second.toString() << std::endl;
             return it->second;
         }
-
         if (result.properties.size() == 1) {
-            auto& singleValue = result.properties.begin()->second;
-            std::cout << "Single property, returning value: " << singleValue.toString() << std::endl;
-            return singleValue;
+            return result.properties.begin()->second;
         }
-
-        std::cout << "Multiple properties, returning object" << std::endl;
         return result;
     }
 
-    std::cout << "Empty object, returning null" << std::endl;
     return Value::createNull();
 }
 
