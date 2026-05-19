@@ -368,11 +368,23 @@ long getCurrentTime() {
 
 }
 
-Parser::Parser(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau, const bool isFunction)
-    : tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript),
-      globalScope(false), strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau),
-      doExecute(doExecute), runAsync(runAsync), canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType),
-      asJSON(false), isJSONArray(false), endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction) {}
+Parser::Parser(
+    const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript,
+    const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau,
+    const bool isFunction, const std::unordered_map<std::string, Value>* initialContext
+) :
+    tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript), globalScope(false),
+    strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau), doExecute(doExecute), runAsync(runAsync),
+    canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
+    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction)
+{
+    if (initialContext) {
+        for (const auto& [key, value] : *initialContext) {
+            variables[key] = value;
+            constVars[key] = false;
+        }
+    }
+}
 
 std::string Parser::getCurrentTimestamp() {
     auto now = std::chrono::system_clock::now();
@@ -652,15 +664,9 @@ ParseResult Parser::parse(bool doExecute) {
                 }
             }
             if (isFunction && !done) {
-                if (result.returnValues.empty()) {
-                    result.returnValues["return"] = Value::createNull();
-                } else if (result.returnValues.size() == 1 && result.returnValues.find("return") != result.returnValues.end()) {
-                    // already has return, nothing to do
-                } else {
-                    Value returnObject = Value::createJsonObject(result.returnValues);
-                    result.returnValues.clear();
-                    result.returnValues["return"] = returnObject;
-                }
+                Value returnObject = Value::createJsonObject(result.returnValues);
+                result.returnValues.clear();
+                result.returnValues["return"] = returnObject;
             }
         }
 
@@ -2609,41 +2615,33 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
 }
 
 Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context) {
-    auto lexerResult = Lexer::parse(code);
-
-    std::string currName = "function";
-    bool isFunction = true;
-    if (context == nullptr) {
-        currName = "justc";
-        isFunction = false;
-    }
-
-    Parser isolatedParser(
-        lexerResult.second,
-        doExecute && this->doExecute,
-        this->runAsync,
-        code,
-        this->allowJavaScript,
-        this->canAllowJS,
-        this->scriptName + "::" + currName,
-        currName,
-        this->allowLuau,
-        this->canAllowLuau,
-        isFunction
-    );
-
-    if (context) {
-        for (const auto& [key, value] : *context) {
-            isolatedParser.variables[key] = value;
-            if (isolatedParser.constVars.find(key) == isolatedParser.constVars.end()) {
-                isolatedParser.constVars[key] = false;
-            }
-        }
-    }
-
-    ParseResult result;
-
     try {
+        auto lexerResult = Lexer::parse(code);
+
+        std::string currName = "function";
+        bool isFunction = true;
+        if (context == nullptr) {
+            currName = "justc";
+            isFunction = false;
+        }
+
+        Parser isolatedParser(
+            lexerResult.second,
+            doExecute && this->doExecute,
+            this->runAsync,
+            code,
+            this->allowJavaScript,
+            this->canAllowJS,
+            this->scriptName + "::" + currName,
+            currName,
+            this->allowLuau,
+            this->canAllowLuau,
+            isFunction,
+            context
+        );
+
+        ParseResult result;
+
         result = isolatedParser.parse(doExecute);
 
         Value isolatedObject;
@@ -2653,10 +2651,6 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
 
         if (isolatedParser.outputMode == "everything") {
             isolatedObject.properties = result.returnValues;
-
-            if (result.returnValues.find("return") != result.returnValues.end()) {
-                isolatedObject.properties["return"] = result.returnValues.at("return");
-            }
         } else if (isolatedParser.outputMode == "specified") {
             for (size_t i = 0; i < isolatedParser.outputVariables.size(); i++) {
                 const auto& varName = isolatedParser.outputVariables[i];
@@ -2670,10 +2664,12 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                     }
                 }
             }
+        } else if (isolatedParser.outputMode == "disabled" && isFunction && result.returnValues.empty()) {
+            isolatedObject.properties["return"] = Value::createNull();
         }
 
-        if (isolatedObject.properties.empty() && isFunction) {
-            isolatedObject.properties["return"] = Value::createNull();
+        if (isolatedObject.properties.empty() && !result.returnValues.empty()) {
+            isolatedObject.properties = result.returnValues;
         }
 
         auto objectContext = std::make_shared<ObjectContext>();
@@ -2902,9 +2898,11 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         if (it != result.properties.end()) {
             return it->second;
         }
+
         if (result.properties.size() == 1) {
             return result.properties.begin()->second;
         }
+
         return result;
     }
 
@@ -3501,6 +3499,6 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
-    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false);
+    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false, nullptr);
     return parser.parse(doExecute);
 }
