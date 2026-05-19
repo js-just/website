@@ -2866,9 +2866,7 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
     }
 
     for (const auto& [key, value] : this->variables) {
-        if (functionContext.find(key) == functionContext.end()) {
-            functionContext[key] = value;
-        }
+        functionContext[key] = value;
     }
 
     for (size_t i = 0; i < funcInfo.paramNames.size(); i++) {
@@ -2889,6 +2887,11 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         }
 
         functionContext[funcInfo.paramNames[i]] = paramValue;
+    }
+
+    std::cout << "Function context before call:" << std::endl;
+    for (const auto& [key, val] : functionContext) {
+        std::cout << "  " << key << " = " << val.toString() << std::endl;
     }
 
     Value result = isolated(function.string_value, true, startPos, &functionContext);
