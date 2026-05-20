@@ -2474,8 +2474,11 @@ std::future<Value> Parser::functionFILEAsync(const std::vector<Value>& args) {
 }
 
 Value Parser::functionVALUE(const std::vector<Value>& args) {
-    if (args.size() != 1 || args[0].type != DataType::VARIABLE) {
+    if (args.size() != 1) {
         throw std::runtime_error("VALUE function requires one variable argument");
+    }
+    if (args[0].type != DataType::VARIABLE) {
+        return args[0];
     }
 
     std::string varName = args[0].string_value;
