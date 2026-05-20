@@ -1481,7 +1481,11 @@ Value Parser::parsePrimary(bool doExecute) {
                 throw std::runtime_error("Unexpected EOF.");
             }
         }
-        return result;
+        try {
+            return resolveVariableValue(varName, true);
+        } catch (...) {
+            return result;
+        }
     }
     else if (match("keyword") && peekToken().type == "(") {
         return parseFunctionCall(doExecute);
