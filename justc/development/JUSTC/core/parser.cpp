@@ -2900,11 +2900,6 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         functionContext[funcInfo.paramNames[i]] = paramValue;
     }
 
-    std::cout << "Function context before call:" << std::endl;
-    for (const auto& [key, val] : functionContext) {
-        std::cout << "  " << key << " = " << val.toString() << std::endl;
-    }
-
     Value result = isolated(function.string_value, true, startPos, &functionContext);
 
     if (!result.properties.empty()) {
