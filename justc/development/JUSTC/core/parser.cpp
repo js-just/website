@@ -2873,7 +2873,11 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
     }
 
     for (const auto& [key, value] : this->variables) {
-        functionContext[key] = value;
+        try {
+            functionContext[key] = resolveVariableValue(key, false);
+        } catch (...) {
+            functionContext[key] = value;
+        }
     }
 
     for (size_t i = 0; i < funcInfo.paramNames.size(); i++) {
