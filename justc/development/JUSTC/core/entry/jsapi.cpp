@@ -29,11 +29,11 @@ SOFTWARE.
 #include <string>
 #include <vector>
 #include <sstream>
-#include "lexer.h"
-#include "parser.h"
-#include "json.hpp"
-#include "fetch.h"
-#include "version.h"
+#include "../lexer.h"
+#include "../parser.h"
+#include "../json.hpp"
+#include "../fetch.h"
+#include "../version.h"
 #include <tuple>
 
 template<typename... Args>

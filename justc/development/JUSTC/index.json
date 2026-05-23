@@ -1,5 +1,5 @@
 {"version":["0.1.2","development"],"compiler":"emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.19 (08e2de1031913e4ba7963b1c56f35f036a7d4d56)\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\nThis is free and open source software under the MIT license.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.","sources":[
-"core/js.cpp",
+"core/entry/jsapi.cpp",
 "core/lexer.cpp",
 "core/parser.cpp",
 "core/from.json.cpp",
@@ -14,7 +14,6 @@
 "core/built-in/http/http.cpp",
 "core/built-in/math/math.cpp",
 "core/built-in/binary/binary.cpp",
-"core/main.cpp",
 "core/lexer.h",
 "core/parser.h",
 "core/from.json.hpp",
@@ -37,7 +36,5 @@
 "core/built-in/binary/binary.hpp",
 "core/built-in/s.hpp",
 "core/lexer.emscripten.h",
-"core/lib.cpp",
-"core/lib.hpp",
 "LICENSE",
 "README.md"]}
