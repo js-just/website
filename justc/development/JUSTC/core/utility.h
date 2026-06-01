@@ -96,7 +96,7 @@ public:
     ) {
         return stringMath(left, right,
             [](uint8_t a, uint8_t b) {
-                return a - b;
+                return a * b;
             }
         );
     }
@@ -107,7 +107,7 @@ public:
     ) {
         return stringMath(left, right,
             [](uint8_t a, uint8_t b) {
-                return a - b;
+                return a / b;
             }
         );
     }
