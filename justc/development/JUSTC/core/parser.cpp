@@ -2109,16 +2109,40 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             throw std::runtime_error("Unexpected operator \"-\" at " + Utility::position(position, input) + ".");
         }
     }
-    else if (op == "*" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(left.toNumber() * right.toNumber());
-    }
-    else if ((op == "/" || op == ":") && Utility::checkNumbers(left, right)) {
-        double divisor = right.toNumber();
-        if (divisor == 0) {
-            result.type = DataType::INFINITE;
-            result.name = "infinity";
+    else if (op == "*") {
+        if (Utility::checkNumbers(left, right)) {
+            result = numberToValue(left.toNumber() * right.toNumber());
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringMul(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringMul(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringMul(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringMul(left.name, right.name));
         } else {
-            result = numberToValue(left.toNumber() / divisor);
+            throw std::runtime_error("Unexpected operator \"*\" at " + Utility::position(position, input) + ".");
+        }
+    }
+    else if (op == "/" || op == ":") {
+        if (Utility::checkNumbers(left, right)) {
+            double divisor = right.toNumber();
+            if (divisor == 0) {
+                result.type = DataType::INFINITE;
+                result.name = "infinity";
+            } else {
+                result = numberToValue(left.toNumber() / divisor);
+            }
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringDiv(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringDiv(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringDiv(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringDiv(left.name, right.name));
+        } else {
+            throw std::runtime_error("Unexpected operator \"" + op + "\" at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == "**" && Utility::checkNumbers(left, right)) {
