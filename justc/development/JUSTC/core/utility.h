@@ -31,9 +31,120 @@ SOFTWARE.
 #include <string>
 #include <codecvt>
 #include <locale>
+#include <string_view>
+#include <algorithm>
+#include <cstdint>
 
 class Utility {
 public:
+    template<typename Op>
+    static inline std::string stringMath(
+        std::string_view left,
+        std::string_view right,
+        Op&& op
+    ) {
+        const size_t size = std::max(left.size(), right.size());
+
+        std::string result;
+        result.resize(size);
+
+        const char* l = left.data();
+        const char* r = right.data();
+        char* out = result.data();
+
+        const size_t lsize = left.size();
+        const size_t rsize = right.size();
+
+        for (size_t i = 0; i < size; ++i) {
+            const unsigned char a =
+                (i < lsize) ? static_cast<unsigned char>(l[i]) : 0;
+
+            const unsigned char b =
+                (i < rsize) ? static_cast<unsigned char>(r[i]) : 0;
+
+            out[i] = static_cast<char>(op(a, b));
+        }
+
+        return result;
+    }
+
+    static inline std::string stringAdd(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a + b;
+            }
+        );
+    }
+
+    static inline std::string stringSub(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a - b;
+            }
+        );
+    }
+
+    static inline std::string stringMul(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a - b;
+            }
+        );
+    }
+
+    static inline std::string stringDiv(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a - b;
+            }
+        );
+    }
+
+    static inline std::string stringXor(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a ^ b;
+            }
+        );
+    }
+
+    static inline std::string stringAnd(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a & b;
+            }
+        );
+    }
+
+    static inline std::string stringOr(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a | b;
+            }
+        );
+    }
+
     static std::string numberValue2string(const Value& value);
     static std::string value2string(const Value& value);
     static std::string double2hexString(const double d);
