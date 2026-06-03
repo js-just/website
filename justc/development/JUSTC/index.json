@@ -14,6 +14,7 @@
 "core/built-in/http/http.cpp",
 "core/built-in/math/math.cpp",
 "core/built-in/binary/binary.cpp",
+"core/built-in/string/string.cpp",
 "core/lexer.h",
 "core/parser.h",
 "core/from.json.hpp",
@@ -37,4 +38,5 @@
 "core/built-in/s.hpp",
 "core/lexer.emscripten.h",
 "LICENSE",
-"README.md"]}
+"README.md",
+"core/built-in/string/string.hpp"]}

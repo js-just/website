@@ -2032,6 +2032,46 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 throw std::runtime_error("Math::ParseNum: " + std::string(e.what()));
             }
         }
+        if (funcName == "String::Reverse") {
+            return stringToValue(String::Reverse(args[0].toString()));
+        }
+        if (funcName == "String::Trim") {
+            return stringToValue(String::Trim(args[0].toString()));
+        }
+        if (funcName == "String::Repeat") {
+            size_t count = 1;
+            if (args.size() > 1) {
+                count = static_cast<size_t>(args[1].toNumber());
+            }
+
+            return stringToValue(String::Repeat(args[0].toString(), count));
+        }
+        if (funcName == "String::Slice") {
+            std::string str = args[0].toString();
+            int64_t start = 0;
+            int64_t end = static_cast<int64_t>(str.length());
+
+            if (args.size() > 1) {
+                start = static_cast<int64_t>(args[1].toNumber());
+                if (args.size() > 2) {
+                    end = static_cast<int64_t>(args[2].toNumber());
+                }
+            }
+
+            return stringToValue(String::Slice(str, start, end));
+        }
+        if (funcName == "String::StartsWith") {
+            if (args.size() < 2) {
+                return booleanToValue(false);
+            }
+            return booleanToValue(String::StartsWith(args[0].toString(), args[1].toString()));
+        }
+        if (funcName == "String::EndsWith") {
+            if (args.size() < 2) {
+                return booleanToValue(false);
+            }
+            return booleanToValue(String::EndsWith(args[0].toString(), args[1].toString()));
+        }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }

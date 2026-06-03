@@ -24,7 +24,22 @@ SOFTWARE.
 
 */
 
-#include "binary/binary.hpp"
-#include "http/http.hpp"
-#include "math/math.hpp"
-#include "string/string.hpp"
+#ifndef STRING_HPP
+#define STRING_HPP
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+class String {
+    public:
+        static std::string Reverse(const std::string& str);
+        static std::string Trim(const std::string& str);
+        static std::string Repeat(const std::string& str, size_t times);
+        static std::vector<std::string_view> Split(std::string_view str, std::string_view delim);
+        static std::string Slice(std::string_view str, int64_t start, int64_t end);
+        static bool StartsWith(std::string_view str, std::string_view prefix);
+        static bool EndsWith(std::string_view str, std::string_view suffix);
+};
+
+#endif
