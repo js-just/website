@@ -2179,6 +2179,14 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             int leftInt = static_cast<int>(left.toNumber());
             int rightInt = static_cast<int>(right.toNumber());
             result = numberToValue(leftInt & rightInt);
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringAnd(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringAnd(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringAnd(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringAnd(left.name, right.name));
         } else {
             bool leftBool = left.toBoolean();
             bool rightBool = right.toBoolean();
@@ -2192,6 +2200,14 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             int leftInt = static_cast<int>(left.toNumber());
             int rightInt = static_cast<int>(right.toNumber());
             result = numberToValue(leftInt | rightInt);
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringOr(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringOr(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringOr(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringOr(left.name, right.name));
         } else {
             bool leftBool = left.toBoolean();
             bool rightBool = right.toBoolean();
@@ -2205,8 +2221,16 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             int leftInt = static_cast<int>(left.toNumber());
             int rightInt = static_cast<int>(right.toNumber());
             result = numberToValue(leftInt ^ rightInt);
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringXor(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringXor(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringXor(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringXor(left.name, right.name));
         } else {
-            throw std::runtime_error("Expected numbers for bitwise XOR operation at " + Utility::position(position, input) + ".");
+            throw std::runtime_error("Expected numbers or strings for bitwise XOR operation at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == "~" || op == "NOT") {
