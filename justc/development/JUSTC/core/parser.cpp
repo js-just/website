@@ -1063,7 +1063,7 @@ Value Parser::parseConditional(bool doExecute, bool identifierMode) {
             }
         }
 
-        if (match("keyword", "elseif") || match("??")) {
+        if (match("keyword", "elseif")) {
             std::string elseifOp = currentToken().value;
             advance();
 
@@ -1135,13 +1135,13 @@ Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
     return left;
 }
 Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
-    Value left = parseLogicalOR(doExecute, identifierMode);
+    Value left = parsePipeline(doExecute, identifierMode);
 
     while (match("<<") || match(">>")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseLogicalOR(doExecute, identifierMode);
+        Value right = parsePipeline(doExecute, identifierMode);
         left = evaluateExpression(left, op, right);
     }
 
@@ -1163,6 +1163,34 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
         return left;
     }
     else return parseBitwiseSHIFT(doExecute, identifierMode);
+}
+
+Value Parser::parsePipeline(bool doExecute, bool identifierMode) {
+    Value left = parseElvisOrNullCoalescing(doExecute, identifierMode);
+
+    while (match("|>")) {
+        std::string op = currentToken().value;
+        advance();
+
+        Value right = parseElvisOrNullCoalescing(doExecute, identifierMode);
+        left = evaluateExpression(left, op, right);
+    }
+
+    return left;
+}
+
+Value Parser::parseElvisOrNullCoalescing(bool doExecute, bool identifierMode) {
+    Value left = parseLogicalOR(doExecute, identifierMode);
+
+    while (match("?:") || match("??")) {
+        std::string op = currentToken().value;
+        advance();
+
+        Value right = parseLogicalOR(doExecute, identifierMode);
+        left = evaluateExpression(left, op, right);
+    }
+
+    return left;
 }
 
 Value Parser::parseLogicalOR(bool doExecute, bool identifierMode) {
@@ -1745,19 +1773,23 @@ ASTNode Parser::parseCommand(bool doExecute) {
     return node;
 }
 
-Value Parser::onHTTPDisabled(size_t startPos, std::string args0string_value) {
+Value Parser::onExecDisabled(size_t startPos, std::string name) {
     #ifdef __EMSCRIPTEN__
-    warn_http_disabled(Utility::position(startPos, input).c_str(), args0string_value.c_str(), getCurrentTimestamp().c_str());
+    warn_exec_disabled(Utility::position(startPos, input).c_str(), name.c_str(), getCurrentTimestamp().c_str());
     #endif
 
     Value result;
     result.type = DataType::ERROR;
     result.string_value = "HTTP requests are disabled";
-    result.name = "<" + args0string_value + ">";
+    result.name = "<" + name + ">";
     return result;
 }
 
 Value Parser::executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos) {
+    if (!doExecute) {
+        return onExecDisabled(startPos, funcName);
+    }
+
     if (funcName == "TIME") {
         long timestamp = getCurrentTime();
         return numberToValue(timestamp);
@@ -1803,9 +1835,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     }
     if (funcName == "JSON") return functionJSON(args);
     if (funcName == "HTTP::GET") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "GET", args);
             return future.get();
@@ -1813,9 +1842,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "GET", args);
     }
     if (funcName == "HTTP::POST") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "POST", args);
             return future.get();
@@ -1823,9 +1849,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "POST", args);
     }
     if (funcName == "HTTP::PUT") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "PUT", args);
             return future.get();
@@ -1833,9 +1856,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "PUT", args);
     }
     if (funcName == "HTTP::PATCH") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "PATCH", args);
             return future.get();
@@ -1843,9 +1863,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "PATCH", args);
     }
     if (funcName == "HTTP::DELETE") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "DELETE", args);
             return future.get();
@@ -1853,9 +1870,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "DELETE", args);
     }
     if (funcName == "HTTP::HEAD") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "HEAD", args);
             return future.get();
@@ -1863,9 +1877,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return functionHTTP(startPos, "HEAD", args);
     }
     if (funcName == "HTTP::OPTIONS") {
-        if (!doExecute) {
-            return onHTTPDisabled(startPos, args[0].string_value);
-        }
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "OPTIONS", args);
             return future.get();
@@ -2145,11 +2156,35 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             throw std::runtime_error("Unexpected operator \"" + op + "\" at " + Utility::position(position, input) + ".");
         }
     }
-    else if (op == "**" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(std::pow(left.toNumber(), right.toNumber()));
+    else if (op == "**") {
+        if (Utility::checkNumbers(left, right)) {
+            result = numberToValue(std::pow(left.toNumber(), right.toNumber()));
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringPow(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringPow(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringPow(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringPow(left.name, right.name));
+        } else {
+            throw std::runtime_error("Unexpected operator \"**\" at " + Utility::position(position, input) + ".");
+        }
     }
-    else if (op == "%" && Utility::checkNumbers(left, right)) {
-        result = numberToValue(std::fmod(left.toNumber(), right.toNumber()));
+    else if (op == "%") {
+        if (Utility::checkNumbers(left, right)) {
+            result = numberToValue(std::fmod(left.toNumber(), right.toNumber()));
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringFMod(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringFMod(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringFMod(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringFMod(left.name, right.name));
+        } else {
+            throw std::runtime_error("Unexpected operator \"%\" at " + Utility::position(position, input) + ".");
+        }
     }
     else if (op == "..") {
         result = concatenateStrings(left, right);
@@ -2238,8 +2273,12 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             right.type == DataType::BINARY || right.type == DataType::OCTAL) {
             int num = static_cast<int>(right.toNumber());
             result = numberToValue(~num);
+        } else if (right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringNot(right.toString()));
+        } else if (right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringNot(right.name));
         } else {
-            throw std::runtime_error("Expected number for bitwise NOT operation at " + Utility::position(position, input) + ".");
+            throw std::runtime_error("Expected number or string for bitwise NOT operation at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == "<<") {
@@ -2247,8 +2286,16 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             int leftInt = static_cast<int>(left.toNumber());
             int rightInt = static_cast<int>(right.toNumber());
             result = numberToValue(leftInt << rightInt);
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringLShift(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringLShift(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringLShift(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringLShift(left.name, right.name));
         } else {
-            throw std::runtime_error("Expected numbers at left shift at " + Utility::position(position, input) + ".");
+            throw std::runtime_error("Expected numbers or strings for bitwise left shift operation at " + Utility::position(position, input) + ".");
         }
     }
     else if (op == ">>") {
@@ -2256,8 +2303,16 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             int leftInt = static_cast<int>(left.toNumber());
             int rightInt = static_cast<int>(right.toNumber());
             result = numberToValue(leftInt >> rightInt);
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringRShift(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringRShift(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = stringToValue(Utility::stringRShift(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = stringToValue(Utility::stringRShift(left.name, right.name));
         } else {
-            throw std::runtime_error("Expected numbers at right shift  at " + Utility::position(position, input) + ".");
+            throw std::runtime_error("Expected numbers or strings for bitwise right shift operation at " + Utility::position(position, input) + ".");
         }
     }
 
@@ -2294,6 +2349,35 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     }
     else if (op == "nimply") {
         result = booleanToValue(leftBool && !rightBool);
+    }
+
+    else if (op == "??") {
+        switch (left.type) {
+            case DataType::UNKNOWN:
+            case DataType::NULL_TYPE:
+                result = right;
+                break;
+            default:
+                result = left;
+                break;
+        }
+    }
+    else if (op == "?:") {
+        if (left.toBoolean()) {
+            result = left;
+        } else {
+            result = right;
+        }
+    }
+
+    else if (op == "|>") {
+        std::string funcName = right.name;
+        if (right.type == DataType::STRING) {
+            funcName = right.toString();
+        }
+        std::vector<Value> args;
+        args.push_back(left);
+        result = executeFunction(funcName, args, position);
     }
 
     else {

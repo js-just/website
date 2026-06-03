@@ -34,6 +34,7 @@ SOFTWARE.
 #include <string_view>
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 
 class Utility {
 public:
@@ -141,6 +142,65 @@ public:
         return stringMath(left, right,
             [](uint8_t a, uint8_t b) {
                 return a | b;
+            }
+        );
+    }
+
+    static inline std::string stringNot(std::string_view str) {
+        std::string result(str.size(), '\0');
+
+        const char* in = str.data();
+        char* out = result.data();
+
+        for (size_t i = 0; i < str.size(); ++i) {
+            out[i] = static_cast<char>(
+                ~static_cast<unsigned char>(in[i])
+            );
+        }
+
+        return result;
+    }
+
+    static inline std::string stringLShift(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a << b;
+            }
+        );
+    }
+
+    static inline std::string stringRShift(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return a >> b;
+            }
+        );
+    }
+
+    static inline std::string stringPow(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return std::pow(a, b);
+            }
+        );
+    }
+
+    static inline std::string stringFMod(
+        std::string_view left,
+        std::string_view right
+    ) {
+        return stringMath(left, right,
+            [](uint8_t a, uint8_t b) {
+                return std::fmod(a, b);
             }
         );
     }

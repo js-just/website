@@ -329,6 +329,8 @@ private:
     Value parseBitwiseAND(bool doExecute, bool identifierMode);
     Value parseBitwiseSHIFT(bool doExecute, bool identifierMode);
     Value parseBitwiseNOT(bool doExecute, bool identifierMode);
+    Value parsePipeline(bool doExecute, bool identifierMode);
+    Value parseElvisOrNullCoalescing(bool doExecute, bool identifierMode);
     Value parseLogicalOR(bool doExecute, bool identifierMode);
     Value parseLogicalXOR(bool doExecute, bool identifierMode);
     Value parseLogicalAND(bool doExecute, bool identifierMode);
@@ -432,7 +434,7 @@ private:
 
     Value callFunction(const Value& function, const std::vector<Value>& args, size_t startPos);
 
-    Value onHTTPDisabled(size_t startPos, std::string args0string_value);
+    Value onExecDisabled(size_t startPos, std::string name);
     void parseOutputCommandError(const std::string mode);
     void parseScopeCommandError(const std::string scope);
     void parseAllowCommandError();

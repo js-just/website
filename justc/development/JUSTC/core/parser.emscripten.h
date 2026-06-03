@@ -53,8 +53,8 @@ EM_JS(void, warn_cant_enable_luau, (const char* position, const char* timestamp,
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Attempt to allow Luau at <import', UTF8ToString(filetype), '"'+UTF8ToString(filename)+'">', 'at', UTF8ToString(position));
 });
 
-EM_JS(void, warn_http_disabled, (const char* position, const char* url, const char* timestamp), {
-    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot fetch', '"' + UTF8ToString(url) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for HTTP requests.');
+EM_JS(void, warn_exec_disabled, (const char* position, const char* name, const char* timestamp), {
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot execute function ', '"' + UTF8ToString(name) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for functions.');
 });
 
 #endif
