@@ -1103,7 +1103,7 @@ Value Parser::parseBitwiseOR(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseBitwiseXOR(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1116,7 +1116,7 @@ Value Parser::parseBitwiseXOR(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseBitwiseAND(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1129,7 +1129,7 @@ Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseBitwiseNOT(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1142,7 +1142,7 @@ Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parsePipeline(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1157,7 +1157,7 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
             advance();
 
             Value right = parseBitwiseSHIFT(doExecute, identifierMode);
-            left = evaluateExpression(left, op, right);
+            left = evaluateExpression(left, op, right, doExecute);
         }
 
         return left;
@@ -1173,7 +1173,7 @@ Value Parser::parsePipeline(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseElvisOrNullCoalescing(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1187,7 +1187,7 @@ Value Parser::parseElvisOrNullCoalescing(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseLogicalOR(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1204,7 +1204,7 @@ Value Parser::parseLogicalOR(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseLogicalXOR(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1218,7 +1218,7 @@ Value Parser::parseLogicalXOR(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseLogicalAND(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1235,7 +1235,7 @@ Value Parser::parseLogicalAND(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseLogicalIMPLY(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1249,7 +1249,7 @@ Value Parser::parseLogicalIMPLY(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseEquality(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1265,7 +1265,7 @@ Value Parser::parseEquality(bool doExecute, bool identifierMode) {
             advance();
 
             Value right = parseComparison(doExecute, identifierMode);
-            left = evaluateExpression(left, op, right);
+            left = evaluateExpression(left, op, right, doExecute);
         }
     }
 
@@ -1280,7 +1280,7 @@ Value Parser::parseComparison(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseTerm(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1294,7 +1294,7 @@ Value Parser::parseTerm(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseFactor(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1308,7 +1308,7 @@ Value Parser::parseFactor(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parsePower(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1322,7 +1322,7 @@ Value Parser::parsePower(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parseUnary(doExecute, identifierMode);
-        left = evaluateExpression(left, op, right);
+        left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
@@ -1340,7 +1340,7 @@ Value Parser::parseUnary(bool doExecute, bool identifierMode) {
             return evaluateLengthOperator(right);
         }
 
-        return evaluateExpression(Value(), op, right);
+        return evaluateExpression(Value(), op, right, doExecute);
     }
 
     if (
@@ -1650,7 +1650,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
         }
         advance();
 
-        return callFunction(funcValue, args, startPos);
+        return callFunction(funcValue, args, startPos, doExecute);
     } else {
         advance();
 
@@ -2068,7 +2068,7 @@ Value Parser::concatenateStrings(const Value& left, const Value& right) {
 
     return result;
 }
-Value Parser::evaluateExpression(const Value& left, const std::string& op, const Value& right) {
+Value Parser::evaluateExpression(const Value& left, const std::string& op, const Value& right, bool doExecute) {
     Value result;
     bool leftBool = left.toBoolean();
     bool rightBool = right.toBoolean();
@@ -2377,7 +2377,13 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
         }
         std::vector<Value> args;
         args.push_back(left);
-        result = executeFunction(funcName, args, position);
+
+        Value funcValue = resolveVariableValue(funcName, false);
+        if (funcValue.type == DataType::FUNCTION) {
+            result = callFunction(funcValue, args, position, doExecute);
+        } else {
+            result = executeFunction(funcName, args, position);
+        }
     }
 
     else {
@@ -3005,9 +3011,11 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
     return result;
 }
 
-Value Parser::callFunction(const Value& function, const std::vector<Value>& args, size_t startPos) {
+Value Parser::callFunction(const Value& function, const std::vector<Value>& args, size_t startPos, bool doExecute) {
     if (function.type != DataType::FUNCTION) {
         throw std::runtime_error("Cannot call non-function value at " + Utility::position(startPos, input));
+    } else if (!doExecute) {
+        return onExecDisabled(startPos, function.name);
     }
 
     const auto& funcInfo = function.function_info;

@@ -362,7 +362,7 @@ private:
 
     Value executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos);
     Value concatenateStrings(const Value& left, const Value& right);
-    Value evaluateExpression(const Value& left, const std::string& op, const Value& right);
+    Value evaluateExpression(const Value& left, const std::string& op, const Value& right, bool doExecute);
     Value handleInequality(const Value& value);
     Value handleConditional(const Value& condition, const Value& thenVal, const Value& elseVal,
                            const std::string& thenOp, const std::string& elseOp);
@@ -432,7 +432,7 @@ private:
     Value functionENV(const std::vector<Value>& args);
     Value functionCONFIG(const std::vector<Value>& args);
 
-    Value callFunction(const Value& function, const std::vector<Value>& args, size_t startPos);
+    Value callFunction(const Value& function, const std::vector<Value>& args, size_t startPos, bool doExecute);
 
     Value onExecDisabled(size_t startPos, std::string name);
     void parseOutputCommandError(const std::string mode);
