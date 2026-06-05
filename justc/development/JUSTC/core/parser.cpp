@@ -320,6 +320,28 @@ Value Value::createJsonArray(const std::vector<Value>& arr) {
 
 namespace {
 
+Value stringArray(const std::vector<std::string_view>& strings) {
+    std::vector<Value> values;
+    values.reserve(strings.size());
+
+    for (std::string_view sv : strings) {
+        values.emplace_back(Value::createString(std::string(sv)));
+    }
+
+    return Value::createJsonArray(std::move(values));
+}
+
+Value stringArray(const std::vector<std::string>& strings) {
+    std::vector<Value> values;
+    values.reserve(strings.size());
+
+    for (const std::string& s : strings) {
+        values.emplace_back(Value::createString(s));
+    }
+
+    return Value::createJsonArray(std::move(values));
+}
+
 std::string toLower(const std::string& str) {
     std::string result = str;
     std::transform(result.begin(), result.end(), result.begin(),
@@ -328,7 +350,7 @@ std::string toLower(const std::string& str) {
 }
 
 bool isWhitespace(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }
 
 bool isDigit(char c) {
@@ -2071,6 +2093,13 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 return booleanToValue(false);
             }
             return booleanToValue(String::EndsWith(args[0].toString(), args[1].toString()));
+        }
+        if (funcName == "String::Split") {
+            if (args.size() < 2) {
+                std::vector<std::string> result( {args[0].toString()} );
+                return stringArray(result);
+            }
+            return stringArray(String::Split(args[0].toString(), args[1].toString()));
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
