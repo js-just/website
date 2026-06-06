@@ -838,6 +838,13 @@ void Lexer::tokenize() {
             continue;
         }
 
+        if (ch == '~' && peek() == '=') {
+            addDollarBefore();
+            tokens.push_back(ParserToken{"~=", "~=", position});
+            position += 2;
+            continue;
+        }
+
         if (ch == '~') {
             addDollarBefore();
             tokens.push_back(ParserToken{"~", "~", position});

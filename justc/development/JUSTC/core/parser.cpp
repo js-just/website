@@ -44,6 +44,7 @@ SOFTWARE.
 #include <unordered_map>
 #include "built-in/s.hpp"
 #include <variant>
+#include "unicode.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -393,12 +394,12 @@ long getCurrentTime() {
 Parser::Parser(
     const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript,
     const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau,
-    const bool isFunction, const std::unordered_map<std::string, Value>* initialContext
+    const bool isFunction, const std::unordered_map<std::string, Value>* initialContext, const CharType chartype
 ) :
     tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript), globalScope(false),
     strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau), doExecute(doExecute), runAsync(runAsync),
     canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
-    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction)
+    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype)
 {
     if (initialContext) {
         for (const auto& [key, value] : *initialContext) {
@@ -1282,7 +1283,9 @@ Value Parser::parseEquality(bool doExecute, bool identifierMode) {
 
     if (!identifierMode) {
         while (match("keyword", "is") || match("=") ||
-            match("keyword", "isn't") || match("!=")) {
+            match("keyword", "isn't") || match("!=") ||
+            match("~=")
+        ) {
             std::string op = currentToken().value;
             advance();
 
@@ -1387,8 +1390,22 @@ Value Parser::evaluateLengthOperator(const Value& value) {
     switch (value.type) {
         case DataType::STRING:
             result.type = DataType::NUMBER;
-            result.number_value = static_cast<double>(value.string_value.length());
-            result.name = std::to_string(value.string_value.length());
+            size_t length;
+            switch (chartype) {
+                case CharType::GRAPHEME:
+                    length = Unicode::GraphemeLength(value.string_value);
+                    break;
+                case CharType::CODEPOINT:
+                    length = Unicode::CodePointLength(value.string_value);
+                    break;
+                case CharType::BYTE:
+                    length = Unicode::ByteLength(value.string_value);
+                    break;
+                default:
+                    throw std::runtime_error("Invalid CharType.");
+            }
+            result.number_value = static_cast<double>(length);
+            result.name = std::to_string(length);
             break;
 
         case DataType::JSON_ARRAY:
@@ -1421,9 +1438,7 @@ Value Parser::evaluateLengthOperator(const Value& value) {
         }
 
         default:
-            throw std::runtime_error("Cannot apply length operator to type " +
-                                   dataTypeToString(value.type) + " at " +
-                                   Utility::position(position, input) + ".");
+            throw std::runtime_error("Cannot apply length operator to type " + dataTypeToString(value.type) + " at " + Utility::position(position, input) + ".");
     }
 
     return result;
@@ -2054,8 +2069,10 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 throw std::runtime_error("Math::ParseNum: " + std::string(e.what()));
             }
         }
-        if (funcName == "String::Reverse") {
-            return stringToValue(String::Reverse(args[0].toString()));
+        if (funcName == "String::GraphemeReverse" || (
+            chartype == CharType::GRAPHEME && funcName == "String::Reverse"
+        )) {
+            return stringToValue(Unicode::GraphemeReverse(args[0].toString()));
         }
         if (funcName == "String::Trim") {
             return stringToValue(String::Trim(args[0].toString()));
@@ -2068,7 +2085,9 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
 
             return stringToValue(String::Repeat(args[0].toString(), count));
         }
-        if (funcName == "String::Slice") {
+        if (funcName == "String::GraphemeSlice" || (
+            chartype == CharType::GRAPHEME && funcName == "String::Slice"
+        )) {
             std::string str = args[0].toString();
             int64_t start = 0;
             int64_t end = static_cast<int64_t>(str.length());
@@ -2080,7 +2099,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 }
             }
 
-            return stringToValue(String::Slice(str, start, end));
+            return stringToValue(Unicode::GraphemeSlice(str, start, end));
         }
         if (funcName == "String::StartsWith") {
             if (args.size() < 2) {
@@ -2100,6 +2119,93 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 return stringArray(result);
             }
             return stringArray(String::Split(args[0].toString(), args[1].toString()));
+        }
+        if (funcName == "String::CodePointReverse" || (
+            chartype == CharType::CODEPOINT && funcName == "String::Reverse"
+        )) {
+            return stringToValue(Unicode::CodePointReverse(args[0].toString()));
+        }
+        if (funcName == "String::ByteReverse" || (
+            chartype == CharType::BYTE && funcName == "String::Reverse"
+        )) {
+            return stringToValue(Unicode::ByteReverse(args[0].toString()));
+        }
+        if (funcName == "String::CodePointSlice" || (
+            chartype == CharType::CODEPOINT && funcName == "String::Slice"
+        )) {
+            std::string str = args[0].toString();
+            int64_t start = 0;
+            int64_t end = static_cast<int64_t>(str.length());
+
+            if (args.size() > 1) {
+                start = static_cast<int64_t>(args[1].toNumber());
+                if (args.size() > 2) {
+                    end = static_cast<int64_t>(args[2].toNumber());
+                }
+            }
+
+            return stringToValue(Unicode::CodePointSlice(str, start, end));
+        }
+        if (funcName == "String::ByteSlice" || (
+            chartype == CharType::BYTE && funcName == "String::Slice"
+        )) {
+            std::string str = args[0].toString();
+            int64_t start = 0;
+            int64_t end = static_cast<int64_t>(str.length());
+
+            if (args.size() > 1) {
+                start = static_cast<int64_t>(args[1].toNumber());
+                if (args.size() > 2) {
+                    end = static_cast<int64_t>(args[2].toNumber());
+                }
+            }
+
+            return stringToValue(Unicode::ByteSlice(str, start, end));
+        }
+        if (funcName == "String::Lower") {
+            return stringToValue(Unicode::Lower(args[0].toString()));
+        }
+        if (funcName == "String::Upper") {
+            return stringToValue(Unicode::Upper(args[0].toString()));
+        }
+        if (funcName == "String::NormalizeNFC") {
+            return stringToValue(Unicode::NormalizeNFC(args[0].toString()));
+        }
+        if (funcName == "String::NormalizeNFD") {
+            return stringToValue(Unicode::NormalizeNFD(args[0].toString()));
+        }
+        if (funcName == "String::NormalizeNFKC") {
+            return stringToValue(Unicode::NormalizeNFKC(args[0].toString()));
+        }
+        if (funcName == "String::NormalizeNFKD") {
+            return stringToValue(Unicode::NormalizeNFKD(args[0].toString()));
+        }
+        if (funcName == "String::GraphemeLength" || (
+            chartype == CharType::GRAPHEME && funcName == "String::Length"
+        )) {
+            return Value::createNumber(static_cast<double>(Unicode::GraphemeLength(args[0].toString())));
+        }
+        if (funcName == "String::CodePointLength" || (
+            chartype == CharType::CODEPOINT && funcName == "String::Length"
+        )) {
+            return Value::createNumber(static_cast<double>(Unicode::CodePointLength(args[0].toString())));
+        }
+        if (funcName == "String::Size" || funcName == "String::ByteLength" || (
+            chartype == CharType::BYTE && funcName == "String::Length"
+        )) {
+            return Value::createNumber(static_cast<double>(Unicode::ByteLength(args[0].toString())));
+        }
+        if (funcName == "String::EqualsIgnoreCase") {
+            std::string right;
+            if (args.size() < 2) {
+                right = "";
+            } else {
+                right = args[1].toString();
+            }
+            return booleanToValue(Unicode::EqualsIgnoreCase(args[0].toString(), right));
+        }
+        if (funcName == "String::IsWhitespace") {
+            return booleanToValue(Unicode::IsWhitespace(args[0].toString()));
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
@@ -2452,6 +2558,22 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             result = callFunction(funcValue, args, position, doExecute);
         } else {
             result = executeFunction(funcName, args, position);
+        }
+    }
+
+    else if (op == "~=") {
+        if (Utility::checkNumbers(left, right)) {
+            result = booleanToValue(Math::Round(left.toNumber()) == Math::Round(right.toNumber()));
+        } else if (left.type == DataType::STRING && right.type == DataType::STRING) {
+            result = booleanToValue(Unicode::EqualsIgnoreCase(left.toString(), right.toString()));
+        } else if (left.type == DataType::STRING && right.type == DataType::UNKNOWN) {
+            result = booleanToValue(Unicode::EqualsIgnoreCase(left.toString(), right.name));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::STRING) {
+            result = booleanToValue(Unicode::EqualsIgnoreCase(left.name, right.toString()));
+        } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+            result = booleanToValue(Unicode::EqualsIgnoreCase(left.name, right.name));
+        } else {
+            result = booleanToValue(left.toBoolean() == right.toBoolean());
         }
     }
 
@@ -2867,7 +2989,8 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             this->allowLuau,
             this->canAllowLuau,
             isFunction,
-            context
+            context,
+            chartype
         );
 
         ParseResult result;
@@ -3497,6 +3620,15 @@ Value Parser::parseJustcObject(bool doExecute) {
 
     auto lexerResult = Lexer::parse(objectContent, false);
 
+    std::unordered_map<std::string, Value> currentContext;
+    for (const auto& [key, value] : this->variables) {
+        try {
+            currentContext[key] = resolveVariableValue(key, false);
+        } catch (...) {
+            currentContext[key] = value;
+        }
+    }
+
     auto objectParser = std::make_shared<Parser>(
         lexerResult.second,
         doExecute,
@@ -3507,7 +3639,10 @@ Value Parser::parseJustcObject(bool doExecute) {
         scriptName + "::object",
         "object",
         objectContext->allowLuau,
-        canAllowLuau
+        canAllowLuau,
+        false,
+        &currentContext,
+        chartype
     );
 
     objectContext->parser = objectParser;
@@ -3733,6 +3868,6 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
-    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false, nullptr);
+    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false, nullptr, CharType::GRAPHEME);
     return parser.parse(doExecute);
 }

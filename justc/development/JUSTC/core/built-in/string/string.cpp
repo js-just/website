@@ -27,12 +27,6 @@ SOFTWARE.
 #include "string.hpp"
 #include <algorithm>
 
-std::string String::Reverse(const std::string& str) {
-    std::string res = str;
-    std::reverse(res.begin(), res.end());
-    return res;
-}
-
 std::string String::Trim(const std::string& str) {
     const std::string whitespace = " \t\n\r\f\v";
     const auto strBegin = str.find_first_not_of(whitespace);
@@ -64,34 +58,6 @@ std::vector<std::string_view> String::Split(std::string_view str, std::string_vi
         end = str.find(delim, start);
     }
     result.push_back(str.substr(start));
-    return result;
-}
-
-std::string String::Slice(std::string_view str, int64_t start, int64_t end) {
-    int64_t len = static_cast<int64_t>(str.size());
-
-    if (start < 0) start += len;
-    if (end < 0)   end += len;
-
-    start = std::clamp(start, int64_t(0), len);
-    end   = std::clamp(end, int64_t(0), len);
-
-    bool reverse = false;
-    if (start > end) {
-        std::swap(start, end);
-        reverse = true;
-    }
-
-    if (start == end) {
-        return "";
-    }
-
-    std::string result{str.substr(start, end - start)};
-
-    if (reverse) {
-        std::reverse(result.begin(), result.end());
-    }
-
     return result;
 }
 

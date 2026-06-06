@@ -24,20 +24,57 @@ SOFTWARE.
 
 */
 
-#ifndef STRING_HPP
-#define STRING_HPP
+#pragma once
 
 #include <string>
 #include <string_view>
-#include <vector>
+#include <cstddef>
 
-class String {
-    public:
-        static std::string Trim(const std::string& str);
-        static std::string Repeat(const std::string& str, size_t times);
-        static std::vector<std::string_view> Split(std::string_view str, std::string_view delim);
-        static bool StartsWith(std::string_view str, std::string_view prefix);
-        static bool EndsWith(std::string_view str, std::string_view suffix);
-};
+namespace Unicode {
 
-#endif
+std::string Upper(std::string_view str);
+std::string Lower(std::string_view str);
+
+std::string NormalizeNFC(std::string_view str);
+std::string NormalizeNFD(std::string_view str);
+std::string NormalizeNFKC(std::string_view str);
+std::string NormalizeNFKD(std::string_view str);
+
+bool EqualsIgnoreCase(
+    std::string_view left,
+    std::string_view right
+);
+
+bool IsWhitespace(std::string_view str);
+
+size_t ByteLength(std::string_view str);
+std::string ByteSlice(
+    std::string_view str,
+    int64_t start,
+    int64_t end
+);
+std::string ByteReverse(
+    std::string_view str
+);
+
+size_t CodePointLength(std::string_view str);
+std::string CodePointSlice(
+    std::string_view str,
+    int64_t start,
+    int64_t end
+);
+std::string CodePointReverse(
+    std::string_view str
+);
+
+size_t GraphemeLength(std::string_view str);
+std::string GraphemeSlice(
+    std::string_view str,
+    int64_t start,
+    int64_t end
+);
+std::string GraphemeReverse(
+    std::string_view str
+);
+
+}

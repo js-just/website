@@ -258,6 +258,12 @@ struct ASTNode {
         : type(t), identifier(id), startPos(start), typeDeclaration(DataType::UNKNOWN) {}
 };
 
+enum class CharType {
+    GRAPHEME  = 0,
+    CODEPOINT = 1,
+    BYTE      = 2
+};
+
 class Parser {
 private:
     bool doExecute;
@@ -295,6 +301,8 @@ private:
     std::vector<Value> arrayItems;
 
     bool isFunction;
+
+    CharType chartype;
 
     ParserToken currentToken() const;
     ParserToken peekToken(size_t offset = 1) const;
@@ -468,7 +476,7 @@ private:
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
-    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true, const bool isFunction = false, const std::unordered_map<std::string, Value>* initialContext = nullptr);
+    Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true, const bool isFunction = false, const std::unordered_map<std::string, Value>* initialContext = nullptr, const CharType chartype = CharType::GRAPHEME);
     ParseResult parse(bool doExecute = true);
     static ParseResult parseTokens(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true);
 };

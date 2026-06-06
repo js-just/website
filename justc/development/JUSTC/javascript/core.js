@@ -54,20 +54,23 @@ SOFTWARE.
     }
 
     const globalThis_ = isBrowser ? []["filter"]["constructor"]("return globalThis")() || []["filter"]["constructor"]("return this")() || globalThis : globalThis || self || (isAMD ? {__justc__} : this) || {__justc__};
-    if (!isBrowser) globalThis_.window = {};
-    const OBJECT = Object;
-    const json_ = JSON;
-    const ARRAY = Array;
-    const DOCUMENT = isBrowser ? document : null;
-    const __URL__ = URL;
-    const STRING = String;
-    const ERR = Error;
-    const CONSOLE = console;
-    const MAP = Map;
-    const BLOB = isBrowser ? Blob : null;
-    const FETCH = fetch;
-    const SCRIPT = isBrowser ? DOCUMENT.currentScript : null;
-    const INT = parseInt;
+    if (!isBrowser) globalThis_.window = {}; const ___________NULL___________ = null;
+
+    const OBJECT    = isBrowser ? globalThis_.Object        : Object;
+    const json_     = isBrowser ? globalThis_.JSON          : JSON;
+    const ARRAY     = isBrowser ? globalThis_.Array         : Array;
+    const DOCUMENT  = isBrowser ? globalThis_.document      : ___________NULL___________;
+    const __URL__   = isBrowser ? globalThis_.URL           : URL;
+    const STRING    = isBrowser ? globalThis_.String        : String;
+    const ERR       = isBrowser ? globalThis_.Error         : Error;
+    const CONSOLE   = isBrowser ? globalThis_.console       : console;
+    const MAP       = isBrowser ? globalThis_.Map           : Map;
+    const BLOB      = isBrowser ? globalThis_.Blob          : ___________NULL___________;
+    const FETCH     = isBrowser ? globalThis_.fetch         : fetch;
+    const SCRIPT    = isBrowser ? DOCUMENT.currentScript    : ___________NULL___________;
+    const INT       = isBrowser ? globalThis_.parseInt      : parseInt;
+    const INTL      = isBrowser ? globalThis_.Intl          : Intl;
+    const MATH      = isBrowser ? globalThis_.Math          : Math;
 
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(globalThis_.navigator.userAgent) : false;
     const isNode   = isModule ? typeof process !== 'undefined' && process.versions && process.versions.node : false;
@@ -108,14 +111,14 @@ SOFTWARE.
 
     if (isBrowser) {
         JUSTC.Checks.sysFunc(OBJECT, ARRAY, __URL__, STRING, ERR, MAP, BLOB, FETCH, INT);
-        JUSTC.Checks.sysObj(json_, CONSOLE);
-        JUSTC.Checks.sysObj(globalThis_, DOCUMENT);
+        JUSTC.Checks.sysObj(json_, CONSOLE, globalThis_, DOCUMENT, INTL, MATH);
         if (!isSafari) JUSTC.Checks.sysFunc(
             OBJECT.entries, OBJECT.defineProperty, OBJECT.freeze,
             json_.parse, json_.stringify,
             ARRAY.isArray, ARRAY.from,
             __URL__.parse,
-            CONSOLE.log, CONSOLE.info, CONSOLE.error, CONSOLE.warn, CONSOLE.group, CONSOLE.groupEnd
+            CONSOLE.log, CONSOLE.info, CONSOLE.error, CONSOLE.warn, CONSOLE.group, CONSOLE.groupEnd,
+            INTL.Segmenter, Math.min, Math.max
         );
         JUSTC.Checks.sysFunc(DOCUMENT.createElement);
         JUSTC.Checks.sysObj(
@@ -133,6 +136,7 @@ SOFTWARE.
     JUSTC.CoreLogsEnabled = false;
     JUSTC.Silent = false;
     JUSTC.Experiments = false;
+    JUSTC.Initialized = false;
 
     if (!isBrowser && !JUSTC.JUSTC && !JUSTC.WASM && JUSTC.NodeWASM) {JUSTC.JUSTC = JUSTC.NodeWASM}
     else if (isBrowser && globalThis_.__justc__) throw new JUSTC.Error(JUSTC.Errors.environment);
@@ -319,8 +323,10 @@ SOFTWARE.
             if (JUSTC.CoreLogsEnabled) JUSTC.Console("log", "JUSTC WebAssembly module initialized.");
             JUSTC.JUSTC = null;
             delete JUSTC.JUSTC;
+            JUSTC.Initialized = true;
         } catch (error) {
             JUSTC.Console("error", JUSTC.Errors.wasmFailed, error);
+            JUSTC.Initialized = false;
         }
     };
     JUSTC.InitWASM = async function InitializeJUSTC(attempt = 0) {
@@ -328,6 +334,7 @@ SOFTWARE.
             attempt++;
             await JUSTC.Initialize();
             if (attempt > 10) {
+                JUSTC.Initialized = false;
                 throw new JUSTC.Error(JUSTC.Errors.wasmInitFailed);
             }
         };
@@ -337,6 +344,9 @@ SOFTWARE.
                     JUSTC.PrivateFunctions.Available.push(prfunc.Name);
                 }
             }
+            JUSTC.Initialized = true;
+        } else {
+            JUSTC.Initialized = false;
         }
     };
     JUSTC.DisplayLogs = function(result) {
@@ -529,6 +539,8 @@ SOFTWARE.
         return tasks
     };
     JUSTC.AsyncOutput = async function(bool, args) {
+        if (!JUSTC.Initialized) await JUSTC.InitWASM();
+
         let outputMode = JUSTC.DefaultOutputMode;
         let start = 0;
         let end = args.length;
@@ -656,14 +668,14 @@ SOFTWARE.
         const exports = {};
         for (const [name, value] of OBJECT.entries(JUSTC.Output)) {
             exports[name] = async function(...args) {
-                await JUSTC.InitWASM();
+                if (!JUSTC.Initialized) await JUSTC.InitWASM();
                 return value.constructor.name === "AsyncFunction" ? await value(...args) : value(...args);
             };
         }
         for (const [name, value] of OBJECT.entries(JUSTC.HiddenOutput)) {
             OBJECT.defineProperty(exports, name, {
                 value: async function(...args) {
-                    await JUSTC.InitWASM();
+                    if (!JUSTC.Initialized) await JUSTC.InitWASM();
                     return value.constructor.name === "AsyncFunction" ? await value(...args) : value(...args);
                 },
                 writable: false,
@@ -693,7 +705,7 @@ SOFTWARE.
         if ("JUSTC" in globalThis_.window || "$JUSTC" in globalThis_.window) throw new JUSTC.Error(JUSTC.Errors.environment);
         OBJECT.defineProperty(globalThis_.window, 'JUSTC', {
             get: function() {
-                JUSTC.InitWASM();
+                if (!JUSTC.Initialized) JUSTC.InitWASM();
                 return OBJECT.freeze(JUSTC.Public);
             },
             set: function(command) {
