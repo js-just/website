@@ -657,6 +657,7 @@ ParseResult Parser::parse(bool doExecute) {
         }
 
         evaluateAllVariables();
+        removeBuiltinVariablesFromOutput();
 
         if (isJSONArray) {
             for (size_t i = 0; i < arrayItems.size(); i++) {
@@ -4033,6 +4034,12 @@ void Parser::handleBuiltinVariableAssignment(const std::string& name, const Valu
         updateCharType(value.toString(), startPos);
     } else if (name == "JUSTC") {
         throw std::runtime_error("Attempt to redefine readonly built-in variable \"" + name + "\" at " + Utility::position(startPos, input) + ".");
+    }
+}
+void Parser::removeBuiltinVariablesFromOutput() {
+    for (const auto& name : builtins) {
+        variables.erase(name);
+        constVars.erase(name);
     }
 }
 
