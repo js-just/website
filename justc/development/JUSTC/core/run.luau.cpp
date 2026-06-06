@@ -30,6 +30,7 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <cstring>
+#include <utility>
 
 #include "lua.h"
 #include "lualib.h"
@@ -107,7 +108,7 @@ void RunLuau::runScript(const std::string& code) {
 
     if (result != LUA_OK) {
         const char* error = lua_tostring(L, -1);
-        std::string errorMsg = error ? std::string(error) : "Unknown compilation error";
+        std::string errorMsg = error ? std::string(error) : "Unknown Luau compilation error";
 
         lua_pop(L, 1);
         throw std::runtime_error("Luau compilation error: " + errorMsg);
@@ -116,21 +117,21 @@ void RunLuau::runScript(const std::string& code) {
     result = lua_pcall(L, 0, LUA_MULTRET, 0);
     if (result != LUA_OK) {
         const char* error = lua_tostring(L, -1);
-        std::string errorMsg = error ? std::string(error) : "Unknown runtime error";
+        std::string errorMsg = error ? std::string(error) : "Unknown Luau runtime error";
 
         lua_pop(L, 1);
         throw std::runtime_error("Luau runtime error: " + errorMsg);
     }
 }
 
-std::string RunLuau::runScriptWithResult(const std::string& code) {
+std::pair<std::string, int> RunLuau::runScriptWithResult(const std::string& code) {
     LuaStateManager luaManager;
     lua_State* L = luaManager.getState();
 
     size_t bytecodeSize = 0;
     char* bytecode = luau_compile(code.c_str(), code.size(), NULL, &bytecodeSize);
     if (!bytecode) {
-        throw std::runtime_error("Failed to compile Lua code");
+        throw std::runtime_error("Failed to compile Luau code");
     }
 
     int result = luau_load(L, "user_code", bytecode, bytecodeSize, 0);
@@ -138,30 +139,34 @@ std::string RunLuau::runScriptWithResult(const std::string& code) {
 
     if (result != 0) {
         const char* error = lua_tostring(L, -1);
-        throw std::runtime_error(std::string("Compilation error: ") + (error ? error : "Unknown error"));
+        throw std::runtime_error(std::string("Luau compilation error: ") + (error ? error : "Unknown Luau compilation error"));
     }
 
     result = lua_pcall(L, 0, 1, 0);
     if (result != LUA_OK) {
         const char* error = lua_tostring(L, -1);
-        throw std::runtime_error(std::string("Runtime error: ") + (error ? error : "Unknown error"));
+        throw std::runtime_error(std::string("Luau runtime error: ") + (error ? error : "Unknown Luau runtime error"));
     }
 
     std::string output;
+    int outputtype = 0; // 0 = string; 1 = number; 2 = boolean; 3 = null
     if (lua_isstring(L, -1)) {
         output = lua_tostring(L, -1);
     } else if (lua_isnumber(L, -1)) {
         output = std::to_string(lua_tonumber(L, -1));
+        outputtype = 1;
     } else if (lua_isboolean(L, -1)) {
         output = lua_toboolean(L, -1) ? "true" : "false";
+        outputtype = 2;
     } else if (lua_isnil(L, -1)) {
         output = "nil";
+        outputtype = 3;
     } else {
         output = lua_typename(L, lua_type(L, -1));
     }
 
     lua_pop(L, 1);
-    return output;
+    return {output, outputtype};
 }
 
 bool RunLuau::compileScript(const std::string& code, std::string& error) {

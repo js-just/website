@@ -29,11 +29,12 @@ SOFTWARE.
 
 #include <string>
 #include <memory>
+#include <utility>
 
 class RunLuau {
 public:
     static void runScript(const std::string& code);
-    static std::string runScriptWithResult(const std::string& code);
+    static std::pair<std::string, int> runScriptWithResult(const std::string& code);
     static bool compileScript(const std::string& code, std::string& error);
 };
 

@@ -1644,7 +1644,19 @@ Value Parser::parsePrimary(bool doExecute) {
         return Value::createNull();
     }
     else if (match("Luau") && doExecute && allowLuau) {
-        Value result = stringToValue(RunLuau::runScriptWithResult(currentToken().value));
+        std::pair<std::string, int> luauresult = RunLuau::runScriptWithResult(currentToken().value);
+        Value result;
+
+        if (luauresult.second == 1) { // number
+            result = Value::createNumber(parseNumber(luauresult.first));
+        } else if (luauresult.second == 2) { // boolean
+            result = Value::createBoolean(luauresult.first == "true");
+        } else if (luauresult.second == 3) { // null
+            result = Value::createNull();
+        } else { // string
+            result = stringToValue(luauresult.first);
+        }
+
         addLog("LUAU", Utility::value2string(result), currentToken().start);
         advance();
         result.name = "<<" + currentToken().value + ">>";
@@ -1834,10 +1846,10 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     else if (funcName == "Math::PI" || funcName == "PI") {
         return numberToValue(Math::PI);
     }
-    else if (funcName == "BACKSLASH") {
+    else if (funcName == "Backslash") {
         return stringToValue("\\");
     }
-    else if (funcName == "VERSION") {
+    else if (funcName == "Version") {
         return stringToValue(JUSTC_VERSION);
     }
     else if (funcName == "Math::E" || funcName == "E") {
@@ -1934,6 +1946,9 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
 
     // math and binary
     if (args.empty() && funcName != "Math::Random") {
+        if (funcName == "JUSTC.Parse" || funcName == "JUSTC.Execute") {
+            return emptyJUSTC();
+        }
         throw std::runtime_error("Expected at least one argument, got 0 at " + Utility::position(startPos, input) + ".");
     }
     double inpnum = args[0].number_value;
@@ -2206,6 +2221,67 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         }
         if (funcName == "String::IsWhitespace") {
             return booleanToValue(Unicode::IsWhitespace(args[0].toString()));
+        }
+        if (funcName == "JUSTC.Parse") {
+            return functionJUSTC2(args[0].toString(), false, startPos);
+        }
+        if (funcName == "JUSTC.Execute") {
+            return functionJUSTC2(args[0].toString(), true, startPos);
+        }
+        if (funcName == "JSON.Parse") {
+            return functionJSON(args);
+        }
+        if (funcName == "JavaScript" || funcName == "JavaScript.Execute") {
+            if (allowJavaScript) {
+                #ifdef __EMSCRIPTEN__
+
+                    Value result = runJavaScript(args[0].toString(), Utility::position(startPos, input), true);
+                    addLog("JAVASCRIPT", Utility::value2string(result), startPos);
+                    result.name = funcName + "(...)";
+                    return result;
+
+                #elif !defined(_MSC_VER)
+
+                    std::pair<std::string, bool> jsresult = JavaScript::Eval(args[0].toString());
+                    if (jsresult.second) {
+                        throw std::runtime_error("JavaScript error at " + Utility::position(startPos, input) + ":\n" + jsresult.first);
+                    } else {
+                        addLog("JAVASCRIPT", jsresult.first, startPos);
+                    }
+                    Value result = stringToValue(jsresult.first);
+                    result.name = funcName + "(...)";
+                    return result;
+
+                #else
+
+                    throw std::runtime_error("Cannot run JavaScript due to OS limitations. Attempt to execute JavaScript code at " + Utility::position(startPos, input) + ".");
+
+                #endif
+            } else {
+                throw std::runtime_error("JavaScript disallowed - Cannot run JavaScript \"" + args[0].toString() + "\" at " + Utility::position(startPos, input) + ".");
+            }
+        }
+        if (funcName == "Luau" || funcName == "Luau.Execute") {
+            if (allowLuau) {
+                std::pair<std::string, int> luauresult = RunLuau::runScriptWithResult(args[0].toString());
+                Value result;
+
+                if (luauresult.second == 1) { // number
+                    result = Value::createNumber(parseNumber(luauresult.first));
+                } else if (luauresult.second == 2) { // boolean
+                    result = Value::createBoolean(luauresult.first == "true");
+                } else if (luauresult.second == 3) { // null
+                    result = Value::createNull();
+                } else { // string
+                    result = stringToValue(luauresult.first);
+                }
+
+                addLog("LUAU", Utility::value2string(result), startPos);
+                result.name = funcName + "(...)";
+                return result;
+            } else {
+                throw std::runtime_error("Luau disallowed - Cannot run Luau \"" + args[0].toString() + "\" at " + Utility::position(startPos, input) + ".");
+            }
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
@@ -3048,16 +3124,19 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
     }
 }
 
+Value Parser::emptyJUSTC() {
+    auto emptyContext = std::make_shared<ObjectContext>();
+    emptyContext->allowJavaScript = this->allowJavaScript;
+    emptyContext->allowLuau = this->allowLuau;
+    emptyContext->outputMode = "everything";
+
+    Value emptyObject = Value::createJustcObject(emptyContext);
+    emptyObject.name = "[JUSTC Object (empty)]";
+    return emptyObject;
+}
 Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
     if (args.empty()) {
-        auto emptyContext = std::make_shared<ObjectContext>();
-        emptyContext->allowJavaScript = this->allowJavaScript;
-        emptyContext->allowLuau = this->allowLuau;
-        emptyContext->outputMode = "everything";
-
-        Value emptyObject = Value::createJustcObject(emptyContext);
-        emptyObject.name = "[JUSTC Object (empty)]";
-        return emptyObject;
+        return emptyJUSTC();
     }
 
     std::string code;
@@ -3078,6 +3157,14 @@ Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
     bool execute = this->doExecute;
     if (args.size() > 1) {
         execute = args[1].toBoolean();
+    }
+
+    return isolated(code, execute, startPos);
+}
+Value Parser::functionJUSTC2(const std::string& code, bool doExecute, size_t startPos) {
+    bool execute = doExecute;
+    if (!this->doExecute) {
+        execute = false;
     }
 
     return isolated(code, execute, startPos);

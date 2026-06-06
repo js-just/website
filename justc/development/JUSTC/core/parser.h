@@ -419,6 +419,7 @@ private:
 
     Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr);
     Value parseFunctionDeclaration(bool doExecute);
+    Value emptyJUSTC();
 
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
@@ -435,6 +436,7 @@ private:
     Value functionJSON(const std::vector<Value>& args);
     Value functionHTTP(size_t startPos, const std::string& method, const std::vector<Value>& args);
     Value functionJUSTC(const std::vector<Value>& args, size_t startPos);
+    Value functionJUSTC2(const std::string& code, bool doExecute, size_t startPos);
     Value functionFILE(const std::vector<Value>& args);
     Value functionSTAT(const std::vector<Value>& args);
     Value functionENV(const std::vector<Value>& args);
