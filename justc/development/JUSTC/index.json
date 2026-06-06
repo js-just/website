@@ -16,6 +16,7 @@
 "core/built-in/binary/binary.cpp",
 "core/built-in/string/string.cpp",
 "core/unicode.cpp",
+"core/builtins.cpp",
 "core/lexer.h",
 "core/parser.h",
 "core/from.json.hpp",
@@ -42,4 +43,5 @@
 "README.md",
 "core/built-in/string/string.hpp",
 "core/unicode.hpp",
-"core/unicode.emscripten.h"]}
+"core/unicode.emscripten.h",
+"core/builtins.h"]}

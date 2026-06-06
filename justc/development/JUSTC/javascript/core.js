@@ -349,13 +349,16 @@ SOFTWARE.
             JUSTC.Initialized = false;
         }
     };
+    JUSTC.IgnoreLogs = [
+        'LUAU', 'JAVASCRIPT', 'CHARTYPE'
+    ];
     JUSTC.DisplayLogs = function(result) {
         if (result.logfile && result.logfile.file && result.logfile.file != '') {
             throw new JUSTC.Error("Logfile cannot be created in browser.");
         };
         if (result.logs && ARRAY.isArray(result.logs)) {
             result.logs.forEach(log => {
-                if (log.type != 'ECHO' && log.type != 'LUAU' && log.type != 'JAVASCRIPT') {
+                if (log.type != 'ECHO' && !JUSTC.IgnoreLogs.includes(log.type)) {
                     JUSTC.Console(
                         log.type == 'ERROR' ? 'error' : 'log',
                         `[JUSTC] (${log.time})`, log.message

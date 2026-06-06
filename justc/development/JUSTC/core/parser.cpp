@@ -45,6 +45,7 @@ SOFTWARE.
 #include "built-in/s.hpp"
 #include <variant>
 #include "unicode.hpp"
+#include "builtins.h"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -401,12 +402,44 @@ Parser::Parser(
     canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
     endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype)
 {
+    initializeBuiltIns();
     if (initialContext) {
         for (const auto& [key, value] : *initialContext) {
             variables[key] = value;
             constVars[key] = false;
         }
     }
+
+    // built-in variables
+
+    std::unordered_map<std::string, Value> justcProperties;
+    justcProperties["Version"] = Value::createString(JUSTC_VERSION);
+    auto justcContext = std::make_shared<ObjectContext>();
+    justcContext->variables["Version"] = Value::createString(JUSTC_VERSION);
+    justcContext->outputMode = "specified";
+    justcContext->outputVariables = {"Version"};
+    Value justcObject = Value::createJustcObject(justcContext);
+    justcObject.name = "JUSTC";
+    justcObject.properties = justcProperties;
+    variables["JUSTC"] = justcObject;
+    constVars["JUSTC"] = true;
+
+    Value chartypeValue;
+    chartypeValue.type = DataType::STRING;
+    switch (chartype) {
+        case CharType::GRAPHEME:
+            chartypeValue.string_value = "grapheme";
+            break;
+        case CharType::CODEPOINT:
+            chartypeValue.string_value = "codepoint";
+            break;
+        case CharType::BYTE:
+            chartypeValue.string_value = "byte";
+            break;
+    }
+    chartypeValue.name = "CharType";
+    variables["CharType"] = chartypeValue;
+    constVars["CharType"] = false;
 }
 
 std::string Parser::getCurrentTimestamp() {
@@ -975,6 +1008,11 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
         }
     }
 
+    auto constIt = constVars.find(identifier);
+    if (constIt != constVars.end() && constIt->second) {
+        throw std::runtime_error("Cannot reassign const variable \"" + identifier + "\" at " + Utility::position(startPos, input));
+    }
+
     std::string assignOp;
     std::string typeDecl;
     if (match(":")) {
@@ -986,9 +1024,15 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
-            variables[identifier] = Value();
-            if (constant) {
-                constVars[identifier] = true;
+            if (variables.find(identifier) != variables.end()) {
+                variables[identifier] = Value();
+            } else {
+                variables[identifier] = Value();
+                constVars[identifier] = constant;
+            }
+
+            if (doExecute && isBuiltinVariable(identifier)) {
+                handleBuiltinVariableAssignment(identifier, exprValue, startPos);
             }
 
             return node;
@@ -1001,9 +1045,15 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
-            variables[identifier] = Value();
-            if (constant) {
-                constVars[identifier] = true;
+            if (variables.find(identifier) != variables.end()) {
+                variables[identifier] = Value();
+            } else {
+                variables[identifier] = Value();
+                constVars[identifier] = constant;
+            }
+
+            if (doExecute && isBuiltinVariable(identifier)) {
+                handleBuiltinVariableAssignment(identifier, exprValue, startPos);
             }
 
             return node;
@@ -1052,9 +1102,15 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
         } else throw std::runtime_error("Expected assignment operator at " + Utility::position(position, input) + ", got \"" + currentToken().value +"\".");
     }
 
-    variables[identifier] = Value();
-    if (constant) {
-        constVars[identifier] = true;
+    if (variables.find(identifier) != variables.end()) { // assignment
+        variables[identifier] = Value();
+    } else { // declaration
+        variables[identifier] = Value();
+        constVars[identifier] = constant;
+    }
+
+    if (doExecute && isBuiltinVariable(identifier)) {
+        handleBuiltinVariableAssignment(identifier, node.value, startPos);
     }
 
     return node;
@@ -3540,15 +3596,21 @@ Value Parser::octalToValue(const std::string& octStr) {
 void Parser::evaluateAllVariablesSync() {
     bool changed;
     int passes = 0;
-    const int MAX_PASSES = 100;
-
-    std::unordered_map<std::string, std::pair<bool, Value>> variableData;
+    const int MAX_PASSES = 127;
 
     for (auto& node : ast) {
         if (node.type == "VARIABLE_DECLARATION") {
             std::string varName = node.identifier;
-            bool isMutable = !node.constant;
-            variableData[varName] = std::make_pair(isMutable, Value());
+
+            auto constIt = constVars.find(varName);
+            if (constIt != constVars.end() && constIt->second) {
+                continue;
+            }
+
+            if (variables.find(varName) == variables.end()) {
+                variables[varName] = Value();
+                constVars[varName] = node.constant;
+            }
         }
     }
 
@@ -3559,28 +3621,28 @@ void Parser::evaluateAllVariablesSync() {
         for (auto& node : ast) {
             if (node.type == "VARIABLE_DECLARATION") {
                 std::string varName = node.identifier;
-                auto& varInfo = variableData[varName];
-                bool isMutable = varInfo.first;
-                Value oldValue = varInfo.second;
+                bool isConst = node.constant;
+
+                auto constIt = constVars.find(varName);
+                if (constIt != constVars.end() && constIt->second && variables[varName].type != DataType::UNKNOWN) {
+                    continue;
+                }
+
+                Value oldValue = variables[varName];
                 Value newValue = evaluateASTNode(node);
 
                 if (newValue.type == DataType::VARIABLE && newValue.string_value == varName) {
                     throw std::runtime_error("Variable cannot reference itself: " + varName);
                 }
 
-                if (isMutable || oldValue.type == DataType::UNKNOWN) {
-                    if (newValue.type != DataType::UNKNOWN &&
-                        (oldValue.type == DataType::UNKNOWN ||
-                         oldValue.toString() != newValue.toString())) {
-                        varInfo.second = newValue;
-                        variables[varName] = newValue;
-                        changed = true;
+                if (newValue.type != DataType::UNKNOWN && (
+                    oldValue.type == DataType::UNKNOWN || oldValue.toString() != newValue.toString()
+                )) {
+                    variables[varName] = newValue;
+                    if (isConst) {
+                        constVars[varName] = true;
                     }
-                } else if (oldValue.type != DataType::UNKNOWN &&
-                          newValue.type != DataType::UNKNOWN) {
-                    if (oldValue.toString() != newValue.toString()) {
-                        throw std::runtime_error("Attempt to redefine \"" + varName + "\" at " + Utility::position(node.startPos, input) + ".");
-                    }
+                    changed = true;
                 }
             }
         }
@@ -3889,7 +3951,13 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     }
 
     std::string rootName = std::get<std::string>(accessChain[0]);
-    Value currentValue = resolveVariableValue(rootName, false);
+    Value currentValue;
+    auto varIt = variables.find(rootName);
+    if (varIt != variables.end()) {
+        currentValue = varIt->second;
+    } else {
+        currentValue = resolveVariableValue(rootName, false);
+    }
 
     if (!currentValue.isObject() && accessChain.size() > 1) {
         throw std::runtime_error("\"" + rootName + "\" is not an object. Attempt to access propery or index of not an object at " + Utility::position(position, input) + ".");
@@ -3952,6 +4020,38 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     }
 
     return currentValue;
+}
+
+void Parser::initializeBuiltIns() {
+    builtins = ::builtins;
+}
+bool Parser::isBuiltinVariable(const std::string& name) const {
+    return std::find(builtins.begin(), builtins.end(), name) != builtins.end();
+}
+void Parser::handleBuiltinVariableAssignment(const std::string& name, const Value& value, size_t startPos) {
+    if (name == "CharType") {
+        updateCharType(value.toString(), startPos);
+    } else if (name == "JUSTC") {
+        throw std::runtime_error("Attempt to redefine readonly built-in variable \"" + name + "\" at " + Utility::position(startPos, input) + ".");
+    }
+}
+
+void Parser::updateCharType(const std::string& newType, size_t startPos) {
+    bool success = true;
+    if (newType == "grapheme") {
+        chartype = CharType::GRAPHEME;
+    } else if (newType == "codepoint") {
+        chartype = CharType::CODEPOINT;
+    } else if (newType == "byte") {
+        chartype = CharType::BYTE;
+    } else {
+        success = false;
+    }
+    if (success) {
+        addLog("CHARTYPE", newType, startPos);
+    } else {
+        throw std::runtime_error("Invalid chartype: " + newType + ". Must be 'grapheme', 'codepoint', or 'byte' at " + Utility::position(startPos, input));
+    }
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {

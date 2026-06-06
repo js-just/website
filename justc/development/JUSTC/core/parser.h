@@ -475,6 +475,13 @@ private:
         return result;
     }
 
+    std::vector<std::string> builtins;
+    void initializeBuiltIns();
+    bool isBuiltinVariable(const std::string& name) const;
+    void handleBuiltinVariableAssignment(const std::string& name, const Value& value, size_t startPos);
+
+    void updateCharType(const std::string& newType, size_t startPos);
+
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
