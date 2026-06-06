@@ -355,7 +355,7 @@ SOFTWARE.
         };
         if (result.logs && ARRAY.isArray(result.logs)) {
             result.logs.forEach(log => {
-                if (log.type != 'ECHO') {
+                if (log.type != 'ECHO' && log.type != 'LUAU' && log.type != 'JAVASCRIPT') {
                     JUSTC.Console(
                         log.type == 'ERROR' ? 'error' : 'log',
                         `[JUSTC] (${log.time})`, log.message
@@ -519,12 +519,22 @@ SOFTWARE.
         if (JUSTC.CheckInput(code)) throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
         JUSTC.CheckWASM();
     };
+    JUSTC.RegisterImports = function(imports) {
+        if (isBrowser && !isSafari && imports && ARRAY.isArray(imports) && imports.length > 0) setTimeout(() => {
+            try {
+                for (const [url, content, type] of imports) {
+                    JUSTC.CurrentVFS.createFile(url, content, {mimeType: type});
+                }
+            } catch (_) {}
+        }, 0);
+    };
     JUSTC.RunAsync = async (code, doExecute, ...args) => {
         JUSTC.Check(code);
         const result = await JUSTC.AsyncParse(code, doExecute, ...args);
         if (result.error) {
             throw new JUSTC.Error(result.error);
         } else {
+            JUSTC.RegisterImports(result.imported);
             if (doExecute) JUSTC.DisplayLogs(result);
             return result.return || {};
         }
@@ -553,15 +563,6 @@ SOFTWARE.
             start += 1;
         };
         return await Promise.all(await Promise.all(JUSTC.Taskify(bool, outputMode, args.slice(start, end))))
-    };
-    JUSTC.RegisterImports = function(imports) {
-        if (isBrowser && !isSafari && imports && ARRAY.isArray(imports) && imports.length > 0) setTimeout(() => {
-            try {
-                for (const [url, content, type] of imports) {
-                    JUSTC.CurrentVFS.createFile(url, content, {mimeType: type});
-                }
-            } catch (_) {}
-        }, 0);
     };
     JUSTC.Output = {
         parse: isBrowser || !JUSTC.Experiments ? function(code, outputMode = JUSTC.DefaultOutputMode) {
