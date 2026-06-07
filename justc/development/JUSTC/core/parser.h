@@ -421,7 +421,7 @@ private:
         }
     }
 
-    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr);
+    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto");
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 

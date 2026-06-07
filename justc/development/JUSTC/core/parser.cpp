@@ -1696,18 +1696,27 @@ Value Parser::parsePrimary(bool doExecute) {
         std::pair<std::string, int> luauresult = RunLuau::runScriptWithResult(currentToken().value);
         Value result;
 
-        if (luauresult.second == 1) { // number
-            result = Value::createNumber(parseNumber(luauresult.first));
-            result.type = DataType::NUMBER;
-        } else if (luauresult.second == 2) { // boolean
-            result = Value::createBoolean(luauresult.first == "true");
-            result.type = DataType::BOOLEAN;
-        } else if (luauresult.second == 3) { // null
-            result = Value::createNull();
-            result.type = DataType::NULL_TYPE;
-        } else { // string
-            result = stringToValue(luauresult.first);
-            result.type = DataType::STRING;
+        switch (luauresult.second) {
+            case 1: // number
+                result = Value::createNumber(parseNumber(luauresult.first));
+                result.type = DataType::NUMBER;
+                break;
+            case 2: // boolean
+                result = Value::createBoolean(luauresult.first == "true");
+                result.type = DataType::BOOLEAN;
+                break;
+            case 3: // null
+                result = Value::createNull();
+                result.type = DataType::NULL_TYPE;
+                break;
+            case 4: case 5: // object/array
+                result = isolated(luauresult.first, false, currentToken().start, nullptr, "Luau Table output to JUSTC converter");
+                result.type = luauresult.second == 4 ? DataType::JSON_OBJECT : DataType::JSON_ARRAY;
+                break;
+            default: // string/function/thread/userdata
+                result = stringToValue(luauresult.first);
+                result.type = DataType::STRING;
+                break;
         }
 
         addLog("LUAU", Utility::value2string(result), currentToken().start);
@@ -2329,18 +2338,27 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 std::pair<std::string, int> luauresult = RunLuau::runScriptWithResult(args[0].toString());
                 Value result;
 
-                if (luauresult.second == 1) { // number
-                    result = Value::createNumber(parseNumber(luauresult.first));
-                    result.type = DataType::NUMBER;
-                } else if (luauresult.second == 2) { // boolean
-                    result = Value::createBoolean(luauresult.first == "true");
-                    result.type = DataType::BOOLEAN;
-                } else if (luauresult.second == 3) { // null
-                    result = Value::createNull();
-                    result.type = DataType::NULL_TYPE;
-                } else { // string
-                    result = stringToValue(luauresult.first);
-                    result.type = DataType::STRING;
+                switch (luauresult.second) {
+                    case 1: // number
+                        result = Value::createNumber(parseNumber(luauresult.first));
+                        result.type = DataType::NUMBER;
+                        break;
+                    case 2: // boolean
+                        result = Value::createBoolean(luauresult.first == "true");
+                        result.type = DataType::BOOLEAN;
+                        break;
+                    case 3: // null
+                        result = Value::createNull();
+                        result.type = DataType::NULL_TYPE;
+                        break;
+                    case 4: case 5: // object/array
+                        result = isolated(luauresult.first, false, startPos, nullptr, "Luau Table output to JUSTC converter");
+                        result.type = luauresult.second == 4 ? DataType::JSON_OBJECT : DataType::JSON_ARRAY;
+                        break;
+                    default: // string/function/thread/userdata
+                        result = stringToValue(luauresult.first);
+                        result.type = DataType::STRING;
+                        break;
                 }
 
                 addLog("LUAU", Utility::value2string(result), startPos);
@@ -3109,15 +3127,18 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
     } else return result;
 }
 
-Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context) {
+Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name) {
     try {
         auto lexerResult = Lexer::parse(code);
 
         std::string currName = "function";
         bool isFunction = true;
         if (context == nullptr) {
-            currName = "justc";
+            currName = "JUSTC";
             isFunction = false;
+        }
+        if (name != "auto") {
+            currName = name;
         }
 
         Parser isolatedParser(

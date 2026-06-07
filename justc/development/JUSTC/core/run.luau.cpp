@@ -31,7 +31,7 @@ SOFTWARE.
 #include <string>
 #include <cstring>
 #include <utility>
-#include <iostream>
+#include <sstream>
 
 #include "lua.h"
 #include "lualib.h"
@@ -125,6 +125,126 @@ void RunLuau::runScript(const std::string& code) {
     }
 }
 
+static std::string tableToJSON(lua_State* L, int index) {
+    std::string result = "{";
+    bool first = true;
+
+    int baseIndex = (index < 0) ? lua_gettop(L) + index + 1 : index;
+
+    lua_pushnil(L);
+    while (lua_next(L, baseIndex) != 0) {
+        if (!first) result += ",";
+        first = false;
+
+        int keyType = lua_type(L, -2);
+        if (keyType == LUA_TSTRING) {
+            const char* key = lua_tostring(L, -2);
+            result += "\"" + std::string(key) + "\":";
+        } else if (keyType == LUA_TNUMBER) {
+            double keyNum = lua_tonumber(L, -2);
+            result += std::to_string(keyNum) + ":";
+        } else {
+            result += "\"key\":";
+        }
+
+        int valType = lua_type(L, -1);
+        switch (valType) {
+            case LUA_TSTRING: {
+                const char* val = lua_tostring(L, -1);
+                std::string escaped;
+                for (const char* p = val; *p; p++) {
+                    if (*p == '"') escaped += "\\\"";
+                    else if (*p == '\\') escaped += "\\\\";
+                    else if (*p == '\n') escaped += "\\n";
+                    else if (*p == '\r') escaped += "\\r";
+                    else if (*p == '\t') escaped += "\\t";
+                    else escaped += *p;
+                }
+                result += "\"" + escaped + "\"";
+                break;
+            }
+            case LUA_TNUMBER:
+                result += std::to_string(lua_tonumber(L, -1));
+                break;
+            case LUA_TBOOLEAN:
+                result += lua_toboolean(L, -1) ? "true" : "false";
+                break;
+            case LUA_TNIL:
+                result += "null";
+                break;
+            case LUA_TTABLE:
+                result += tableToJSON(L, lua_gettop(L));
+                break;
+            default:
+                result += "\"" + std::string(lua_typename(L, valType)) + "\"";
+                break;
+        }
+
+        lua_pop(L, 1);
+    }
+
+    result += "}";
+    return result;
+}
+
+static std::string arrayToJSON(lua_State* L, int index) {
+    std::string result = "[";
+    bool first = true;
+
+    int baseIndex = (index < 0) ? lua_gettop(L) + index + 1 : index;
+    int len = lua_objlen(L, baseIndex);
+
+    for (int i = 1; i <= len; i++) {
+        if (!first) result += ",";
+        first = false;
+
+        lua_pushnumber(L, i);
+        lua_gettable(L, baseIndex);
+
+        int valType = lua_type(L, -1);
+        switch (valType) {
+            case LUA_TSTRING: {
+                const char* val = lua_tostring(L, -1);
+                std::string escaped;
+                for (const char* p = val; *p; p++) {
+                    if (*p == '"') escaped += "\\\"";
+                    else if (*p == '\\') escaped += "\\\\";
+                    else if (*p == '\n') escaped += "\\n";
+                    else if (*p == '\r') escaped += "\\r";
+                    else if (*p == '\t') escaped += "\\t";
+                    else escaped += *p;
+                }
+                result += "\"" + escaped + "\"";
+                break;
+            }
+            case LUA_TNUMBER:
+                result += std::to_string(lua_tonumber(L, -1));
+                break;
+            case LUA_TBOOLEAN:
+                result += lua_toboolean(L, -1) ? "true" : "false";
+                break;
+            case LUA_TNIL:
+                result += "null";
+                break;
+            case LUA_TTABLE:
+                if (lua_objlen(L, -1) > 0) {
+                    result += arrayToJSON(L, lua_gettop(L));
+                } else {
+                    result += tableToJSON(L, lua_gettop(L));
+                }
+                break;
+            default:
+                result += "\"" + std::string(lua_typename(L, valType)) + "\"";
+                break;
+        }
+
+        lua_pop(L, 1);
+    }
+
+    result += "]";
+    return result;
+}
+
 std::pair<std::string, int> RunLuau::runScriptWithResult(const std::string& code) {
     LuaStateManager luaManager;
     lua_State* L = luaManager.getState();
@@ -150,35 +270,116 @@ std::pair<std::string, int> RunLuau::runScriptWithResult(const std::string& code
     }
 
     std::string output;
-    int outputtype = 0; // 0 = string; 1 = number; 2 = boolean; 3 = null
+    int outputtype = 0; // 0 = string; 1 = number; 2 = boolean; 3 = nil; 4 = object; 5 = array
 
-    bool isnum = lua_isnumber(L, -1);
-    bool isbool= lua_isboolean(L,-1);
-    bool isnil = lua_isnil(L, -1);
-    bool isstr = lua_isstring(L, -1);
+    int type = lua_type(L, -1);
 
-    // debug
-    std::string denum = isnum ? "number" : "";
-    std::string debool= isbool? "boolean": "";
-    std::string denil = isnil ? "nil"    : "";
-    std::string destr = isstr ? "string" : "";
-    std::cout << "Luau result: " << denum << debool << denil << destr << std::endl;
+    switch (type) {
+        case LUA_TNUMBER:
+            output = std::to_string(lua_tonumber(L, -1));
+            outputtype = 1;
+            break;
 
-    if (isnum) {
-        output = std::to_string(lua_tonumber(L, -1));
-        outputtype = 1;
-    } else if (isbool) {
-        output = lua_toboolean(L, -1) ? "true" : "false";
-        outputtype = 2;
-    } else if (isnil) {
-        output = "nil";
-        outputtype = 3;
-    } else if (isstr) {
-        output = lua_tostring(L, -1);
-        outputtype = 0;
-    } else {
-        output = lua_typename(L, lua_type(L, -1));
-        outputtype = 0;
+        case LUA_TBOOLEAN:
+            output = lua_toboolean(L, -1) ? "true" : "false";
+            outputtype = 2;
+            break;
+
+        case LUA_TNIL:
+            output = "null";
+            outputtype = 3;
+            break;
+
+        case LUA_TSTRING:
+            output = lua_tostring(L, -1);
+            outputtype = 0;
+            break;
+
+        case LUA_TTABLE: {
+            int len = lua_objlen(L, -1);
+            if (len > 0) {
+                output = arrayToJSON(L, -1);
+                outputtype = 5; // array
+            } else {
+                output = tableToJSON(L, -1);
+                outputtype = 4; // object
+            }
+            break;
+        }
+
+        case LUA_TFUNCTION:
+            if (lua_iscfunction(L, -1)) {
+                output = "[Luau C Function]";
+            } else {
+                output = "[Luau Function]";
+            }
+            outputtype = 0;
+            break;
+
+        case LUA_TTHREAD: {
+            lua_State* thread = lua_tothread(L, -1);
+            std::stringstream ss;
+
+            int status = lua_status(thread);
+            if (status == LUA_OK) {
+                ss << "[Luau Thread: normal";
+            } else if (status == LUA_YIELD) {
+                ss << "[Luau Thread: suspended";
+            } else if (status == LUA_ERRRUN) {
+                ss << "[Luau Thread: runtime error";
+            } else if (status == LUA_ERRMEM) {
+                ss << "[Luau Thread: memory error";
+            } else {
+                ss << "[Luau Thread: unknown";
+            }
+
+            int top = lua_gettop(thread);
+            ss << " (stack: " << top << " values)]";
+
+            output = ss.str();
+            outputtype = 0;
+            break;
+        }
+
+        case LUA_TLIGHTUSERDATA: {
+            void* ptr = lua_touserdata(L, -1);
+            std::stringstream ss;
+            ss << "[Luau LightUserData: 0x" << std::hex << reinterpret_cast<uintptr_t>(ptr) << "]";
+            output = ss.str();
+            outputtype = 0;
+            break;
+        }
+
+        case LUA_TUSERDATA: {
+            std::stringstream ss;
+            ss << "[Luau UserData: ";
+
+            if (lua_getmetatable(L, -1)) {
+                lua_getfield(L, -1, "__name");
+                if (lua_isstring(L, -1)) {
+                    ss << lua_tostring(L, -1);
+                    lua_pop(L, 1);
+                } else {
+                    ss << "anonymous";
+                    lua_pop(L, 1);
+                }
+                lua_pop(L, 1);
+            } else {
+                ss << "anonymous";
+            }
+
+            void* ptr = lua_touserdata(L, -1);
+            ss << " 0x" << std::hex << reinterpret_cast<uintptr_t>(ptr) << "]";
+
+            output = ss.str();
+            outputtype = 0;
+            break;
+        }
+
+        default:
+            output = "[Luau " + std::string(lua_typename(L, type)) + "]";
+            outputtype = 0;
+            break;
     }
 
     lua_pop(L, 1);

@@ -159,25 +159,47 @@ std::string JsonSerializer::tokensToJson(const std::vector<ParserToken>& tokens)
 
 std::string JsonSerializer::serialize(const ParseResult& result) {
     std::stringstream json;
-    json << "{";
 
     #ifdef __EMSCRIPTEN__
 
+    json << "{";
     if (!result.error.empty()) {
         json << "\"error\":\"" << escapeJsonString(result.error) << "\"";
     } else {
         // return values
         json << "\"type\":\"json\",\"return\":";
         bool first = true;
+        bool doObj = false;
         if (result.array) {
-            json << "[";
+            std::vector<int> indices;
+            bool isArray = true;
             for (const auto& pair : result.returnValues) {
-                if (!first) json << ",";
-                first = false;
-                json << valueToJson(pair.second);
+                try {
+                    int idx = std::stoi(pair.first);
+                    indices.push_back(idx);
+                } catch (...) {
+                    isArray = false;
+                    break;
+                }
             }
-            json << "],";
+
+            if (isArray) {
+                json << "[";
+                std::sort(indices.begin(), indices.end());
+                for (size_t i = 0; i < indices.size(); i++) {
+                    if (i > 0) json << ",";
+                    std::string key = std::to_string(indices[i]);
+                    json << valueToJson(result.returnValues.at(key));
+                }
+                json << "],";
+            } else {
+                doObj = true;
+            }
         } else {
+            doObj = true;
+        }
+
+        if (doObj) {
             json << "{";
             for (const auto& pair : result.returnValues) {
                 if (!first) json << ",";
@@ -203,18 +225,54 @@ std::string JsonSerializer::serialize(const ParseResult& result) {
         json << serialize(result.importLogs);
     }
 
+    json << "}";
+
     #else
 
     bool first = true;
-    for (const auto& pair : result.returnValues) {
-        if (!first) json << ",";
-        first = false;
-        json << "\"" << escapeJsonString(pair.first) << "\":" << valueToJson(pair.second);
+    bool doObj = false;
+
+    if (result.array) {
+        std::vector<int> indices;
+        bool isArray = true;
+        for (const auto& pair : result.returnValues) {
+            try {
+                int idx = std::stoi(pair.first);
+                indices.push_back(idx);
+            } catch (...) {
+                isArray = false;
+                break;
+            }
+        }
+
+        if (isArray) {
+            json << "[";
+            std::sort(indices.begin(), indices.end());
+            for (size_t i = 0; i < indices.size(); i++) {
+                if (i > 0) json << ",";
+                std::string key = std::to_string(indices[i]);
+                json << valueToJson(result.returnValues.at(key));
+            }
+            json << "]";
+        } else {
+            doObj = true;
+        }
+    } else {
+        doObj = true;
+    }
+
+    if (doObj) {
+        json << "{";
+        for (const auto& pair : result.returnValues) {
+            if (!first) json << ",";
+            first = false;
+            json << "\"" << escapeJsonString(pair.first) << "\":" << valueToJson(pair.second);
+        }
+        json << "}";
     }
 
     #endif
 
-    json << "}";
     return json.str();
 }
 
