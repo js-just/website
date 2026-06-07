@@ -358,6 +358,10 @@ private:
     Value parseObjectPropertyAccess(bool doExecute);
     std::shared_ptr<ObjectContext> createObjectContext(bool inheritFromParent);
 
+    Value accessProperty(const Value& obj, const std::string& propName);
+    Value accessIndex(const Value& arr, size_t index);
+    std::vector<Value> parseArguments(bool doExecute);
+
     ASTNode parseStatement(bool doExecute);
     bool CanIgnoreNoAssigmentOperator();
     ASTNode parseVariableDeclaration(bool doExecute, bool constant = true);

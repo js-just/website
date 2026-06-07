@@ -1595,14 +1595,6 @@ Value Parser::parsePrimary(bool doExecute) {
         result.type = DataType::VARIABLE;
         result.string_value = varName;
         advance();
-        while (match(".") && tokens[position + 1].type == "identifier" && position + 2 < tokens.size()) {
-            advance();
-            result.string_value += "." + currentToken().value;
-            advance();
-            if (isEnd()) {
-                throw std::runtime_error("Unexpected EOF.");
-            }
-        }
         try {
             return resolveVariableValue(varName, true);
         } catch (...) {
@@ -1706,12 +1698,16 @@ Value Parser::parsePrimary(bool doExecute) {
 
         if (luauresult.second == 1) { // number
             result = Value::createNumber(parseNumber(luauresult.first));
+            result.type = DataType::NUMBER;
         } else if (luauresult.second == 2) { // boolean
             result = Value::createBoolean(luauresult.first == "true");
+            result.type = DataType::BOOLEAN;
         } else if (luauresult.second == 3) { // null
             result = Value::createNull();
+            result.type = DataType::NULL_TYPE;
         } else { // string
             result = stringToValue(luauresult.first);
+            result.type = DataType::STRING;
         }
 
         addLog("LUAU", Utility::value2string(result), currentToken().start);
@@ -1735,13 +1731,23 @@ Value Parser::parseFunctionCall(bool doExecute) {
     std::string funcName = currentToken().value;
     size_t startPos = currentToken().start;
 
+    while (peekToken().type == "." && position + 2 < tokens.size()) {
+        advance();
+        if (match("identifier")) {
+            funcName += "." + currentToken().value;
+            advance();
+        } else {
+            throw std::runtime_error("Unexpected end of script at " + Utility::position(startPos, input) + ".");
+        }
+    }
+
     Value funcValue = resolveVariableValue(funcName, false);
 
     if (funcValue.type == DataType::FUNCTION) {
         advance();
 
         if (!match("(")) {
-            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
+            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input) + ".");
         }
         advance();
 
@@ -1752,7 +1758,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
         }
 
         if (!match(")")) {
-            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input));
+            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input) + ".");
         }
         advance();
 
@@ -1761,7 +1767,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
         advance();
 
         if (!match("(")) {
-            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
+            throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input) + ".");
         }
         advance();
 
@@ -1772,7 +1778,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
         }
 
         if (!match(")")) {
-            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input));
+            throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(startPos, input) + ".");
         }
         advance();
 
@@ -2325,12 +2331,16 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
 
                 if (luauresult.second == 1) { // number
                     result = Value::createNumber(parseNumber(luauresult.first));
+                    result.type = DataType::NUMBER;
                 } else if (luauresult.second == 2) { // boolean
                     result = Value::createBoolean(luauresult.first == "true");
+                    result.type = DataType::BOOLEAN;
                 } else if (luauresult.second == 3) { // null
                     result = Value::createNull();
+                    result.type = DataType::NULL_TYPE;
                 } else { // string
                     result = stringToValue(luauresult.first);
+                    result.type = DataType::STRING;
                 }
 
                 addLog("LUAU", Utility::value2string(result), startPos);
@@ -3651,7 +3661,7 @@ void Parser::evaluateAllVariablesSync() {
     } while (changed && passes < MAX_PASSES);
 
     if (passes >= MAX_PASSES) {
-        throw std::runtime_error("Cannot resolve variable dependencies - possible circular reference");
+        throw std::runtime_error("Cannot resolve variable dependencies - possible circular reference.");
     }
 }
 
@@ -3696,7 +3706,7 @@ std::shared_ptr<ObjectContext> Parser::createObjectContext(bool inheritFromParen
 }
 Value Parser::parseJustcObject(bool doExecute) {
     if (!match("|")) {
-        throw std::runtime_error("Expected '|' for JUSTC object");
+        throw std::runtime_error("Expected '|' for JUSTC object.");
     }
 
     size_t startPos = position;
@@ -3765,7 +3775,7 @@ Value Parser::parseJustcObject(bool doExecute) {
     }
 
     if (pipeCount > 0) {
-        throw std::runtime_error("Unclosed JUSTC object at " + Utility::position(startPos, input));
+        throw std::runtime_error("Unclosed JUSTC object at " + Utility::position(startPos, input) + ".");
     }
 
     auto lexerResult = Lexer::parse(objectContent, false);
@@ -3829,7 +3839,7 @@ Value Parser::parseJustcObject(bool doExecute) {
 
 Value Parser::parseJsonObject(bool doExecute) {
     if (!match("{")) {
-        throw std::runtime_error("Expected \"{\" for JSON object");
+        throw std::runtime_error("Expected \"{\" for JSON object.");
     }
 
     size_t startPos = position;
@@ -3851,8 +3861,7 @@ Value Parser::parseJsonObject(bool doExecute) {
         if (match(":") || match("=") || match("-") || match("keyword", "is")) {
             advance();
         } else if (!CanIgnoreNoAssigmentOperator()) {
-            throw std::runtime_error("Expected \":\" after key in JSON object at " +
-                                    Utility::position(position, input));
+            throw std::runtime_error("Expected \":\" after key in JSON object at " + Utility::position(position, input) + ".");
         }
 
         Value valueVal = parseExpression(doExecute);
@@ -3866,8 +3875,7 @@ Value Parser::parseJsonObject(bool doExecute) {
     }
 
     if (!match("}")) {
-        throw std::runtime_error("Expected \"}\" to close JSON object at " +
-                                Utility::position(startPos, input));
+        throw std::runtime_error("Expected \"}\" to close JSON object at " + Utility::position(startPos, input) + ".");
     }
     advance();
 
@@ -3881,7 +3889,7 @@ Value Parser::parseJsonObject(bool doExecute) {
 }
 Value Parser::parseJsonArray(bool doExecute) {
     if (!match("[")) {
-        throw std::runtime_error("Expected '[' for JSON array");
+        throw std::runtime_error("Expected '[' for JSON array.");
     }
 
     size_t startPos = position;
@@ -3902,8 +3910,7 @@ Value Parser::parseJsonArray(bool doExecute) {
     }
 
     if (!match("]")) {
-        throw std::runtime_error("Expected ']' to close JSON array at " +
-                                Utility::position(startPos, input));
+        throw std::runtime_error("Expected ']' to close JSON array at " + Utility::position(startPos, input) + ".");
     }
     advance();
 
@@ -3925,25 +3932,22 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     while ((match(".") || match("[")) && position + 1 < tokens.size()) {
         if (match(".")) {
             advance();
-
             if (!match("identifier") && !isEnd()) {
                 throw std::runtime_error("Expected property name after \".\" at " + Utility::position(position, input) + ".");
             }
-
             std::string propName = currentToken().value;
             accessChain.push_back(propName);
             advance();
         } else if (match("[")) {
             advance();
-
             Value indexVal = parseExpression(doExecute);
-            if (indexVal.type != DataType::NUMBER) {
-                throw std::runtime_error("Expected numeric index in array access, got <" + dataTypeToString(indexVal.type) + "> at " + Utility::position(position, input) + ".");
+            if (indexVal.type == DataType::STRING) {
+                accessChain.push_back(indexVal.string_value);
+            } else if (indexVal.type == DataType::NUMBER) {
+                accessChain.push_back(static_cast<size_t>(indexVal.toNumber()));
+            } else {
+                throw std::runtime_error("Expected string or numeric index in bracket access, got <" + dataTypeToString(indexVal.type) + "> at " + Utility::position(position, input) + ".");
             }
-
-            size_t index = static_cast<size_t>(indexVal.toNumber());
-            accessChain.push_back(index);
-
             if (!match("]")) {
                 throw std::runtime_error("Expected \"]\" to close array access, got \"" + currentToken().value + "\" at " + Utility::position(position, input) + ".");
             }
@@ -3952,75 +3956,105 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     }
 
     std::string rootName = std::get<std::string>(accessChain[0]);
-    Value currentValue;
-    auto varIt = variables.find(rootName);
-    if (varIt != variables.end()) {
-        currentValue = varIt->second;
-    } else {
-        currentValue = resolveVariableValue(rootName, false);
-    }
+    Value currentValue = resolveVariableValue(rootName, false);
 
     if (!currentValue.isObject() && accessChain.size() > 1) {
-        throw std::runtime_error("\"" + rootName + "\" is not an object. Attempt to access propery or index of not an object at " + Utility::position(position, input) + ".");
+        throw std::runtime_error("\"" + rootName + "\" is not an object. Attempt to access property or index of not an object at " + Utility::position(position, input) + ".");
     }
 
-    for (size_t i = 1; i < accessChain.size(); i++) {
+    for (size_t i = 1; i < accessChain.size() - 1; i++) {
         if (std::holds_alternative<std::string>(accessChain[i])) {
             std::string propName = std::get<std::string>(accessChain[i]);
-
-            if (currentValue.type == DataType::JUSTC_OBJECT) {
-                if (currentValue.object_context &&
-                    currentValue.object_context->parser) {
-
-                    if (currentValue.object_context->parser->outputMode == "disabled") {
-                        throw std::runtime_error("Attempt to access \"" + propName + "\" of a closure (Object with output mode \"disabled\") at " + Utility::position(position, input) + ".");
-                    }
-
-                    auto it = currentValue.properties.find(propName);
-                    if (it != currentValue.properties.end()) {
-                        currentValue = it->second;
-                    } else {
-                        auto& parserVars = currentValue.object_context->variables;
-                        auto varIt = parserVars.find(propName);
-                        if (varIt != parserVars.end()) {
-                            currentValue = varIt->second;
-                        } else {
-                            throw std::runtime_error("Property '" + propName + "' not found in object. Attempt to access undefined property at " + Utility::position(position, input) + ".");
-                        }
-                    }
-                }
-            } else if (currentValue.type == DataType::JSON_OBJECT) {
-                auto it = currentValue.properties.find(propName);
-                if (it != currentValue.properties.end()) {
-                    currentValue = it->second;
-                } else {
-                    throw std::runtime_error("Property '" + propName + "' not found in JSON object. Attempt to access undefined property at " + Utility::position(position, input) + ".");
-                }
-            } else if (currentValue.type == DataType::JSON_ARRAY) {
-                throw std::runtime_error("Attempt to access \"" + propName + "\" of array at " + Utility::position(position, input) + ".");
-            } else {
-                throw std::runtime_error("Attempt to access \"" + propName + "\" of not an object at " + Utility::position(position, input) + ".");
-            }
+            currentValue = accessProperty(currentValue, propName);
         } else if (std::holds_alternative<size_t>(accessChain[i])) {
             size_t index = std::get<size_t>(accessChain[i]);
-
-            if (currentValue.type == DataType::JSON_ARRAY) {
-                if (index < currentValue.array_elements.size()) {
-                    currentValue = currentValue.array_elements[index];
-                } else {
-                    currentValue = Value::createNull();
-                }
-            } else {
-                throw std::runtime_error("\"" + currentValue.name + "\" is not an array. Attempt to access index \"" + std::to_string(index) + "\" of not an array at " + Utility::position(position, input) + ".");
-            }
+            currentValue = accessIndex(currentValue, index);
         }
 
-        if (i < accessChain.size() - 1 && !currentValue.isObject()) {
-            throw std::runtime_error("Attempt to access property or index of not an object at " + Utility::position(position, input) + ".");
+        if (!currentValue.isObject()) {
+            throw std::runtime_error("Cannot access property of non-object at " + Utility::position(position, input) + ".");
         }
     }
 
-    return currentValue;
+    auto last = accessChain.back();
+
+    if (match("(")) { // function
+        std::string funcName;
+        if (std::holds_alternative<std::string>(last)) {
+            funcName = std::get<std::string>(last);
+        }
+
+        Value func = accessProperty(currentValue, funcName);
+
+        if (func.type == DataType::FUNCTION) { // user funciton
+            return callFunction(func, parseArguments(doExecute), position, doExecute);
+        } else { // built-in function
+            return executeFunction(funcName, parseArguments(doExecute), position);
+        }
+    } else { // property/index
+        if (std::holds_alternative<std::string>(last)) { // object
+            return accessProperty(currentValue, std::get<std::string>(last));
+        } else { // array
+            return accessIndex(currentValue, std::get<size_t>(last));
+        }
+    }
+}
+Value Parser::accessProperty(const Value& obj, const std::string& propName) {
+    if (obj.type == DataType::JUSTC_OBJECT) {
+        if (obj.object_context && obj.object_context->parser) {
+            if (obj.object_context->parser->outputMode == "disabled") {
+                throw std::runtime_error("Attempt to access \"" + propName + "\" of a closure (Object with output mode \"disabled\") at " + Utility::position(position, input) + ".");
+            }
+
+            auto it = obj.properties.find(propName);
+            if (it != obj.properties.end()) {
+                return it->second;
+            }
+
+            auto& parserVars = obj.object_context->variables;
+            auto varIt = parserVars.find(propName);
+            if (varIt != parserVars.end()) {
+                return varIt->second;
+            }
+
+            throw std::runtime_error("Property '" + propName + "' not found in object at " + Utility::position(position, input) + ".");
+        }
+    } else if (obj.type == DataType::JSON_OBJECT) {
+        auto it = obj.properties.find(propName);
+        if (it != obj.properties.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Property '" + propName + "' not found in JSON object at " + Utility::position(position, input) + ".");
+    } else if (obj.type == DataType::JSON_ARRAY) {
+        throw std::runtime_error("Cannot access property '" + propName + "' on array at " + Utility::position(position, input) + ".");
+    }
+
+    throw std::runtime_error("Cannot access property '" + propName + "' on non-object at " + Utility::position(position, input) + ".");
+}
+Value Parser::accessIndex(const Value& arr, size_t index) {
+    if (arr.type == DataType::JSON_ARRAY) {
+        if (index < arr.array_elements.size()) {
+            return arr.array_elements[index];
+        }
+        return Value::createNull();
+    }
+    throw std::runtime_error("Cannot access index " + std::to_string(index) + " on non-array at " + Utility::position(position, input) + ".");
+}
+std::vector<Value> Parser::parseArguments(bool doExecute) {
+    std::vector<Value> args;
+    advance();
+
+    while (!match(")") && !isEnd()) {
+        args.push_back(parseExpression(doExecute));
+        if (match(",") || match(";")) advance();
+    }
+
+    if (!match(")")) {
+        throw std::runtime_error("Expected ')' after function arguments at " + Utility::position(position, input) + ".");
+    }
+    advance();
+
+    return args;
 }
 
 void Parser::initializeBuiltIns() {

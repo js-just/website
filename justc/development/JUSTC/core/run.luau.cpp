@@ -31,6 +31,7 @@ SOFTWARE.
 #include <string>
 #include <cstring>
 #include <utility>
+#include <iostream>
 
 #include "lua.h"
 #include "lualib.h"
@@ -150,19 +151,34 @@ std::pair<std::string, int> RunLuau::runScriptWithResult(const std::string& code
 
     std::string output;
     int outputtype = 0; // 0 = string; 1 = number; 2 = boolean; 3 = null
-    if (lua_isstring(L, -1)) {
-        output = lua_tostring(L, -1);
-    } else if (lua_isnumber(L, -1)) {
+
+    bool isnum = lua_isnumber(L, -1);
+    bool isbool= lua_isboolean(L,-1);
+    bool isnil = lua_isnil(L, -1);
+    bool isstr = lua_isstring(L, -1);
+
+    // debug
+    std::string denum = isnum ? "number" : "";
+    std::string debool= isbool? "boolean": "";
+    std::string denil = isnil ? "nil"    : "";
+    std::string destr = isstr ? "string" : "";
+    std::cout << "Luau result: " << denum << debool << denil << destr << std::endl;
+
+    if (isnum) {
         output = std::to_string(lua_tonumber(L, -1));
         outputtype = 1;
-    } else if (lua_isboolean(L, -1)) {
+    } else if (isbool) {
         output = lua_toboolean(L, -1) ? "true" : "false";
         outputtype = 2;
-    } else if (lua_isnil(L, -1)) {
+    } else if (isnil) {
         output = "nil";
         outputtype = 3;
+    } else if (isstr) {
+        output = lua_tostring(L, -1);
+        outputtype = 0;
     } else {
         output = lua_typename(L, lua_type(L, -1));
+        outputtype = 0;
     }
 
     lua_pop(L, 1);
