@@ -3246,6 +3246,9 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                     std::cout << key << std::endl;
 
                     variables[key] = value;
+                    try {
+                        mutated.erase(key);
+                    } catch (...) {}
                     mutated.try_emplace(key, Mutated(value, startPos));
                     if (result.constants) {
                         auto childConstIt = result.constants->find(key);
@@ -3253,11 +3256,6 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                             constVars[key] = childConstIt->second;
                         }
                     }
-
-                    ASTNode node("VARIABLE_DECLARATION", key, startPos);
-                    node.value = value;
-                    node.constant = constVars[key];
-                    ast.push_back(node);
                 }
             }
             if (result.constants) {
