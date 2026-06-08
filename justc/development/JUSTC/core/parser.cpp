@@ -3219,6 +3219,15 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             isolatedParser.variableUpdateListener([this](const std::vector<Value>& args) {
                 return this->merger(args);
             });
+            if (context) {
+                isolatedParser.variableUpdateListener([this, context](const std::vector<Value>& args) {
+                    if (args.size() < 2) return Value::createNull();
+                    std::string key = args[0].toString();
+                    Value value = args[1];
+                    const_cast<std::unordered_map<std::string, Value>*>(context)->operator[](key) = value;
+                    return Value::createNull();
+                });
+            }
         }
 
         result = isolatedParser.parse(doExecute);
