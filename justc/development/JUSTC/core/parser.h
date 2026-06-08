@@ -271,9 +271,10 @@ enum class CharType {
 struct Mutated {
     Value value;
     size_t startPos;
+    bool applied = false;
 
-    Mutated() : value(), startPos(0) {}
-    Mutated(Value v, size_t p) : value(v), startPos(p) {}
+    Mutated() : value(), startPos(0), applied(false) {}
+    Mutated(Value v, size_t p) : value(v), startPos(p), applied(false) {}
 };
 
 class Parser {

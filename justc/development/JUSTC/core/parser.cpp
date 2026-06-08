@@ -3958,8 +3958,9 @@ void Parser::evaluateAllVariablesSync() {
                 }
                 if (mutatedIt != mutated.end()) {
                     Mutated newVal = mutatedIt->second;
-                    if (newVal.value.type != DataType::UNKNOWN && newVal.startPos > node.startPos && !isConst && !isConst2) {
+                    if (!newVal.applied && newVal.value.type != DataType::UNKNOWN && newVal.startPos > node.startPos && !isConst && !isConst2) {
                         variables[varName] = newVal.value;
+                        newVal.applied = true;
                         changed = true;
                     }
                 }
@@ -3967,6 +3968,8 @@ void Parser::evaluateAllVariablesSync() {
         }
 
     } while (changed && passes < MAX_PASSES);
+
+    mutated.clear();
 
     if (passes >= MAX_PASSES) {
         throw std::runtime_error("Cannot resolve variable dependencies - possible circular reference.");
