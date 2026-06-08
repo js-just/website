@@ -436,6 +436,8 @@ private:
     }
 
     Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto", bool merge = false);
+    Value shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name = "auto", bool merge = true);
+
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 
