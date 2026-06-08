@@ -426,6 +426,7 @@ private:
     Value emptyJUSTC();
 
     Value parseCondition(bool doExecute, bool wasIsolated = false);
+    Value i2v(Value fromIsolated);
 
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);

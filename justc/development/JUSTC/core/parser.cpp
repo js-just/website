@@ -3271,6 +3271,10 @@ Value Parser::functionJUSTC2(const std::string& code, bool doExecute, size_t sta
     return isolated(code, execute, startPos);
 }
 
+Value Parser::i2v(Value fromIsolated) { // isolatedToValue
+    return fromIsolated.properties["return"];
+}
+
 Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
     size_t startPos = currentToken().start;
     int conditionType = 0; // 0 = if; 1 = for; 2 = while; 3 = elseif
@@ -3402,7 +3406,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
     switch (conditionType) {
         case 0: case 3: { // if/elseif
             std::string currOp = conditionType == 0 ? "if" : "elseif";
-            bool conditionResult = isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input)).toBoolean();
+            bool conditionResult = i2v(isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input))).toBoolean();
 
             std::cout << std::string(conditionResult ? "true : " : "false : ") << conditionBody << std::endl;
 
@@ -3440,7 +3444,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
             } else return Value::createNull();
         } case 2: { // while
             std::string conditionStr = "return " + first.str() + " .";
-            bool conditionResult = isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input)).toBoolean();
+            bool conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input))).toBoolean();
             while (conditionResult) {
                 isolated(conditionBody, doExecute, startPos, &conditionBodyContext, "'while' body at " + Utility::position(startPos, input));
                 for (const auto& [key, value] : this->variables) {
@@ -3450,7 +3454,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
                         conditionContext[key] = value;
                     }
                 }
-                conditionResult = isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input)).toBoolean();
+                conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input))).toBoolean();
             }
             return Value::createNull();
         } default:
