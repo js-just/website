@@ -3906,12 +3906,6 @@ void Parser::evaluateAllVariablesSync() {
     for (auto& node : ast) {
         if (node.type == "VARIABLE_DECLARATION") {
             std::string varName = node.identifier;
-
-            auto constIt = constVars.find(varName);
-            if (constIt != constVars.end() && constIt->second) {
-                continue;
-            }
-
             if (variables.find(varName) == variables.end()) {
                 variables[varName] = Value();
                 constVars[varName] = node.constant;
@@ -3923,44 +3917,60 @@ void Parser::evaluateAllVariablesSync() {
         changed = false;
         passes++;
 
+        for (auto& [varName, mut] : mutated) {
+            if (mut.applied) {
+                continue;
+            }
+
+            auto constIt = constVars.find(varName);
+            if (constIt != constVars.end() && constIt->second) {
+                continue;
+            }
+
+            ASTNode* originalNode = nullptr;
+            for (auto& node : ast) {
+                if (node.type == "VARIABLE_DECLARATION" && node.identifier == varName) {
+                    originalNode = &node;
+                    break;
+                }
+            }
+
+            if (originalNode && mut.startPos > originalNode->startPos) {
+                if (variables[varName].toString() != mut.value.toString()) {
+                    variables[varName] = mut.value;
+                    constVars[varName] = false;
+                    changed = true;
+                    mut.applied = true;
+                }
+            }
+        }
+
         for (auto& node : ast) {
             if (node.type == "VARIABLE_DECLARATION") {
                 std::string varName = node.identifier;
-                bool isConst = node.constant;
 
+                auto mutIt = mutated.find(varName);
+                if (mutIt != mutated.end() && !mutIt->second.applied) {
+                    continue;
+                }
+
+                bool isConst = node.constant;
                 auto constIt = constVars.find(varName);
                 if (constIt != constVars.end() && constIt->second && variables[varName].type != DataType::UNKNOWN) {
                     continue;
                 }
 
-                Value oldValue = variables[varName];
                 Value newValue = evaluateASTNode(node);
 
                 if (newValue.type == DataType::VARIABLE && newValue.string_value == varName) {
                     throw std::runtime_error("Variable cannot reference itself: " + varName);
                 }
 
-                if (newValue.type != DataType::UNKNOWN && (
-                    oldValue.type == DataType::UNKNOWN || oldValue.toString() != newValue.toString()
-                )) {
-                    variables[varName] = newValue;
-                    if (isConst) {
-                        constVars[varName] = true;
-                    }
-                    changed = true;
-                }
-
-                auto mutatedIt = mutated.find(varName);
-                auto isConstIt = constVars.find(varName);
-                bool isConst2 = isConst;
-                if (isConstIt != constVars.end()) {
-                    isConst2 = isConstIt->second;
-                }
-                if (mutatedIt != mutated.end()) {
-                    Mutated newVal = mutatedIt->second;
-                    if (!newVal.applied && newVal.value.type != DataType::UNKNOWN && newVal.startPos > node.startPos && !isConst && !isConst2) {
-                        variables[varName] = newVal.value;
-                        newVal.applied = true;
+                if (newValue.type != DataType::UNKNOWN) {
+                    if (variables[varName].type == DataType::UNKNOWN ||
+                        variables[varName].toString() != newValue.toString()) {
+                        variables[varName] = newValue;
+                        if (isConst) constVars[varName] = true;
                         changed = true;
                     }
                 }
