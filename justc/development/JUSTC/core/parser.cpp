@@ -3137,6 +3137,7 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
 }
 
 Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name) {
+    std::cout << name << " : " << code << std::endl;
     try {
         auto lexerResult = Lexer::parse(code);
 
@@ -3214,6 +3215,7 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             addImportLog(importLog[0], importLog[1], importLog[2]);
         }
 
+        std::cout << "isolatedObject " << isolatedObject.toString() << std::endl;
         return isolatedObject;
 
     } catch (const std::runtime_error& e) {
@@ -3401,6 +3403,9 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
         case 0: case 3: { // if/elseif
             std::string currOp = conditionType == 0 ? "if" : "elseif";
             bool conditionResult = isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input)).toBoolean();
+
+            std::cout << std::string(conditionResult ? "true : " : "false : ") << conditionBody << std::endl;
+
             if (conditionResult) {
                 return isolated(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(startPos, input));
             } else if (match("keyword", "else")) {
