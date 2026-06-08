@@ -1116,6 +1116,15 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
         } else throw std::runtime_error("Expected assignment operator at " + Utility::position(position, input) + ", got \"" + currentToken().value +"\".");
     }
 
+    if (node.value.type == DataType::FUNCTION) {
+        if (userFunctions.find(identifier) != userFunctions.end() && userFunctionsConst.find(identifier)->second) {
+            throw std::runtime_error("Cannot override const function: " + identifier);
+        }
+        try {
+            userFunctions.erase(identifier);
+        } catch (...) {}
+    }
+
     if (variables.find(identifier) != variables.end()) { // assignment
         variables[identifier] = Value();
     } else { // declaration
@@ -1922,6 +1931,15 @@ Value Parser::onExecDisabled(size_t startPos, std::string name) {
 Value Parser::executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos) {
     if (!doExecute) {
         return onExecDisabled(startPos, funcName);
+    }
+
+    auto customIt = userFunctions.find(funcName);
+    if (customIt != userFunctions.end()) {
+        try {
+            return customIt->second(args);
+        } catch (const std::exception& e) {
+            throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input));
+        }
     }
 
     if (funcName == "TIME") {
@@ -3155,8 +3173,14 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
     } else return result;
 }
 
-Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge) {
-    std::cout << name << " : " << code << std::endl;
+Value Parser::merger(const std::vector<Value>& args) {
+    std::string key = args[0].toString();
+    Value value = args[1];
+    variables[key] = value;
+    std::cout << key + " : " + value.toString() << std::endl;
+    return Value::createNull();
+}
+Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent) {
     try {
         auto lexerResult = Lexer::parse(code);
 
@@ -3188,6 +3212,15 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
 
         ParseResult result;
 
+        isolatedParser.userFunctions = this->userFunctions;
+        isolatedParser.userFunctionsConst = this->userFunctionsConst;
+
+        if (merge) {
+            isolatedParser.variableUpdateListener([this](const std::vector<Value>& args) {
+                return this->merger(args);
+            });
+        }
+
         result = isolatedParser.parse(doExecute);
 
         Value isolatedObject;
@@ -3200,8 +3233,7 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         } else if (isolatedParser.outputMode == "specified") {
             for (size_t i = 0; i < isolatedParser.outputVariables.size(); i++) {
                 const auto& varName = isolatedParser.outputVariables[i];
-                std::string outputName = (i < isolatedParser.outputNames.size()) ?
-                                        isolatedParser.outputNames[i] : varName;
+                std::string outputName = (i < isolatedParser.outputNames.size()) ? isolatedParser.outputNames[i] : varName;
                 if (result.returnValues.find(varName) != result.returnValues.end()) {
                     if (outputName != "_") {
                         isolatedObject.properties[outputName] = result.returnValues.at(varName);
@@ -3227,23 +3259,22 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         objectContext->allowLuau = isolatedParser.allowLuau;
         isolatedObject.object_context = objectContext;
 
-        for (const auto& log : result.logs) {
-            addLog(log.type, log.message, log.position);
+        if (!silent) {
+            for (const auto& log : result.logs) {
+                addLog(log.type, log.message, log.position);
+            }
         }
         for (const auto& importLog : result.importLogs) {
             addImportLog(importLog[0], importLog[1], importLog[2]);
         }
 
         if (merge) {
-            std::cout << "merging" << std::endl;
             if (result.variables) {
-                std::cout << "variables" << std::endl;
                 for (const auto& [key, value] : *result.variables) {
                     auto parentConstIt = constVars.find(key);
                     if ((parentConstIt != constVars.end() && parentConstIt->second) || isBuiltinVariable(key)) {
                         continue;
                     }
-                    std::cout << key << std::endl;
 
                     variables[key] = value;
                     try {
@@ -3259,7 +3290,6 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
                 }
             }
             if (result.constants) {
-                std::cout << "constants" << std::endl;
                 for (const auto& [key, isConst] : *result.constants) {
                     if (isBuiltinVariable(key)) {
                         continue;
@@ -3276,7 +3306,6 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             }
         }
 
-        std::cout << "isolatedObject " << isolatedObject.toString() << std::endl;
         return isolatedObject;
 
     } catch (const std::runtime_error& e) {
@@ -3285,7 +3314,7 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\" " + Utility::position(startPos, input) + ")");
     }
 }
-Value Parser::shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge) {
+Value Parser::shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent) {
     std::unordered_map<std::string, Value> ctx;
     if (context) {
         ctx = *context;
@@ -3508,8 +3537,6 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
         case 0: case 3: { // if/elseif
             std::string currOp = conditionType == 0 ? "if" : "elseif";
             bool conditionResult = i2v(isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input))).toBoolean();
-
-            std::cout << std::string(conditionResult ? "true : " : "false : ") << conditionBody << std::endl;
 
             if (conditionResult) {
                 return shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(startPos, input), !isIsolated);
@@ -3969,6 +3996,7 @@ void Parser::evaluateAllVariablesSync() {
                     constVars[varName] = false;
                     changed = true;
                     mut.applied = true;
+                    triggerVariableUpdate(varName, mut.value);
                 }
             }
         }
@@ -3995,11 +4023,11 @@ void Parser::evaluateAllVariablesSync() {
                 }
 
                 if (newValue.type != DataType::UNKNOWN) {
-                    if (variables[varName].type == DataType::UNKNOWN ||
-                        variables[varName].toString() != newValue.toString()) {
+                    if (variables[varName].type == DataType::UNKNOWN || variables[varName].toString() != newValue.toString()) {
                         variables[varName] = newValue;
                         if (isConst) constVars[varName] = true;
                         changed = true;
+                        triggerVariableUpdate(varName, newValue);
                     }
                 }
             }
@@ -4441,6 +4469,39 @@ void Parser::updateCharType(const std::string& newType, size_t startPos) {
         addLog("CHARTYPE", newType, startPos);
     } else {
         throw std::runtime_error("Invalid chartype: " + newType + ". Must be 'grapheme', 'codepoint', or 'byte' at " + Utility::position(startPos, input));
+    }
+}
+
+void Parser::registerFunction(const std::string& name, Function func, bool isConst) {
+    userFunctions[name] = func;
+    userFunctionsConst[name] = isConst;
+}
+void Parser::registerFunctions(const std::unordered_map<std::string, Function>& functions, bool isConst) {
+    for (const auto& [name, func] : functions) {
+        userFunctions[name] = func;
+        userFunctionsConst[name] = isConst;
+    }
+}
+void Parser::unregisterFunction(const std::string& name) {
+    userFunctions.erase(name);
+    userFunctionsConst.erase(name);
+}
+bool Parser::hasFunction(const std::string& name) const {
+    return userFunctions.find(name) != userFunctions.end();
+}
+
+void Parser::variableUpdateListener(Function func) {
+    variableUpdateListeners.push_back(func);
+}
+void Parser::triggerVariableUpdate(const std::string& name, const Value& value) {
+    Value key = Value::createString(name);
+    std::vector<Value> args = {key, value};
+    for (Function func : variableUpdateListeners) {
+        try {
+            func(args);
+        } catch (const std::exception& e) {
+            std::cout << std::string(e.what()) << std::endl;
+        }
     }
 }
 

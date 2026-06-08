@@ -37,6 +37,7 @@ SOFTWARE.
 #include <variant>
 #include "lexer.h"
 #include "version.h"
+#include <functional>
 
 struct Value;
 class Parser;
@@ -277,6 +278,8 @@ struct Mutated {
     Mutated(Value v, size_t p) : value(v), startPos(p), applied(false) {}
 };
 
+using Function = std::function<Value(const std::vector<Value>&)>;
+
 class Parser {
 private:
     bool doExecute;
@@ -317,6 +320,10 @@ private:
     bool isFunction;
 
     CharType chartype;
+
+    std::unordered_map<std::string, Function> userFunctions;
+    std::unordered_map<std::string, bool> userFunctionsConst;
+    std::vector<Function> variableUpdateListeners;
 
     ParserToken currentToken() const;
     ParserToken peekToken(size_t offset = 1) const;
@@ -435,8 +442,8 @@ private:
         }
     }
 
-    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto", bool merge = false);
-    Value shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name = "auto", bool merge = true);
+    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto", bool merge = false, bool silent = false);
+    Value shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name = "auto", bool merge = true, bool silent = false);
 
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
@@ -507,12 +514,22 @@ private:
 
     void updateCharType(const std::string& newType, size_t startPos);
 
+    void triggerVariableUpdate(const std::string& name, const Value& value);
+    Value merger(const std::vector<Value>& args);
+
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
     Parser(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true, const bool isFunction = false, const std::unordered_map<std::string, Value>* initialContext = nullptr, const CharType chartype = CharType::GRAPHEME);
     ParseResult parse(bool doExecute = true);
     static ParseResult parseTokens(const std::vector<ParserToken>& tokens, bool doExecute = true, bool runAsync = false, const std::string& input = "", const bool allowJavaScript = true, const bool canAllowJS = true, const std::string scriptName = "", const std::string scriptType = "script", const bool allowLuau = true, const bool canAllowLuau = true);
+
+    void registerFunction(const std::string& name, Function func, bool isConst = true);
+    void registerFunctions(const std::unordered_map<std::string, Function>& functions, bool isConst = true);
+    void unregisterFunction(const std::string& name);
+    bool hasFunction(const std::string& name) const;
+
+    void variableUpdateListener(Function func);
 };
 
 #endif
