@@ -3224,32 +3224,40 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             if (result.variables) {
                 std::cout << "variables" << std::endl;
                 for (const auto& [key, value] : *result.variables) {
-                    auto parentConstIt = this->constVars.find(key);
-                    if (parentConstIt != this->constVars.end() && parentConstIt->second) {
+                    auto parentConstIt = constVars.find(key);
+                    if ((parentConstIt != constVars.end() && parentConstIt->second) || isBuiltinVariable(key)) {
                         continue;
                     }
                     std::cout << key << std::endl;
 
-                    this->variables[key] = value;
+                    variables[key] = value;
                     if (result.constants) {
                         auto childConstIt = result.constants->find(key);
                         if (childConstIt != result.constants->end()) {
-                            this->constVars[key] = childConstIt->second;
+                            constVars[key] = childConstIt->second;
                         }
                     }
+
+                    ASTNode node("VARIABLE_DECLARATION", key, startPos);
+                    node.value = value;
+                    node.constant = constVars[key];
+                    ast.push_back(node);
                 }
             }
             if (result.constants) {
                 std::cout << "constants" << std::endl;
                 for (const auto& [key, isConst] : *result.constants) {
-                    auto parentVarIt = this->variables.find(key);
-                    if (parentVarIt != this->variables.end()) {
-                        auto parentConstIt = this->constVars.find(key);
-                        if (parentConstIt != this->constVars.end() && parentConstIt->second) {
+                    if (isBuiltinVariable(key)) {
+                        continue;
+                    }
+                    auto parentVarIt = variables.find(key);
+                    if (parentVarIt != variables.end()) {
+                        auto parentConstIt = constVars.find(key);
+                        if (parentConstIt != constVars.end() && parentConstIt->second) {
                             continue;
                         }
                     }
-                    this->constVars[key] = isConst;
+                    constVars[key] = isConst;
                 }
             }
         }
