@@ -268,6 +268,14 @@ enum class CharType {
     BYTE      = 2
 };
 
+struct Mutated {
+    Value value;
+    size_t startPos;
+
+    Mutated() : value(), startPos(0) {}
+    Mutated(Value v, size_t p) : value(v), startPos(p) {}
+};
+
 class Parser {
 private:
     bool doExecute;
@@ -278,6 +286,7 @@ private:
     std::string input;
 
     std::unordered_map<std::string, Value> variables;
+    std::unordered_map<std::string, Mutated> mutated;
     std::unordered_map<std::string, bool> constVars;
     std::unordered_map<std::string, std::vector<std::string>> dependencies;
     std::vector<std::string> outputVariables;
