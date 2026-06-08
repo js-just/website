@@ -1742,7 +1742,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
 
     while (peekToken().type == "." && position + 2 < tokens.size()) {
         advance();
-        if (match("identifier")) {
+        if (match("identifier") || match("keyword")) {
             funcName += "." + currentToken().value;
             advance();
         } else {
@@ -3953,7 +3953,7 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     while ((match(".") || match("[")) && position + 1 < tokens.size()) {
         if (match(".")) {
             advance();
-            if (!match("identifier") && !isEnd()) {
+            if (!match("identifier") && !match("keyword") && !isEnd()) {
                 throw std::runtime_error("Expected property name after \".\" at " + Utility::position(position, input) + ".");
             }
             std::string propName = currentToken().value;
