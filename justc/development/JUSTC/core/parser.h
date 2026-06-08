@@ -228,6 +228,10 @@ struct ParseResult {
     std::vector<std::vector<std::string>> importLogs;
     bool array;
 
+    std::shared_ptr<std::unordered_map<std::string, Value>> variables;
+    std::shared_ptr<std::unordered_map<std::string, bool>> constants;
+    std::shared_ptr<std::unordered_map<std::string, std::vector<std::string>>> dependencies;
+
     ParseResult() : logFilePath(""), logFileContent(""), error(""), array(false) {}
 };
 
@@ -421,12 +425,13 @@ private:
         }
     }
 
-    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto");
+    Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto", bool merge = false);
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 
     Value parseCondition(bool doExecute, bool wasIsolated = false);
     Value i2v(Value fromIsolated);
+    std::string t2i(ParserToken toIsolated);
 
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
