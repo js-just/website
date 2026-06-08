@@ -549,6 +549,15 @@ ParseResult Parser::parse(bool doExecute) {
                     ast.push_back(parseAllowCommand());
                 } else if (keyword == "import") {
                     ast.push_back(parseImportCommand());
+                } else if (keyword == "if" || keyword == "while" || keyword == "for" || (
+                    keyword == "isolated" && peekToken().type == "keyword" && (
+                        peekToken().value == "if" || peekToken().value == "while" || peekToken().value == "for"
+                    )
+                )) {
+                    Value result = parseCondition(doExecute);
+                    ASTNode output("CONDITION", "", currentToken().start);
+                    output.value = result;
+                    ast.push_back(output);
                 } else {
                     ast.push_back(parseStatement(doExecute));
                 }
@@ -3199,14 +3208,16 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         isolatedObject.object_context = objectContext;
 
         for (const auto& log : result.logs) {
-            this->addLog(log.type, log.message, log.position);
+            addLog(log.type, log.message, log.position);
         }
         for (const auto& importLog : result.importLogs) {
-            this->addImportLog(importLog[0], importLog[1], importLog[2]);
+            addImportLog(importLog[0], importLog[1], importLog[2]);
         }
 
         return isolatedObject;
 
+    } catch (const std::runtime_error& e) {
+        throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\" " + Utility::position(startPos, input) + ")");
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\" " + Utility::position(startPos, input) + ")");
     }
@@ -3258,6 +3269,190 @@ Value Parser::functionJUSTC2(const std::string& code, bool doExecute, size_t sta
     return isolated(code, execute, startPos);
 }
 
+Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
+    size_t startPos = currentToken().start;
+    int conditionType = 0; // 0 = if; 1 = for; 2 = while; 3 = elseif
+    std::string errMsg = "Expected 'if'/'for'/'while' keyword at " + Utility::position(startPos, input) + ".";
+    bool isIsolated = wasIsolated;
+
+    if (match("keyword", "isolated")) {
+        isIsolated = true;
+        advance();
+    }
+
+    if (match("keyword", "if")) {
+        conditionType = 0;
+    } else if (match("keyword", "for")) {
+        conditionType = 1;
+    } else if (match("keyword", "while")) {
+        conditionType = 2;
+    } else if (match("keyword", "elseif")) {
+        conditionType = 3;
+    } else {
+        throw std::runtime_error(errMsg);
+    }
+    advance();
+
+    std::unordered_map<std::string, Value> conditionContext;
+    std::unordered_map<std::string, Value> conditionBodyContext;
+    for (const auto& [key, value] : this->variables) {
+        try {
+            conditionContext[key] = resolveVariableValue(key, false);
+        } catch (...) {
+            conditionContext[key] = value;
+        }
+    }
+    if (!isIsolated) {
+        conditionBodyContext = conditionContext;
+    }
+
+    if (!match("(")) {
+        std::string currKeyword = "if";
+        switch (conditionType) {
+            case 1:
+                currKeyword = "for";
+                break;
+            case 2:
+                currKeyword = "while";
+                break;
+            case 3:
+                currKeyword = "elseif";
+                break;
+            default:
+                currKeyword = "if";
+                break;
+        }
+        throw std::runtime_error("Expected '(' after '" + currKeyword + "' at " + Utility::position(startPos, input) + ".");
+    }
+    advance();
+
+    std::stringstream first;
+    std::stringstream second;
+    std::stringstream third;
+    int ssnum = 1;
+
+    int braceCount = 1;
+    int braceCount2= 0;
+    int braceCount3= 0;
+    while (braceCount > 0 && !isEnd()) {
+        if (match("(")) braceCount++;
+        else if (match(")")) braceCount--;
+
+        if (braceCount > 0) {
+            if (braceCount == 1 && match(";") && braceCount2 == 0 && braceCount3 == 0) {
+                ssnum++;
+            } else {
+                if (match("{")) braceCount2++;
+                else if (match("}")) braceCount2--;
+                else if (match("[")) braceCount3++;
+                else if (match("]")) braceCount3--;
+
+                std::string out = currentToken().value + " ";
+                switch (ssnum) {
+                    case 1:
+                        first << out;
+                        break;
+                    case 2:
+                        second << out;
+                        break;
+                    default:
+                        third << out;
+                        break;
+                }
+            }
+            if (ssnum > 3) throw std::runtime_error("Unexpected ';' at " + Utility::position(startPos, input) + ".");
+        }
+        advance();
+    }
+
+    if (braceCount != 0) {
+        throw std::runtime_error("Expected ')' after condition at " + Utility::position(startPos, input) + ".");
+    }
+    std::string conditionBodyErr = "Expected '{' for condition body at " + Utility::position(startPos, input) + ".";
+    if (!match("{")) {
+        throw std::runtime_error(conditionBodyErr);
+    }
+    advance();
+
+    std::stringstream body;
+
+    braceCount = 1;
+    while (!isEnd() && braceCount > 0) {
+        if (match("{")) braceCount++;
+        else if (match("}")) braceCount--;
+
+        if (braceCount > 0) {
+            body << currentToken().value;
+            if (currentToken().type != "{" && currentToken().type != "}") {
+                body << " ";
+            }
+        }
+        advance();
+    }
+
+    std::string unclosedBody = "Unclosed condition body at " + Utility::position(startPos, input) + ".";
+    if (braceCount != 0) {
+        throw std::runtime_error(unclosedBody);
+    }
+
+    std::string conditionBody = body.str();
+
+    switch (conditionType) {
+        case 0: case 3: { // if/elseif
+            std::string currOp = conditionType == 0 ? "if" : "elseif";
+            bool conditionResult = isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input)).toBoolean();
+            if (conditionResult) {
+                return isolated(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(startPos, input));
+            } else if (match("keyword", "else")) {
+                advance();
+                if (peekToken().type == "keyword" && peekToken().value == "if") {
+                    return parseCondition(doExecute, isIsolated);
+                } else if (!match("{")) {
+                    throw std::runtime_error(conditionBodyErr);
+                }
+                advance();
+
+                std::stringstream elsebody;
+
+                int braceCount4 = 1;
+                while (!isEnd() && braceCount4 > 0) {
+                    if (match("{")) braceCount4++;
+                    else if (match("}")) braceCount4--;
+
+                    if (braceCount4 > 0) {
+                        elsebody << currentToken().value;
+                        if (currentToken().type != "{" && currentToken().type != "}") {
+                            elsebody << " ";
+                        }
+                    }
+                    advance();
+                }
+                if (braceCount4 != 0) throw std::runtime_error(unclosedBody);
+
+                return isolated(elsebody.str(), doExecute, startPos, &conditionBodyContext, "'else' body at " + Utility::position(startPos, input));
+            } else if (match("keyword", "elseif")) {
+                return parseCondition(doExecute, isIsolated);
+            } else return Value::createNull();
+        } case 2: { // while
+            std::string conditionStr = "return " + first.str() + " .";
+            bool conditionResult = isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input)).toBoolean();
+            while (conditionResult) {
+                isolated(conditionBody, doExecute, startPos, &conditionBodyContext, "'while' body at " + Utility::position(startPos, input));
+                for (const auto& [key, value] : this->variables) {
+                    try {
+                        conditionContext[key] = resolveVariableValue(key, false);
+                    } catch (...) {
+                        conditionContext[key] = value;
+                    }
+                }
+                conditionResult = isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input)).toBoolean();
+            }
+            return Value::createNull();
+        } default:
+            throw std::runtime_error(errMsg);
+    }
+}
+
 Value Parser::parseFunctionDeclaration(bool doExecute) {
     size_t startPos = currentToken().start;
     bool isIsolated = false;
@@ -3267,7 +3462,7 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
         advance();
     }
     if (!match("keyword", "function")) {
-        throw std::runtime_error("Expected 'function'/'isolated function' keyword at " + Utility::position(startPos, input));
+        throw std::runtime_error("Expected 'function' keyword at " + Utility::position(startPos, input));
     }
     advance();
 
@@ -3395,11 +3590,13 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         }
     }
 
-    for (const auto& [key, value] : this->variables) {
-        try {
-            functionContext[key] = resolveVariableValue(key, false);
-        } catch (...) {
-            functionContext[key] = value;
+    if (!function.function_info.isIsolated) {
+        for (const auto& [key, value] : this->variables) {
+            try {
+                functionContext[key] = resolveVariableValue(key, false);
+            } catch (...) {
+                functionContext[key] = value;
+            }
         }
     }
 

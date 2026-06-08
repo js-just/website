@@ -425,6 +425,8 @@ private:
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 
+    Value parseCondition(bool doExecute, bool wasIsolated = false);
+
     // built-in
     std::future<Value> functionHTTPAsync(size_t startPos, const std::string& method, const std::vector<Value>& args);
     std::future<Value> functionFILEAsync(const std::vector<Value>& args);
