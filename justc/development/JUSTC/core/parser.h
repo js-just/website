@@ -122,7 +122,6 @@ struct FunctionInfo {
     std::vector<struct Value> defaultValues;
     bool hasVarArgs;
     bool isIsolated;
-    bool isSilent;
 
     FunctionInfo() : hasVarArgs(false), isIsolated(false) {}
 };
@@ -373,6 +372,7 @@ private:
     Value parseUnary(bool doExecute, bool identifierMode = false);
     Value parseFunctionCall(bool doExecute);
     Value parseSpaceCall(bool doExecute);
+    std::vector<Value> parseLambda(bool doExecute, size_t pos);
 
     Value parseJustcObject(bool doExecute);
     Value parseJsonObject(bool doExecute);
@@ -449,7 +449,7 @@ private:
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 
-    Value parseCondition(bool doExecute, bool wasIsolated = false, bool wasSilent = false);
+    Value parseCondition(bool doExecute, bool wasIsolated = false);
     Value i2v(Value fromIsolated);
     std::string t2i(ParserToken toIsolated);
 

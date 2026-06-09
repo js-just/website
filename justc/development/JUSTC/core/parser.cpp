@@ -554,7 +554,7 @@ ParseResult Parser::parse(bool doExecute) {
                 } else if (keyword == "import") {
                     ast.push_back(parseImportCommand());
                 } else if (keyword == "if" || keyword == "while" || keyword == "for" || (
-                    (keyword == "isolated" || keyword == "silent") && peekToken().type == "keyword" && (
+                    keyword == "isolated" && peekToken().type == "keyword" && (
                         peekToken().value == "if" || peekToken().value == "while" || peekToken().value == "for"
                     )
                 )) {
@@ -932,7 +932,7 @@ ASTNode Parser::parseImportCommand() {
 ASTNode Parser::parseStatement(bool doExecute) {
     std::string keyword = currentToken().value;
 
-    if (keyword == "function" || keyword == "isolated" || keyword == "silent") {
+    if (keyword == "function" || keyword == "isolated") {
         Value funcValue = parseFunctionDeclaration(doExecute);
 
         ASTNode node("VARIABLE_DECLARATION", funcValue.name, currentToken().start);
@@ -3416,27 +3416,15 @@ std::string Parser::t2i(ParserToken toIsolated) { // tokenToIsolated
     return out + " ";
 }
 
-Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
+Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
     size_t startPos = currentToken().start;
     int conditionType = 0; // 0 = if; 1 = for; 2 = while; 3 = elseif
     std::string errMsg = "Expected 'if'/'for'/'while' keyword at " + Utility::position(startPos, input) + ".";
     bool isIsolated = wasIsolated;
-    bool isSilent = wasSilent;
 
     if (match("keyword", "isolated")) {
         isIsolated = true;
         advance();
-        if (match("keyword", "silent")) {
-            isSilent = true;
-            advance();
-        }
-    } else if (match("keyword", "silent")) {
-        isSilent = true;
-        advance();
-        if (match("keyword", "isolated")) {
-            isIsolated = true;
-            advance();
-        }
     }
 
     if (match("keyword", "if")) {
@@ -3463,6 +3451,12 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
     }
     if (!isIsolated) {
         conditionBodyContext = conditionContext;
+    }
+
+    std::vector<Value> importedContext = parseLambda(doExecute, startPos);
+    for (Value importedVar : importedContext) {
+        conditionContext[importedVar.name] = importedVar;
+        conditionBodyContext[importedVar.name] = importedVar;
     }
 
     if (!match("(")) {
@@ -3556,14 +3550,14 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
     switch (conditionType) {
         case 0: case 3: { // if/elseif
             std::string currOp = conditionType == 0 ? "if" : "elseif";
-            bool conditionResult = i2v(isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input), false, isSilent)).toBoolean();
+            bool conditionResult = i2v(isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(startPos, input))).toBoolean();
 
             if (conditionResult) {
-                return shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(startPos, input), !isIsolated, isSilent);
+                return shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(startPos, input), !isIsolated);
             } else if (match("keyword", "else")) {
                 advance();
                 if (peekToken().type == "keyword" && peekToken().value == "if") {
-                    return parseCondition(doExecute, isIsolated, isSilent);
+                    return parseCondition(doExecute, isIsolated);
                 } else if (!match("{")) {
                     throw std::runtime_error(conditionBodyErr);
                 }
@@ -3583,15 +3577,15 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
                 }
                 if (braceCount4 != 0) throw std::runtime_error(unclosedBody);
 
-                return shared(elsebody.str(), doExecute, startPos, &conditionBodyContext, "'else' body at " + Utility::position(startPos, input), !isIsolated, isSilent);
+                return shared(elsebody.str(), doExecute, startPos, &conditionBodyContext, "'else' body at " + Utility::position(startPos, input), !isIsolated);
             } else if (match("keyword", "elseif")) {
-                return parseCondition(doExecute, isIsolated, isSilent);
+                return parseCondition(doExecute, isIsolated);
             } else return Value::createNull();
         } case 2: { // while
             std::string conditionStr = "return " + first.str() + " .";
-            bool conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input), false, isSilent)).toBoolean();
+            bool conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input))).toBoolean();
             while (conditionResult) {
-                shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'while' body at " + Utility::position(startPos, input), !isIsolated, isSilent);
+                shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'while' body at " + Utility::position(startPos, input), !isIsolated);
                 for (const auto& [key, value] : this->variables) {
                     try {
                         conditionContext[key] = resolveVariableValue(key, false);
@@ -3599,7 +3593,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
                         conditionContext[key] = value;
                     }
                 }
-                conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input), false, isSilent)).toBoolean();
+                conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(startPos, input))).toBoolean();
             }
             return Value::createNull();
         } default:
@@ -3610,22 +3604,10 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated, bool wasSilent) {
 Value Parser::parseFunctionDeclaration(bool doExecute) {
     size_t startPos = currentToken().start;
     bool isIsolated = false;
-    bool isSilent = false;
 
     if (match("keyword", "isolated")) {
         isIsolated = true;
         advance();
-        if (match("keyword", "silent")) {
-            isSilent = true;
-            advance();
-        }
-    } else if (match("keyword", "silent")) {
-        isSilent = true;
-        advance();
-        if (match("keyword", "isolated")) {
-            isIsolated = true;
-            advance();
-        }
     }
     if (!match("keyword", "function")) {
         throw std::runtime_error("Expected 'function' keyword at " + Utility::position(startPos, input));
@@ -3638,6 +3620,8 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
     std::string funcName = currentToken().value;
     advance();
 
+    std::vector<Value> importedContext = parseLambda(doExecute, startPos);
+
     if (!match("(")) {
         throw std::runtime_error("Expected '(' after function name at " + Utility::position(startPos, input));
     }
@@ -3645,7 +3629,6 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
 
     FunctionInfo funcInfo;
     funcInfo.isIsolated = isIsolated;
-    funcInfo.isSilent = isSilent;
     std::vector<std::string> paramNames;
 
     while (!match(")") && !isEnd()) {
@@ -3723,6 +3706,7 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
     result.string_value = functionBody;
     result.name = funcName;
     result.function_info = funcInfo;
+    result.array_elements = importedContext;
 
     auto closureContext = std::make_shared<ObjectContext>();
     if (!isIsolated) {
@@ -3754,7 +3738,7 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         }
     }
 
-    if (!funcInfo.isIsolated) {
+    if (!function.function_info.isIsolated) {
         for (const auto& [key, value] : this->variables) {
             try {
                 functionContext[key] = resolveVariableValue(key, false);
@@ -3762,6 +3746,10 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
                 functionContext[key] = value;
             }
         }
+    }
+
+    for (Value importedVar : function.array_elements) {
+        functionContext[importedVar.name] = importedVar;
     }
 
     for (size_t i = 0; i < funcInfo.paramNames.size(); i++) {
@@ -3784,7 +3772,7 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         functionContext[funcInfo.paramNames[i]] = paramValue;
     }
 
-    Value result = isolated(function.string_value, true, startPos, &functionContext, "auto", false, funcInfo.isSilent);
+    Value result = isolated(function.string_value, true, startPos, &functionContext);
 
     if (!result.properties.empty()) {
         auto it = result.properties.find("return");
@@ -4536,6 +4524,73 @@ void Parser::triggerVariableUpdate(const std::string& name, const Value& value) 
             std::cout << std::string(e.what()) << std::endl;
         }
     }
+}
+
+std::vector<Value> Parser::parseLambda(bool doExecute, size_t pos) {
+    std::vector<std::string> names;
+    std::vector<Value> vars;
+    std::vector<std::string> renames;
+    std::vector<Value> output;
+
+    if (match("[")) {
+        advance();
+        while ((match("identifier") || match("string")) && !isEnd()) {
+            names.push_back(currentToken().value);
+            Value var = parseExpression(doExecute, true);
+            vars.push_back(var);
+            while ((match(",") || match(";")) && !isEnd()) {
+                advance();
+            }
+        }
+        if (isEnd()) {
+            throw std::runtime_error("Unclosed lambda at " + Utility::position(pos, input) + ".");
+        }
+        if (!match("]")) {
+            throw std::runtime_error("Expected ']' to close lambda at " + Utility::position(pos, input) + ".");
+        }
+        advance();
+        if (match("keyword", "as")) {
+            advance();
+            if (!match("[")) {
+                throw std::runtime_error("Expected '[' at " + Utility::position(pos, input) + ".");
+            }
+            advance();
+            while (!match("]") && !isEnd()) {
+                renames.push_back(currentToken().value);
+                advance();
+                while ((match(",") || match(";")) && !isEnd()) {
+                    advance();
+                }
+            }
+            if (isEnd()) {
+                throw std::runtime_error("Unclosed lambda at " + Utility::position(pos, input) + ".");
+            }
+            if (!match("]")) {
+                throw std::runtime_error("Expected ']' at " + Utility::position(pos, input) + ".");
+            }
+            advance();
+        }
+    } else if (match("identifier") || match("string")) {
+        names.push_back(currentToken().value);
+        Value var = parseExpression(doExecute, true);
+        vars.push_back(var);
+        if (match("keyword", "as") && (peekToken().type == "identifier" || peekToken().type == "string")) {
+            advance();
+            renames.push_back(currentToken().value);
+            advance();
+        }
+    }
+
+    output.reserve(vars.size());
+    for (size_t i = 0; i < vars.size(); ++i) {
+        Value var = vars[i];
+        std::string oldName = (i < names.size()) ? names[i] : var.name;
+        std::string newName = (i < renames.size()) ? renames[i] : oldName;
+        var.name = newName;
+        output.push_back(var);
+    }
+
+    return output;
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
