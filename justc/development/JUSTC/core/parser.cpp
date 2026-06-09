@@ -46,6 +46,7 @@ SOFTWARE.
 #include <variant>
 #include "unicode.hpp"
 #include "builtins.h"
+#include "global.h"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -950,13 +951,44 @@ ASTNode Parser::parseStatement(bool doExecute) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
         advance();
-        return parseVariableDeclaration(doExecute);
+        if (match("keyword", "global")) {
+            advance();
+            return parseGlobal(doExecute, true);
+        }
+        return parseVariableDeclaration(doExecute, true);
     } else if (match("keyword", "var") && !isJSONArray) {
         advance();
-        return parseVariableDeclaration(doExecute, false);
+        if (match("keyword", "global")) {
+            advance();
+            return parseGlobal(doExecute);
+        }
+        return parseVariableDeclaration(doExecute);
+    } else if (match("keyword", "global") && !isJSONArray) {
+        advance();
+        bool isConst = false;
+        if (match("keyword", "var")) advance();
+        else if (match("keyword", "const")) {
+            advance();
+            isConst = true;
+        }
+        return parseGlobal(doExecute, isConst);
     } else {
         return parseCommand(doExecute);
     }
+}
+ASTNode Parser::parseGlobal(bool doExecute, bool constant) {
+    ASTNode global("GLOBAL", currentToken().value, currentToken().start);
+    if (match("keyword", "function") || match("keyword", "isolated")) {
+        Value funcValue = parseFunctionDeclaration(doExecute);
+        global.value = funcValue;
+        global.identifier = funcValue.name;
+        global.constant = constant;
+    } else {
+        global = parseVariableDeclaration(doExecute, constant);
+    }
+    global.type = "GLOBAL";
+    registerGlobal(global.identifier, global.value, constant);
+    return global;
 }
 
 bool Parser::CanIgnoreNoAssigmentOperator() {
@@ -1140,6 +1172,22 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
 }
 
 Value Parser::parseExpression(bool doExecute, bool identifierMode) {
+    if (match("keyword", "function") || match("keyword", "isolated")) {
+        std::string funcName = std::to_string(position);
+        bool gotName = false;
+        size_t offset = 1;
+        while (!gotName && (
+            position - offset >= 0
+        )) {
+            ParserToken currToken = tokens[position - offset];
+            if (currToken.type == "identifier") {
+                gotName = true;
+                funcName = currToken.value;
+            }
+            ++offset;
+        }
+        return parseFunctionDeclaration(doExecute, funcName, false);
+    }
     return parseConditional(doExecute, identifierMode);
 }
 
@@ -2863,6 +2911,10 @@ bool Parser::dfsCycleDetection(const std::string& node,
 }
 
 Value Parser::resolveVariableValue(const std::string& varName, const bool unknownIsString) {
+    if (hasGlobal(varName)) {
+        return getGlobal(varName);
+    }
+
     auto it = variables.find(varName);
     if (it != variables.end() && it->second.type != DataType::UNKNOWN) {
         return it->second;
@@ -3601,7 +3653,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
     }
 }
 
-Value Parser::parseFunctionDeclaration(bool doExecute) {
+Value Parser::parseFunctionDeclaration(bool doExecute, std::string funcName, bool requireName) {
     size_t startPos = currentToken().start;
     bool isIsolated = false;
 
@@ -3614,11 +3666,18 @@ Value Parser::parseFunctionDeclaration(bool doExecute) {
     }
     advance();
 
-    if (!match("identifier")) {
-        throw std::runtime_error("Expected function name at " + Utility::position(startPos, input));
+    if (requireName) {
+        if (!match("identifier")) {
+            throw std::runtime_error("Expected function name at " + Utility::position(startPos, input));
+        }
+        funcName = currentToken().value;
+        advance();
+    } else {
+        if (match("identifier")) {
+            funcName = currentToken().value;
+            advance();
+        }
     }
-    std::string funcName = currentToken().value;
-    advance();
 
     std::vector<Value> importedContext = parseLambda(doExecute, startPos);
 
@@ -4526,6 +4585,11 @@ void Parser::triggerVariableUpdate(const std::string& name, const Value& value) 
     }
 }
 
+ASTNode Parser::typeDeclarationNode(std::string typeDecl, size_t pos) {
+    ASTNode node("TYPE_CHECK", "", pos);
+    node.typeDeclaration = Utility::typeDeclaration2dataType(typeDecl, Utility::position(pos, input));
+    return node;
+}
 std::vector<Value> Parser::parseLambda(bool doExecute, size_t pos) {
     std::vector<std::string> names;
     std::vector<Value> vars;
@@ -4537,6 +4601,12 @@ std::vector<Value> Parser::parseLambda(bool doExecute, size_t pos) {
         while ((match("identifier") || match("string")) && !isEnd()) {
             names.push_back(currentToken().value);
             Value var = parseExpression(doExecute, true);
+            if (match(":") && !(position + 1 >= tokens.size())) {
+                advance();
+                std::string typeDecl = currentToken().value;
+                ASTNode typeNode = typeDeclarationNode(typeDecl, pos);
+                var = applyTypeDeclaration(var, typeNode);
+            }
             vars.push_back(var);
             while ((match(",") || match(";")) && !isEnd()) {
                 advance();
@@ -4549,35 +4619,72 @@ std::vector<Value> Parser::parseLambda(bool doExecute, size_t pos) {
             throw std::runtime_error("Expected ']' to close lambda at " + Utility::position(pos, input) + ".");
         }
         advance();
-        if (match("keyword", "as")) {
+        if (match("keyword", "as") || match(":")) {
             advance();
-            if (!match("[")) {
+            if (isEnd()) {
                 throw std::runtime_error("Expected '[' at " + Utility::position(pos, input) + ".");
-            }
-            advance();
-            while (!match("]") && !isEnd()) {
-                renames.push_back(currentToken().value);
+            } else if (match("[")) {
                 advance();
-                while ((match(",") || match(";")) && !isEnd()) {
+                while (!match("]") && !isEnd()) {
+                    renames.push_back(currentToken().value);
                     advance();
+                    while ((match(",") || match(";")) && !isEnd()) {
+                        advance();
+                    }
+                }
+                if (isEnd()) {
+                    throw std::runtime_error("Unclosed lambda at " + Utility::position(pos, input) + ".");
+                }
+                if (!match("]")) {
+                    throw std::runtime_error("Expected ']' at " + Utility::position(pos, input) + ".");
+                }
+                advance();
+            } else {
+                Value arr = parseExpression(doExecute);
+                if (arr.type != DataType::JSON_ARRAY) {
+                    throw std::runtime_error("Expected array at " + Utility::position(pos, input) + ".");
+                }
+                for (Value arrItem : arr.array_elements) {
+                    renames.push_back(arrItem.toString());
                 }
             }
-            if (isEnd()) {
-                throw std::runtime_error("Unclosed lambda at " + Utility::position(pos, input) + ".");
-            }
-            if (!match("]")) {
-                throw std::runtime_error("Expected ']' at " + Utility::position(pos, input) + ".");
-            }
-            advance();
         }
     } else if (match("identifier") || match("string")) {
         names.push_back(currentToken().value);
         Value var = parseExpression(doExecute, true);
+        if (match(":") && !(position + 1 >= tokens.size())) {
+            advance();
+            std::string typeDecl = currentToken().value;
+            ASTNode typeNode = typeDeclarationNode(typeDecl, pos);
+            var = applyTypeDeclaration(var, typeNode);
+        }
         vars.push_back(var);
-        if (match("keyword", "as") && (peekToken().type == "identifier" || peekToken().type == "string")) {
+        if ((match("keyword", "as") || match(":")) && (peekToken().type == "identifier" || peekToken().type == "string")) {
             advance();
             renames.push_back(currentToken().value);
             advance();
+        }
+    } else if (match("keyword", "lambda")) {
+        advance();
+        Value obj = parseExpression(doExecute);
+        switch (obj.type) {
+            case DataType::JSON_ARRAY: {
+                for (Value arrItem : obj.array_elements) {
+                    names.push_back(arrItem.name);
+                    vars.push_back(arrItem);
+                }
+                break;
+            }
+            case DataType::JSON_OBJECT:
+            case DataType::JUSTC_OBJECT: {
+                for (const auto& [key, value] : obj.properties) {
+                    names.push_back(key);
+                    vars.push_back(value);
+                }
+                break;
+            }
+            default:
+                throw std::runtime_error("Expected array or object for lambda at " + Utility::position(pos, input) + ".");
         }
     }
 
@@ -4591,6 +4698,27 @@ std::vector<Value> Parser::parseLambda(bool doExecute, size_t pos) {
     }
 
     return output;
+}
+
+void Parser::clearUserFunctions() {
+    userFunctions.clear();
+    userFunctionsConst.clear();
+}
+
+void Parser::registerGlobal(const std::string& name, const Value& value, bool isConst) {
+    setGlobal(name, value, isConst);
+}
+Value Parser::getGlobal(const std::string& name) {
+    return getGlobal_(name);
+}
+bool Parser::hasGlobal(const std::string& name) {
+    return hasGlobal_(name);
+}
+void Parser::unregisterGlobal(const std::string& name) {
+    removeGlobal(name);
+}
+void Parser::clearGlobals() {
+    clearGlobals_();
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {

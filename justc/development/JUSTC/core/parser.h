@@ -374,6 +374,8 @@ private:
     Value parseSpaceCall(bool doExecute);
     std::vector<Value> parseLambda(bool doExecute, size_t pos);
 
+    ASTNode typeDeclarationNode(std::string typeDecl, size_t pos);
+
     Value parseJustcObject(bool doExecute);
     Value parseJsonObject(bool doExecute);
     Value parseJsonArray(bool doExecute);
@@ -386,7 +388,8 @@ private:
 
     ASTNode parseStatement(bool doExecute);
     bool CanIgnoreNoAssigmentOperator();
-    ASTNode parseVariableDeclaration(bool doExecute, bool constant = true);
+    ASTNode parseGlobal(bool doExecute, bool constant = false);
+    ASTNode parseVariableDeclaration(bool doExecute, bool constant = false);
     ASTNode parseCommand(bool doExecute);
     ASTNode parseScopeCommand();
     ASTNode parseOutputCommand();
@@ -446,7 +449,7 @@ private:
     Value isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context = nullptr, const std::string name = "auto", bool merge = false, bool silent = false);
     Value shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name = "auto", bool merge = true, bool silent = false);
 
-    Value parseFunctionDeclaration(bool doExecute);
+    Value parseFunctionDeclaration(bool doExecute, std::string funcName = "anonymous", bool requireName = true);
     Value emptyJUSTC();
 
     Value parseCondition(bool doExecute, bool wasIsolated = false);
@@ -529,8 +532,15 @@ public:
     void registerFunctions(const std::unordered_map<std::string, Function>& functions, bool isConst = true);
     void unregisterFunction(const std::string& name);
     bool hasFunction(const std::string& name) const;
+    void clearUserFunctions();
 
     void variableUpdateListener(Function func);
+
+    void registerGlobal(const std::string& name, const Value& value, bool isConst = true);
+    Value getGlobal(const std::string& name);
+    bool hasGlobal(const std::string& name);
+    void unregisterGlobal(const std::string& name);
+    void clearGlobals();
 };
 
 #endif

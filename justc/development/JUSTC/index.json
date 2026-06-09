@@ -44,4 +44,5 @@
 "core/built-in/string/string.hpp",
 "core/unicode.hpp",
 "core/unicode.emscripten.h",
-"core/builtins.h"]}
+"core/builtins.h",
+"core/global.h"]}
