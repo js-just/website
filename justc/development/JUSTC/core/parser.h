@@ -122,6 +122,7 @@ struct FunctionInfo {
     std::vector<struct Value> defaultValues;
     bool hasVarArgs;
     bool isIsolated;
+    bool isSilent;
 
     FunctionInfo() : hasVarArgs(false), isIsolated(false) {}
 };
@@ -448,7 +449,7 @@ private:
     Value parseFunctionDeclaration(bool doExecute);
     Value emptyJUSTC();
 
-    Value parseCondition(bool doExecute, bool wasIsolated = false);
+    Value parseCondition(bool doExecute, bool wasIsolated = false, bool wasSilent = false);
     Value i2v(Value fromIsolated);
     std::string t2i(ParserToken toIsolated);
 
