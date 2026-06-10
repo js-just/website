@@ -614,32 +614,32 @@ SOFTWARE.
             skipWhitespace();
             const c = peek();
 
-            if (c === 'n') { // number
+            if (c === 'n') {
                 advance();
                 return parseNumber();
             }
-            else if (c === '"') { // string
+            else if (c === '"') {
                 return parseString('"');
             }
-            else if (c === "'") { // pointer
+            else if (c === "'") {
                 const ptrName = parseString("'");
                 if (JUSTO._pointers.has(ptrName)) {
                     return JUSTO._pointers.get(ptrName);
                 }
                 return null;
             }
-            else if (c === '1' || c === '0') { // boolean
+            else if (c === '1' || c === '0') {
                 return parseBoolean();
             }
-            else if (c === ';') { // null
+            else if (c === ';') {
                 advance();
                 return null;
             }
-            else if (c === 'o') { // object
+            else if (c === 'o') {
                 advance();
                 return parseObject();
             }
-            else if (c === 'a') { // array
+            else if (c === 'a') {
                 advance();
                 return parseArray();
             }
