@@ -2454,6 +2454,11 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         if (funcName == "JUSTO.Stringify") {
             return toJUSTO(args);
         }
+        if (funcName == "JUSTC.Stringify") {
+            Value result = stringToValue(Utility::stringifyValue(args[0]));
+            result.type = DataType::STRING;
+            return result;
+        }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }

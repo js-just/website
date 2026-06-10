@@ -52,6 +52,8 @@ std::string outputString(std::string mode, Args... args) {
         return XmlSerializer::serialize(args...);
     } else if (mode == "yaml") {
         return YamlSerializer::serialize(args...);
+    } else if (mode == "justo") {
+        return JUSTOSerializer::serialize(args...);
     } else {
         return JsonSerializer::serialize(args...);
     }
@@ -129,7 +131,7 @@ extern "C" {
 
 char* lexer(const char* input, const char* outputMode) {
     if (input == nullptr) return nullptr;
-    std::string mode(outputMode == nullptr ? "json" : outputMode);
+    std::string mode(outputMode == nullptr ? "justo" : outputMode);
 
     try {
         auto parsed = Lexer::parse(input, true);
@@ -142,20 +144,20 @@ char* lexer(const char* input, const char* outputMode) {
     }
 }
 
-char* parser(const char* tokensJson, const char* outputMode) {
-    if (tokensJson == nullptr) return nullptr;
+char* parser(const char* tokensJUSTO, const char* outputMode) {
+    if (tokensJUSTO == nullptr) return nullptr;
     std::string mode(outputMode == nullptr ? "json" : outputMode);
 
     try {
         std::vector<ParserToken> parserTokens;
         std::string input = "";
 
-        if (JsonParser::parseJsonTokens(tokensJson, parserTokens, input)) {
+        if (JUSTO_Parser::parseJUSTOTokens(tokensJUSTO, parserTokens, input)) {
             ParseResult result = Parser::parseTokens(parserTokens, false, false, input);
             std::string json = outputString(mode, result);
             return strdup(json.c_str());
         } else {
-            std::string error = "{\"error\":\"Failed to parse tokens JSON\"}";
+            std::string error = "{\"error\":\"Failed to parse JUSTO\"}";
             return strdup(error.c_str());
         }
 

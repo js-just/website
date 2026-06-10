@@ -24,11 +24,21 @@ SOFTWARE.
 
 */
 
-#include    "to.json.h"
-#include  "from.json.hpp"
+#ifndef JUSTO_SERIALIZER_H
+#define JUSTO_SERIALIZER_H
 
-#include     "to.xml.h"
-#include    "to.yaml.h"
+#include "parser.h"
+#include <string>
 
-#include   "to.justo.h"
-#include "from.justo.hpp"
+class JUSTOSerializer {
+public:
+    static std::string serialize(const ParseResult& result);
+    static std::string serialize(const std::vector<ParserToken>& tokens, const std::string& input);
+
+private:
+    static std::string escapeJUSTOString(const std::string& str);
+    static std::string valueToJUSTO(const Value& value);
+    static std::string tokensToJUSTO(const std::vector<ParserToken>& tokens);
+};
+
+#endif

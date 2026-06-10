@@ -17,6 +17,8 @@
 "core/built-in/string/string.cpp",
 "core/unicode.cpp",
 "core/builtins.cpp",
+"core/to.justo.cpp",
+"core/from.justo.cpp",
 "core/lexer.h",
 "core/parser.h",
 "core/from.json.hpp",
@@ -45,4 +47,7 @@
 "core/unicode.hpp",
 "core/unicode.emscripten.h",
 "core/builtins.h",
-"core/global.h"]}
+"core/global.h",
+"core/justo.hpp",
+"core/to.justo.h",
+"core/from.justo.hpp"]}

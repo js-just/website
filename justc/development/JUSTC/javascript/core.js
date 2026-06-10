@@ -468,7 +468,7 @@ SOFTWARE.
     };
 
     JUSTC.OutputModes = [
-        'json', 'xml', 'yaml'
+        'json', 'xml', 'yaml', 'justo'
     ];
 
     JUSTC.VFS = isBrowser ? class VirtualFileSystem {
@@ -569,6 +569,7 @@ SOFTWARE.
         function parseIdentifier() {
             skipWhitespace();
             let result = '';
+            if (peek() == '"') return parseString('"');
             while (pos < input.length && /[a-zA-Z0-9_]/.test(peek())) {
                 result += peek();
                 advance();

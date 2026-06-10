@@ -24,11 +24,15 @@ SOFTWARE.
 
 */
 
-#include    "to.json.h"
-#include  "from.json.hpp"
+#ifndef JUSTO_PARSER_HPP
+#define JUSTO_PARSER_HPP
 
-#include     "to.xml.h"
-#include    "to.yaml.h"
+#include <vector>
+#include <string>
+#include "parser.h"
 
-#include   "to.justo.h"
-#include "from.justo.hpp"
+namespace JUSTO_Parser {
+    bool parseJUSTOTokens(const char* tokensJUSTO, std::vector<ParserToken>& parserTokens, std::string& input);
+}
+
+#endif

@@ -90,8 +90,8 @@ inline std::string dataTypeToString(DataType type) {
         case DataType::STRING:       return "String";
         case DataType::LINK:         return "Link";
         case DataType::BOOLEAN:      return "Boolean";
-        case DataType::JSON_OBJECT:  return "JSON Object";
-        case DataType::JSON_ARRAY:   return "JSON Array";
+        case DataType::JSON_OBJECT:  return "Object";
+        case DataType::JSON_ARRAY:   return "Array";
         case DataType::NULL_TYPE:    return "Null";
         case DataType::HEXADECIMAL:  return "Hexadecimal number";
         case DataType::BINARY:       return "Binary number";
