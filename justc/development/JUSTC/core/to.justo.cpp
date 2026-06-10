@@ -138,7 +138,7 @@ std::string JUSTOSerializer::serialize(const ParseResult& result) {
         for (const auto& pair : result.returnValues) {
             if (!first) justo << ",";
             first = false;
-            justo << "\"" << escapeJUSTOString(pair.first) << "\":" << valueToJUSTO(pair.second);
+            justo << escapeJUSTOString(pair.first) << ":" << valueToJUSTO(pair.second);
         }
         justo << "}";
     }

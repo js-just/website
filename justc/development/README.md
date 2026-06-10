@@ -48,7 +48,7 @@ JavaScript (Browsers):
 ```js
 await JUSTC.initialize()
 
-// example
+// example:
 const result = JUSTC.execute(`
 
     foo = "Hello ",
@@ -61,6 +61,37 @@ const result = JUSTC.execute(`
 `);
 console.log(result);
 ```
+
+---
+
+# <img align="top" src="https://just.js.org/justo/logo-50.svg" alt="JUSTO Logo" width="40" height="40"> JUSTO
+JUSTO (Just an Ultimate Site Tool Object notation language) is a part of JUSTC.
+
+# Usage
+
+JavaScript (Node.js):
+```js
+const JUSTC = require("justc");
+
+// example:
+console.log(JUSTC.JUSTO.stringify({
+    "foo": "Hello ",
+    "bar": "World!"
+}));
+console.log(JUSTC.JUSTO.parse('o{foo:"Hello ";bar:"World!"}'));
+```
+
+JavaScript (Browsers):
+```js
+// example:
+console.log(JUSTO.stringify({
+    "foo": "Hello ",
+    "bar": "World!"
+}));
+console.log(JUSTO.parse('o{foo:"Hello ";bar:"World!"}'));
+```
+
+---
 
 # Dependencies
 JUSTC uses C++ as its implementation language. The entire project requires C++17. It should build (and compile to WebAssembly) without issues on Linux Ubuntu.[^1]

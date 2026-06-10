@@ -4502,6 +4502,8 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     }
 }
 Value Parser::accessProperty(const Value& obj, const std::string& propName) {
+    std::cout << obj.name + " : " + dataTypeToString(obj.type) + " = " + Utility::stringifyValue(obj) << std::endl;
+
     if (obj.type == DataType::JUSTC_OBJECT) {
         if (obj.object_context && obj.object_context->parser) {
             if (obj.object_context->parser->outputMode == "disabled") {
