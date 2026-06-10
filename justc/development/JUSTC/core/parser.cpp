@@ -394,6 +394,23 @@ long getCurrentTime() {
 
 }
 
+void Parser::builtinObject(const std::string& name, std::unordered_map<std::string, Value> props) {
+    auto objCtx = std::make_shared<ObjectContext>();
+    std::vector<std::string> outputVars;
+    for (const auto& [key, value] : props) {
+        objCtx->variables[key] = value;
+        outputVars.push_back(key);
+    }
+    objCtx->outputMode = "specified";
+    objCtx->outputVariables = outputVars;
+    Value objVal = Value::createJustcObject(objCtx);
+    objVal.name = name;
+    objVal.properties = props;
+    objVal.type = DataType::JSON_OBJECT;
+    variables[name] = objVal;
+    constVars[name] = true;
+}
+
 Parser::Parser(
     const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript,
     const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau,
@@ -416,16 +433,7 @@ Parser::Parser(
 
     std::unordered_map<std::string, Value> justcProperties;
     justcProperties["Version"] = Value::createString(JUSTC_VERSION);
-    auto justcContext = std::make_shared<ObjectContext>();
-    justcContext->variables["Version"] = Value::createString(JUSTC_VERSION);
-    justcContext->outputMode = "specified";
-    justcContext->outputVariables = {"Version"};
-    Value justcObject = Value::createJustcObject(justcContext);
-    justcObject.name = "JUSTC";
-    justcObject.properties = justcProperties;
-    variables["JUSTC"] = justcObject;
-    constVars["JUSTC"] = true;
-    justcObject.type = DataType::JSON_OBJECT;
+    builtinObject("JUSTC", justcProperties);
 
     Value chartypeValue;
     chartypeValue.type = DataType::STRING;

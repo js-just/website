@@ -517,6 +517,7 @@ private:
     bool isBuiltinVariable(const std::string& name) const;
     void handleBuiltinVariableAssignment(const std::string& name, const Value& value, size_t startPos);
     void removeBuiltinVariablesFromOutput();
+    void builtinObject(const std::string& name, std::unordered_map<std::string, Value> props);
 
     void updateCharType(const std::string& newType, size_t startPos);
 
