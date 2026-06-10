@@ -47,6 +47,7 @@ SOFTWARE.
 #include "unicode.hpp"
 #include "builtins.h"
 #include "global.h"
+#include "justo.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -2447,6 +2448,12 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 throw std::runtime_error("Luau disallowed - Cannot run Luau \"" + args[0].toString() + "\" at " + Utility::position(startPos, input) + ".");
             }
         }
+        if (funcName == "JUSTO" || funcName == "JUSTO.Parse") {
+            return functionJUSTO(args);
+        }
+        if (funcName == "JUSTO.Stringify") {
+            return toJUSTO(args);
+        }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }
@@ -3447,6 +3454,39 @@ Value Parser::functionJUSTC2(const std::string& code, bool doExecute, size_t sta
     }
 
     return isolated(code, execute, startPos);
+}
+
+Value Parser::ParseJUSTO(const std::string& code) {
+    JUSTO::JUSTOParser parser;
+    return parser.parse(code);
+}
+Value Parser::functionJUSTO(const std::vector<Value>& args) {
+    if (args.empty()) {
+        return emptyJUSTC();
+    }
+
+    std::string code;
+
+    if (args[0].type == DataType::STRING) {
+        code = args[0].string_value;
+    } else if (args[0].type == DataType::VARIABLE) {
+        Value resolved = resolveVariableValue(args[0].string_value, true);
+        if (resolved.type == DataType::STRING) {
+            code = resolved.string_value;
+        } else {
+            code = args[0].toString();
+        }
+    } else {
+        code = args[0].toString();
+    }
+
+    return ParseJUSTO(code);
+}
+Value Parser::toJUSTO(const std::vector<Value>& args) {
+    if (args.empty()) {
+        return Value::createString("");
+    }
+    return Value::createString(JUSTO::valueToJUSTO(args[0]));
 }
 
 Value Parser::i2v(Value fromIsolated) { // isolatedToValue

@@ -476,6 +476,8 @@ private:
     Value functionSTAT(const std::vector<Value>& args);
     Value functionENV(const std::vector<Value>& args);
     Value functionCONFIG(const std::vector<Value>& args);
+    Value functionJUSTO(const std::vector<Value>& args);
+    Value toJUSTO(const std::vector<Value>& args);
 
     Value callFunction(const Value& function, const std::vector<Value>& args, size_t startPos, bool doExecute);
 
@@ -541,6 +543,8 @@ public:
     bool hasGlobal(const std::string& name);
     void unregisterGlobal(const std::string& name);
     void clearGlobals();
+
+    Value ParseJUSTO(const std::string& code);
 };
 
 #endif
