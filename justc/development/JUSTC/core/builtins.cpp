@@ -27,5 +27,7 @@ SOFTWARE.
 #include "builtins.h"
 
 const std::vector<std::string> builtins = {
-    "CharType", "JUSTC"
+    "CharType", "JUSTC", "JUSTO", "Luau",
+    "JavaScript", "Math", "Script", "JSON",
+    "HTTP"
 };

@@ -36,26 +36,51 @@ SOFTWARE.
 #include <sstream>
 #include "utility.h"
 #include <utility>
+#include "justo.hpp"
 
-std::string Import::ReadFile(const std::string path, const std::string position, const bool isLink) {
+std::string Import::ReadFile(const std::string path, const std::string position, const bool isLink, const bool isImport) {
     if (isLink) {
         return Utility::value2string(Fetch::request(path));
     } else {
         #ifndef __EMSCRIPTEN__
             std::ifstream file(path);
             if (!file.is_open()) {
-                throw std::runtime_error("Import error: Unable to read the file \"" + path + "\" at " + position + ".");
+                throw std::runtime_error(std::string(isImport ? "Import error: " : "") + "Unable to read the file \"" + path + "\" at " + position + ".");
             }
-            return std::string((std::istreambuf_iterator<char>(file)),
-                                std::istreambuf_iterator<char>());
+            return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         #else
             return Utility::value2string(Fetch::request(path));
         #endif
     }
 }
 
-std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau, const bool isLink) {
-    std::string File = ReadFile(path, position, isLink);
+std::pair<ParseResult, std::string> Import::JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau, const bool isLink, const bool isString) {
+    std::string File = isString ? path : ReadFile(path, position, isLink, true);
     auto lexerResult = Lexer::parse(File);
     return {Parser::parseTokens(lexerResult.second, doExecute, asynchronously, lexerResult.first, allowJavaScript, false, path, imports ? "module" : "script", allowLuau, false), File};
+}
+
+std::pair<Value, std::string> Import::JUSTO(const std::string path, const std::string position, const bool isLink, const bool isString) {
+    std::unordered_map<std::string, Value> justoPointers;
+
+    Value nanVal;
+    nanVal.type = DataType::NOT_A_NUMBER;
+    nanVal.name = "NaN";
+    justoPointers["nan"] = nanVal;
+
+    Value infVal;
+    infVal.type = DataType::INFINITE;
+    infVal.name = "Infinity";
+    justoPointers["inf"] = infVal;
+
+    std::string File = isString ? path : ReadFile(path, position, isLink, true);
+    JUSTO::JUSTOParser parser;
+    for (const auto& [key, value] : justoPointers) {
+        parser.registerPointer(key, value);
+    }
+    Value parsed = parser.parse(File);
+    if (parsed.type != DataType::JSON_OBJECT && parsed.type != DataType::JUSTC_OBJECT) {
+        throw std::runtime_error("Import error: Cannot import non-object JUSTO \"" + path + "\" at " + position + ".");
+    }
+    return {parsed, File};
 }
