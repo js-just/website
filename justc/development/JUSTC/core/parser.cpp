@@ -445,7 +445,134 @@ Parser::Parser(
     justcProperties["Parse"] = builtinObjectFunction("JUSTC.Parse");
     justcProperties["Execute"] = builtinObjectFunction("JUSTC.Execute");
     justcProperties["Stringify"] = builtinObjectFunction("JUSTC.Stringify");
+    justcProperties["Parser"] = builtinObjectFunction("JUSTC.Parser");
+    justcProperties["Lexer"] = builtinObjectFunction("JUSTC.Lexer");
     builtinObject("JUSTC", justcProperties);
+
+    std::unordered_map<std::string, Value> jsonProperties;
+    jsonProperties["Parse"] = builtinObjectFunction("JSON.Parse");
+    jsonProperties["Stringify"] = builtinObjectFunction("JSON.Stringify");
+    builtinObject("JSON", jsonProperties);
+
+    std::unordered_map<std::string, Value> jsProperties;
+    jsProperties["Execute"] = builtinObjectFunction("JavaScript.Execute");
+    jsProperties["Available"] = booleanToValue(
+        #ifdef _MSC_VER
+            false
+        #else
+            doExecute
+        #endif
+    );
+    jsProperties["IsAllowed"] = builtinObjectFunction("JavaScript.IsAllowed");
+    jsProperties["CanAllow"] = booleanToValue(canAllowJS);
+    builtinObject("JavaScript", jsProperties);
+
+    std::unordered_map<std::string, Value> luauProperties;
+    luauProperties["Execute"] = builtinObjectFunction("Luau.Execute");
+    luauProperties["Compile"] = builtinObjectFunction("Luau.Compile");
+    luauProperties["Available"] = booleanToValue(doExecute);
+    luauProperties["IsAllowed"] = builtinObjectFunction("Luau.IsAllowed");
+    luauProperties["CanAllow"] = booleanToValue(canAllowLuau);
+    builtinObject("Luau", luauProperties);
+
+    std::unordered_map<std::string, Value> justoProperties;
+    justoProperties["Version"] = Value::createString(JUSTC_VERSION);
+    justoProperties["Parse"] = builtinObjectFunction("JUSTO.Parse");
+    justoProperties["Stringify"] = builtinObjectFunction("JUSTO.Stringify");
+    builtinObject("JUSTO", justoProperties);
+
+    std::unordered_map<std::string, Value> mathProperties;
+    mathProperties["Abs"]       = builtinObjectFunction("Math.Abs");
+    mathProperties["Acos"]      = builtinObjectFunction("Math.Acos");
+    mathProperties["Asin"]      = builtinObjectFunction("Math.Asin");
+    mathProperties["Atan"]      = builtinObjectFunction("Math.Atan");
+    mathProperties["Atan2"]     = builtinObjectFunction("Math.Atan2");
+    mathProperties["Ceil"]      = builtinObjectFunction("Math.Ceil");
+    mathProperties["Cos"]       = builtinObjectFunction("Math.Cos");
+    mathProperties["Clamp"]     = builtinObjectFunction("Math.Clamp");
+    mathProperties["Cube"]      = builtinObjectFunction("Math.Cube");
+    mathProperties["Double"]    = builtinObjectFunction("Math.Double");
+    mathProperties["E"]         = numberToValue(Math::E);
+    mathProperties["Exp"]       = builtinObjectFunction("Math.Exp");
+    mathProperties["Factorial"] = builtinObjectFunction("Math.Factorial");
+    mathProperties["Floor"]     = builtinObjectFunction("Math.Floor");
+    mathProperties["Hypot"]     = builtinObjectFunction("Math.Hypot");
+    mathProperties["IsPrime"]   = builtinObjectFunction("Math.IsPrime");
+    mathProperties["Lerp"]      = builtinObjectFunction("Math.Lerp");
+    mathProperties["LN2"]       = numberToValue(Math::LN2);
+    mathProperties["LN10"]      = numberToValue(Math::LN10);
+    mathProperties["Log"]       = builtinObjectFunction("Math.Log");
+    mathProperties["Log10"]     = builtinObjectFunction("Math.Log10");
+    mathProperties["LOG2E"]     = numberToValue(Math::LOG2E);
+    mathProperties["LOG10E"]    = numberToValue(Math::LOG10E);
+    mathProperties["Max"]       = builtinObjectFunction("Math.Max");
+    mathProperties["Min"]       = builtinObjectFunction("Math.Min");
+    mathProperties["PI"]        = numberToValue(Math::PI);
+    mathProperties["Pow"]       = builtinObjectFunction("Math.Pow");
+    mathProperties["Random"]    = builtinObjectFunction("Math.Random");
+    mathProperties["Round"]     = builtinObjectFunction("Math.Round");
+    mathProperties["Sign"]      = builtinObjectFunction("Math.Sign");
+    mathProperties["Sin"]       = builtinObjectFunction("Math.Sin");
+    mathProperties["Sqrt"]      = builtinObjectFunction("Math.Sqrt");
+    mathProperties["SQRT1_2"]   = numberToValue(Math::SQRT1_2);
+    mathProperties["SQRT2"]     = numberToValue(Math::SQRT2);
+    mathProperties["Square"]    = builtinObjectFunction("Math.Square");
+    mathProperties["Tan"]       = builtinObjectFunction("Math.Tan");
+    mathProperties["ToDegrees"] = builtinObjectFunction("Math.ToDegrees");
+    mathProperties["ToRadians"] = builtinObjectFunction("Math.ToRadians");
+    builtinObject("Math", mathProperties);
+
+    std::unordered_map<std::string, Value> httpProperties;
+    httpProperties["GET"]     = builtinObjectFunction("HTTP.GET");
+    httpProperties["POST"]    = builtinObjectFunction("HTTP.POST");
+    httpProperties["PUT"]     = builtinObjectFunction("HTTP.PUT");
+    httpProperties["PATCH"]   = builtinObjectFunction("HTTP.PATCH");
+    httpProperties["DELETE"]  = builtinObjectFunction("HTTP.DELETE");
+    httpProperties["HEAD"]    = builtinObjectFunction("HTTP.HEAD");
+    httpProperties["OPTIONS"] = builtinObjectFunction("HTTP.OPTIONS");
+    builtinObject("HTTP", httpProperties);
+
+    std::unordered_map<std::string, Value> scriptProperties;
+    scriptProperties["Name"] = stringToValue(scriptName);
+    scriptProperties["Type"] = stringToValue(scriptType);
+    std::string runner =
+        #ifdef __EMSCRIPTEN__
+            "WebAssembly"
+        #elif defined(_WIN64)
+            "Windows x64"
+        #elif defined(_WIN32)
+            "Windows x32"
+        #elif defined(__APPLE__) && defined(__MACH__)
+            #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+                "iOS"
+            #elif defined(__TV_OS_VERSION_MIN_REQUIRED)
+                "tvOS"
+            #else
+                "macOS"
+            #endif
+        #elif defined(__ANDROID__)
+            "Android"
+        #elif defined(__FreeBSD__)
+            "FreeBSD"
+        #elif defined(__linux__)
+            "Linux"
+        #elif defined(__unix__) || defined(__unix)
+            "Unix/POSIX"
+        #else
+            "unknown"
+        #endif
+        ;
+        #if defined(__x86_64__) || defined(_M_X64)
+            runner += " x86_64";
+        #elif defined(__i386__) || defined(_M_IX86)
+            runner += " x86";
+        #elif defined(__aarch64__) || defined(_M_ARM64)
+            runner += " ARM64";
+        #elif defined(__arm__) || defined(_M_ARM)
+            runner += " ARM";
+        #endif
+    scriptProperties["Runner"] = stringToValue(runner);
+    builtinObject("Script", scriptProperties);
 
     Value chartypeValue;
     chartypeValue.type = DataType::STRING;
@@ -1668,10 +1795,8 @@ Value Parser::parsePrimary(bool doExecute) {
 
         if (varName == "$TIME" || varName == "$VERSION" || varName == "$LATEST" ||
             varName == "$DBID" || varName == "$SHA" || varName == "$NAV" ||
-            varName == "$PAGES" || varName == "$CSS" || varName == "$PI" ||
-            varName == "$BACKSLASH" || varName == "$JUST_VERSION" ||
-            varName == "$E" || varName == "$LN2" || varName == "$LN10" ||
-            varName == "$SQRT2" || varName == "$SQRT1_2"
+            varName == "$PAGES" || varName == "$CSS" ||
+            varName == "$BACKSLASH" || varName == "$JUST_VERSION"
         ) {
             advance();
             return executeFunction(varName.substr(1), {}, currentToken().start);
@@ -2016,29 +2141,35 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         long timestamp = getCurrentTime();
         return numberToValue(timestamp);
     }
-    else if (funcName == "Math::PI" || funcName == "PI") {
+    else if (funcName == "Math.PI") {
         return numberToValue(Math::PI);
     }
     else if (funcName == "Backslash") {
         return stringToValue("\\");
     }
-    else if (funcName == "Version") {
+    else if (funcName == "Version" || funcName == "JUSTC.Version" || funcName == "JUSTO.Version") {
         return stringToValue(JUSTC_VERSION);
     }
-    else if (funcName == "Math::E" || funcName == "E") {
+    else if (funcName == "Math.E") {
         return numberToValue(Math::E);
     }
-    else if (funcName == "Math::LN2" || funcName == "LN2") {
+    else if (funcName == "Math.LN2") {
         return numberToValue(Math::LN2);
     }
-    else if (funcName == "Math::LN10" || funcName == "LN10") {
+    else if (funcName == "Math.LN10") {
         return numberToValue(Math::LN10);
     }
-    else if (funcName == "Math::SQRT2" || funcName == "SQRT2") {
-        return numberToValue(Math::LN10);
+    else if (funcName == "Math.SQRT2") {
+        return numberToValue(Math::SQRT2);
     }
-    else if (funcName == "Math::SQRT1_2" || funcName == "SQRT1_2") {
-        return numberToValue(Math::LN10);
+    else if (funcName == "Math.SQRT1_2") {
+        return numberToValue(Math::SQRT1_2);
+    }
+    else if (funcName == "Math.LOG2E") {
+        return numberToValue(Math::LOG2E);
+    }
+    else if (funcName == "Math.LOG10E") {
+        return numberToValue(Math::LOG10E);
     }
 
     // built-in
@@ -2056,49 +2187,49 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return numberToValue(args[0].toNumber());
     }
     if (funcName == "JSON") return functionJSON(args);
-    if (funcName == "HTTP::GET") {
+    if (funcName == "HTTP.GET") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "GET", args);
             return future.get();
         }
         return functionHTTP(startPos, "GET", args);
     }
-    if (funcName == "HTTP::POST") {
+    if (funcName == "HTTP.POST") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "POST", args);
             return future.get();
         }
         return functionHTTP(startPos, "POST", args);
     }
-    if (funcName == "HTTP::PUT") {
+    if (funcName == "HTTP.PUT") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "PUT", args);
             return future.get();
         }
         return functionHTTP(startPos, "PUT", args);
     }
-    if (funcName == "HTTP::PATCH") {
+    if (funcName == "HTTP.PATCH") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "PATCH", args);
             return future.get();
         }
         return functionHTTP(startPos, "PATCH", args);
     }
-    if (funcName == "HTTP::DELETE") {
+    if (funcName == "HTTP.DELETE") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "DELETE", args);
             return future.get();
         }
         return functionHTTP(startPos, "DELETE", args);
     }
-    if (funcName == "HTTP::HEAD") {
+    if (funcName == "HTTP.HEAD") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "HEAD", args);
             return future.get();
         }
         return functionHTTP(startPos, "HEAD", args);
     }
-    if (funcName == "HTTP::OPTIONS") {
+    if (funcName == "HTTP.OPTIONS") {
         if (runAsync) {
             auto future = functionHTTPAsync(startPos, "OPTIONS", args);
             return future.get();
@@ -2117,10 +2248,23 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     if (funcName == "env") return functionENV(args);
     if (funcName == "config") return functionCONFIG(args);
 
+    if (funcName == "JavaScript.IsAllowed") {
+        return booleanToValue(allowJavaScript);
+    }
+    if (funcName == "Luau.IsAllowed") {
+        return booleanToValue(allowLuau);
+    }
+
     // math and binary
-    if (args.empty() && funcName != "Math::Random") {
+    if (args.empty() && funcName != "Math.Random") {
         if (funcName == "JUSTC.Parse" || funcName == "JUSTC.Execute") {
             return emptyJUSTC();
+        }
+        if (funcName == "JUSTO.Stringify") {
+            return stringToValue("");
+        }
+        if (funcName == "JUSTC.Stringify") {
+            return stringToValue("return.");
         }
         throw std::runtime_error("Expected at least one argument, got 0 at " + Utility::position(startPos, input) + ".");
     }
@@ -2141,120 +2285,124 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         if (funcName == "Binary::Data") {
             return Binary::Data(args);
         }
-        if (funcName == "Math::Abs") {
+        if (funcName == "Math.Abs") {
             return Value::createNumber(Math::Abs(inpnum));
         }
-        if (funcName == "Math::Acos") {
+        if (funcName == "Math.Acos") {
             return Value::createNumber(Math::Acos(inpnum));
         }
-        if (funcName == "Math::Asin") {
+        if (funcName == "Math.Asin") {
             return Value::createNumber(Math::Asin(inpnum));
         }
-        if (funcName == "Math::Atan") {
+        if (funcName == "Math.Atan") {
             return Value::createNumber(Math::Atan(inpnum));
         }
-        if (funcName == "Math::Atan2") {
+        if (funcName == "Math.Atan2") {
             return Value::createNumber(Math::Atan2(inpnum, args[1].number_value));
         }
-        if (funcName == "Math::Ceil") {
+        if (funcName == "Math.Ceil") {
             return Value::createNumber(Math::Ceil(inpnum));
         }
-        if (funcName == "Math::Cos") {
+        if (funcName == "Math.Cos") {
             return Value::createNumber(Math::Cos(inpnum));
         }
-        if (funcName == "Math::Clamp") {
+        if (funcName == "Math.Clamp") {
             return Value::createNumber(Math::Clamp(inpnum, args[1].number_value, args[2].number_value));
         }
-        if (funcName == "Math::Cube") {
+        if (funcName == "Math.Cube") {
             return Value::createNumber(inpnum * inpnum * inpnum);
         }
-        if (funcName == "Math::Double") {
+        if (funcName == "Math.Double") {
             return Value::createNumber(inpnum * 2);
         }
-        if (funcName == "Math::Exp") {
+        if (funcName == "Math.Exp") {
             return Value::createNumber(Math::Exp(inpnum));
         }
-        if (funcName == "Math::Factorial") {
+        if (funcName == "Math.Factorial") {
             int intValue = static_cast<int>(std::round(inpnum));
             long long res = Math::Factorial(intValue);
             double outVal = static_cast<double>(res);
             return Value::createNumber(outVal);
         }
-        if (funcName == "Math::Floor") {
+        if (funcName == "Math.Floor") {
             return Value::createNumber(Math::Floor(inpnum));
         }
-        if (funcName == "Math::Hypot") {
+        if (funcName == "Math.Hypot") {
             return Value::createNumber(Math::Hypot(inpnum, args[1].number_value));
         }
-        if (funcName == "Math::IsPrime") {
+        if (funcName == "Math.IsPrime") {
             int intValue = static_cast<int>(std::round(inpnum));
             return Value::createBoolean(Math::IsPrime(intValue));
         }
-        if (funcName == "Math::Lerp") {
+        if (funcName == "Math.Lerp") {
             return Value::createNumber(Math::Lerp(inpnum, args[1].number_value, args[2].number_value));
         }
-        if (funcName == "Math::Log") {
+        if (funcName == "Math.Log") {
             return Value::createNumber(Math::Log(inpnum));
         }
-        if (funcName == "Math::Log10") {
+        if (funcName == "Math.Log10") {
             return Value::createNumber(Math::Log10(inpnum));
         }
-        if (funcName == "Math::Max") {
+        if (funcName == "Math.Max") {
             return Value::createNumber(Math::Max(values2numbers(args)));
         }
-        if (funcName == "Math::Min") {
+        if (funcName == "Math.Min") {
             return Value::createNumber(Math::Min(values2numbers(args)));
         }
-        if (funcName == "Math::Pow") {
+        if (funcName == "Math.Pow") {
             return Value::createNumber(Math::Pow(inpnum, args[1].number_value));
         }
-        if (funcName == "Math::Random") {
+        if (funcName == "Math.Random") {
             if (args.empty()) return Value::createNumber(Math::Random());
             if (args.size() == 1) return Value::createNumber(Math::Random(0, inpnum));
             return Value::createNumber(Math::Random(inpnum, args[1].number_value));
         }
-        if (funcName == "Math::Round") {
+        if (funcName == "Math.Round") {
             return Value::createNumber(Math::Round(inpnum));
         }
-        if (funcName == "Math::Sign") {
+        if (funcName == "Math.Sign") {
             return Value::createNumber(Math::Sign(inpnum));
         }
-        if (funcName == "Math::Sin") {
+        if (funcName == "Math.Sin") {
             return Value::createNumber(Math::Sin(inpnum));
         }
-        if (funcName == "Math::Sqrt") {
+        if (funcName == "Math.Sqrt") {
             return Value::createNumber(Math::Sqrt(inpnum));
         }
-        if (funcName == "Math::Square") {
+        if (funcName == "Math.Square") {
             return Value::createNumber(inpnum * inpnum);
         }
-        if (funcName == "Math::Tan") {
+        if (funcName == "Math.Tan") {
             return Value::createNumber(Math::Tan(inpnum));
         }
-        if (funcName == "Math::ToDegrees") {
+        if (funcName == "Math.ToDegrees") {
             return Value::createNumber(Math::ToDegrees(inpnum));
         }
-        if (funcName == "Math::ToRadians") {
+        if (funcName == "Math.ToRadians") {
             return Value::createNumber(Math::ToRadians(inpnum));
         }
-        if (funcName == "Math::ParseNum") {
+        if (funcName == "ParseNum" || funcName == "ParseInt") {
             std::string str = args[0].toString();
             int radix = 10;
 
             if (args.size() > 1) {
                 radix = static_cast<int>(args[1].toNumber());
                 if (radix < 2 || radix > 64) {
-                    throw std::runtime_error("Math::ParseNum: Radix must be between 2 and 64");
+                    throw std::runtime_error(funcName + ": Radix must be between 2 and 64");
                 }
             }
 
-            if (radix == 10) return numberToValue(args[0].toNumber());
+            if (radix == 10) return numberToValue(
+                funcName == "ParseNum" ? args[0].toNumber() : static_cast<double>(static_cast<int>(args[0].toNumber()))
+            );
 
             try {
                 double result = Math::ParseNum(str, radix);
-                return Value::createNumber(result);
+                return Value::createNumber(
+                    funcName == "ParseNum" ? result : static_cast<double>(static_cast<int>(result))
+                );
             } catch (const std::exception& e) {
-                throw std::runtime_error("Math::ParseNum: " + std::string(e.what()));
+                throw std::runtime_error(funcName + ": " + std::string(e.what()));
             }
         }
         if (funcName == "String::GraphemeReverse" || (
@@ -2479,6 +2627,14 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             Value result = stringToValue(Utility::stringifyValue(args[0]));
             result.type = DataType::STRING;
             return result;
+        }
+        if (funcName == "Luau.Compile") {
+            if (allowLuau) {
+                std::string error;
+                return booleanToValue(RunLuau::compileScript(args[0].toString(), error));
+            } else {
+                return booleanToValue(false);
+            }
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
@@ -4121,9 +4277,11 @@ void Parser::evaluateAllVariablesSync() {
         passes++;
 
         for (auto& [varName, mut] : mutated) {
-            if (mut.applied) {
+            if (isBuiltinVariable(varName)) {
+                changed = true;
                 continue;
             }
+            if (mut.applied) continue;
 
             auto constIt = constVars.find(varName);
             if (constIt != constVars.end() && constIt->second) {
@@ -4152,6 +4310,10 @@ void Parser::evaluateAllVariablesSync() {
         for (auto& node : ast) {
             if (node.type == "VARIABLE_DECLARATION") {
                 std::string varName = node.identifier;
+                if (isBuiltinVariable(varName)) {
+                    changed = true;
+                    continue;
+                }
 
                 auto mutIt = mutated.find(varName);
                 if (mutIt != mutated.end() && !mutIt->second.applied) {

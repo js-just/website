@@ -96,6 +96,8 @@ public:
     static constexpr double LN10 = 2.302585092994046;
     static constexpr double SQRT2 = 1.4142135623730951;
     static constexpr double SQRT1_2 = 0.7071067811865476;
+    static constexpr double LOG2E = 1.4426950408889634;
+    static constexpr double LOG10E = 0.4342944819032518;
 
     static double ParseNum(const std::string& str, int radix) {
         if (radix < 2 || radix > 64) {
