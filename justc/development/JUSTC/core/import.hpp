@@ -31,12 +31,13 @@ SOFTWARE.
 #include <string>
 #include <cstring>
 #include <utility>
+#include <unordered_map>
 
 class Import {
     public:
         static std::string ReadFile(const std::string path, const std::string position, const bool isLink, const bool isImport = false);
         static std::pair<ParseResult, std::string> JUSTC(const std::string path, const std::string position, const bool doExecute, const bool asynchronously, const bool allowJavaScript, const bool imports, const bool allowLuau, const bool isLink, const bool isString);
-        static std::pair<Value, std::string> JUSTO(const std::string path, const std::string position, const bool isLink, const bool isString);
+        static std::pair<Value, std::string> JUSTO(const std::string path, const std::string position, const bool isLink, const bool isString, std::unordered_map<std::string, Value> justoPointers);
 };
 
 #endif

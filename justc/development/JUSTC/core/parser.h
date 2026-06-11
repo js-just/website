@@ -183,6 +183,13 @@ struct Value {
         return nullptr;
     }
 
+    Value getProperty(const std::string& name, Value placeholder) {
+        if (properties.find(name) != properties.end()) {
+            return properties[name];
+        }
+        return placeholder;
+    }
+
     static Value createNumber(double num);
     static Value createString(const std::string& str);
     static Value createBoolean(bool b);
@@ -387,6 +394,9 @@ private:
     Value accessProperty(const Value& obj, const std::string& propName);
     Value accessIndex(const Value& arr, size_t index);
     std::vector<Value> parseArguments(bool doExecute);
+
+    std::string readVariableName();
+    void checkVariableNameAvailable(std::string name);
 
     ASTNode parseStatement(bool doExecute);
     bool CanIgnoreNoAssigmentOperator();

@@ -170,6 +170,7 @@ SOFTWARE.
                 ['number'],
                 [resultptr]
             );
+            console.log(resultjson);
             return json_.parse(resultjson);
         } catch (error) {
             throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
@@ -188,7 +189,7 @@ SOFTWARE.
     JUSTC.Core.Parser = function Parser(code) {
         if (!JUSTC.WASM) throw new JUSTC.Error(JUSTC.Errors.initWasm);
         if (!code || typeof code != 'object') throw new JUSTC.Error(JUSTC.Errors.lexerInput);
-        const result = JUSTC.CoreScript(json_.stringify(code), 'parser');
+        const result = JUSTC.CoreScript(code, 'parser');
         if (result.error) {
             throw new JUSTC.Error((result.parser ? JUSTC.Errors.parseError : (JUSTC.Errors.executionError + " ")) + result.error);
         } else {

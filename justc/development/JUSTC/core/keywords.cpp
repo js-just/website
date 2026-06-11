@@ -53,5 +53,5 @@ const std::vector<std::string> keywords = {
     "static", "const", "define", "undefine",
     "echo", "log", "logfile", "space", "var",
     "new", "goto", "embeds", "isolated", "if",
-    "for", "while", "lambda"
+    "for", "while", "lambda", "from", "options"
 };
