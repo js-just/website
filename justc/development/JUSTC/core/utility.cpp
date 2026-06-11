@@ -318,6 +318,10 @@ std::string Utility::_stringifyValue(const Value& value, int indentLevel) {
             return value.string_value;
 
         case DataType::FUNCTION: {
+            if (value.native) {
+                return value.name;
+            }
+
             std::string result;
             if (value.function_info.isIsolated) {
                 result = "isolated ";

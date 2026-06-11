@@ -147,9 +147,11 @@ struct Value {
     FunctionInfo function_info;
     std::shared_ptr<ObjectContext> closure_context;
 
-    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN) {}
-    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
-    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN) {}
+    bool native;
+
+    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false) {}
+    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
+    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
 
     std::string toString() const;
     double toNumber() const;
@@ -518,6 +520,7 @@ private:
     void handleBuiltinVariableAssignment(const std::string& name, const Value& value, size_t startPos);
     void removeBuiltinVariablesFromOutput();
     void builtinObject(const std::string& name, std::unordered_map<std::string, Value> props);
+    Value builtinObjectFunction(const std::string& name);
 
     void updateCharType(const std::string& newType, size_t startPos);
 

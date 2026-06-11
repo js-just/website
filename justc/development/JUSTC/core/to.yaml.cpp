@@ -141,11 +141,34 @@ std::string YamlSerializer::serialize(const ParseResult& result) {
         return "{\"error\":\"" + JsonSerializer::escapeJsonString(result.error) + "\"}";
     } else {
         std::stringstream valuesYaml;
+        bool doObj = false;
         if (result.array) {
+            std::vector<int> indices;
+            bool isArray = true;
             for (const auto& pair : result.returnValues) {
-                valuesYaml << "- " << valueToYaml(pair.second) << "\n";
+                try {
+                    int idx = std::stoi(pair.first);
+                    indices.push_back(idx);
+                } catch (...) {
+                    isArray = false;
+                    break;
+                }
+            }
+
+            if (isArray) {
+                std::sort(indices.begin(), indices.end());
+                for (size_t i = 0; i < indices.size(); i++) {
+                    std::string key = std::to_string(indices[i]);
+                    valuesYaml << "- " << valueToYaml(result.returnValues.at(key)) << "\n";
+                }
+            } else {
+                doObj = true;
             }
         } else {
+            doObj = true;
+        }
+
+        if (doObj) {
             valuesYaml << "---\n";
             for (const auto& pair : result.returnValues) {
                 valuesYaml << escapeYamlString(pair.first) << ": " << valueToYaml(pair.second) << "\n";
@@ -174,11 +197,34 @@ std::string YamlSerializer::serialize(const ParseResult& result) {
 
     #else
 
+    bool doObj = false;
     if (result.array) {
+        std::vector<int> indices;
+        bool isArray = true;
         for (const auto& pair : result.returnValues) {
-            yaml << "- " << valueToYaml(pair.second) << "\n";
+            try {
+                int idx = std::stoi(pair.first);
+                indices.push_back(idx);
+            } catch (...) {
+                isArray = false;
+                break;
+            }
+        }
+
+        if (isArray) {
+            std::sort(indices.begin(), indices.end());
+            for (size_t i = 0; i < indices.size(); i++) {
+                std::string key = std::to_string(indices[i]);
+                yaml << "- " << valueToYaml(result.returnValues.at(key)) << "\n";
+            }
+        } else {
+            doObj = true;
         }
     } else {
+        doObj = true;
+    }
+
+    if (doObj) {
         yaml << "---\n";
         for (const auto& pair : result.returnValues) {
             yaml << escapeYamlString(pair.first) << ": " << valueToYaml(pair.second) << "\n";

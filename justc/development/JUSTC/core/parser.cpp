@@ -410,6 +410,15 @@ void Parser::builtinObject(const std::string& name, std::unordered_map<std::stri
     variables[name] = objVal;
     constVars[name] = true;
 }
+Value Parser::builtinObjectFunction(const std::string& name) {
+    Value funcVal;
+    funcVal.type = DataType::FUNCTION;
+    funcVal.name = name;
+    funcVal.string_value = "[native code]";
+    funcVal.object_type = DataType::FUNCTION;
+    funcVal.native = true;
+    return funcVal;
+}
 
 Parser::Parser(
     const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript,
@@ -433,6 +442,9 @@ Parser::Parser(
 
     std::unordered_map<std::string, Value> justcProperties;
     justcProperties["Version"] = Value::createString(JUSTC_VERSION);
+    justcProperties["Parse"] = builtinObjectFunction("JUSTC.Parse");
+    justcProperties["Execute"] = builtinObjectFunction("JUSTC.Execute");
+    justcProperties["Stringify"] = builtinObjectFunction("JUSTC.Stringify");
     builtinObject("JUSTC", justcProperties);
 
     Value chartypeValue;
@@ -2472,7 +2484,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }
 
-    throw std::runtime_error("Unknown function: " + funcName);
+    throw std::runtime_error("\"" + funcName + "\" is not a function.");
 }
 
 Value Parser::concatenateStrings(const Value& left, const Value& right) {
@@ -3839,6 +3851,8 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         throw std::runtime_error("Cannot call non-function value at " + Utility::position(startPos, input));
     } else if (!doExecute) {
         return onExecDisabled(startPos, function.name);
+    } else if (function.native) {
+        return executeFunction(function.name, args, startPos);
     }
 
     const auto& funcInfo = function.function_info;
