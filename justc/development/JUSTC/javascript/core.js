@@ -170,8 +170,11 @@ SOFTWARE.
                 ['number'],
                 [resultptr]
             );
-            console.log(resultjson);
-            return json_.parse(resultjson);
+            try {
+                return json_.parse(resultjson);
+            } catch (_) {
+                return JUSTO.parse(resultjson);
+            }
         } catch (error) {
             throw new JUSTC.Error(JUSTC.Errors[name + 'Error'], error);
         }
