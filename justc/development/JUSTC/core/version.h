@@ -29,6 +29,6 @@ SOFTWARE.
 
 #include <string>
 
-static const std::string JUSTC_VERSION = "0.1.2";
+static const std::string JUSTC_VERSION = "0.2.0";
 
 #endif
