@@ -29,6 +29,7 @@ SOFTWARE.
 
 #include <unordered_map>
 #include <string>
+#include <cstdint>
 #include "parser.h"
 
 #ifdef __EMSCRIPTEN__
@@ -36,6 +37,7 @@ SOFTWARE.
     private:
         std::unordered_map<std::string, Value> m_variables;
         std::unordered_map<std::string, bool> m_constVars;
+        uint64_t m_rootCounter = 0;
 
     public:
         static GlobalContext& getInstance() {
@@ -77,6 +79,14 @@ SOFTWARE.
 
         std::unordered_map<std::string, Value> getAll() const {
             return m_variables;
+        }
+
+        uint64_t getRootCounter() const {
+            return m_rootCounter;
+        }
+
+        uint64_t incrementRootCounter() {
+            return ++m_rootCounter;
         }
     };
 #else
@@ -87,6 +97,7 @@ SOFTWARE.
         mutable std::shared_mutex m_mutex;
         std::unordered_map<std::string, Value> m_variables;
         std::unordered_map<std::string, bool> m_constVars;
+        uint64_t m_rootCounter = 0;
 
     public:
         static GlobalContext& getInstance() {
@@ -135,6 +146,16 @@ SOFTWARE.
         std::unordered_map<std::string, Value> getAll() const {
             std::shared_lock<std::shared_mutex> lock(m_mutex);
             return m_variables;
+        }
+
+        uint64_t getRootCounter() const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_rootCounter;
+        }
+
+        uint64_t incrementRootCounter() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            return ++m_rootCounter;
         }
     };
 #endif
@@ -161,6 +182,14 @@ inline void removeGlobal(const std::string& name) {
 
 inline void clearGlobals_() {
     GlobalContext::getInstance().clear();
+}
+
+inline uint64_t getRootCounter() {
+    return GlobalContext::getInstance().getRootCounter();
+}
+
+inline uint64_t incrementRootCounter() {
+    return GlobalContext::getInstance().incrementRootCounter();
 }
 
 #endif

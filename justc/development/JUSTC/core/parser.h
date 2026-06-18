@@ -267,9 +267,10 @@ struct ASTNode {
     size_t startPos;
     DataType typeDeclaration;
     bool constant;
+    bool local;
 
     ASTNode(const std::string& t, const std::string& id = "", size_t start = 0)
-        : type(t), identifier(id), startPos(start), typeDeclaration(DataType::UNKNOWN) {}
+        : type(t), identifier(id), startPos(start), typeDeclaration(DataType::UNKNOWN), local(false) {}
 };
 
 enum class CharType {
@@ -351,6 +352,12 @@ private:
 
     std::vector<std::vector<std::string>> importLogs;
 
+    std::unordered_map<uint64_t, std::unordered_map<std::string, Value>> localScopes;
+    std::unordered_map<uint64_t, std::unordered_map<std::string, bool>> localConstVars;
+    std::vector<uint64_t> scopeStack;
+    uint64_t currentScope;
+    uint64_t rootIndex;
+
     // logs
     void addLog(const std::string& type, const std::string& message, size_t position = 0);
     void setLogFile(const std::string& path);
@@ -401,7 +408,7 @@ private:
     ASTNode parseStatement(bool doExecute);
     bool CanIgnoreNoAssigmentOperator();
     ASTNode parseGlobal(bool doExecute, bool constant = false);
-    ASTNode parseVariableDeclaration(bool doExecute, bool constant = false);
+    ASTNode parseVariableDeclaration(bool doExecute, bool constant = false, bool local = false);
     ASTNode parseCommand(bool doExecute);
     ASTNode parseScopeCommand();
     ASTNode parseOutputCommand();
@@ -536,6 +543,17 @@ private:
 
     void triggerVariableUpdate(const std::string& name, const Value& value);
     Value merger(const std::vector<Value>& args);
+
+    std::string getCurrentScopeName() const;
+    uint64_t getCurrentScope() const { return currentScope; }
+    uint64_t getRootScope() const { return rootIndex; }
+    void enterScope();
+    void exitScope();
+    void setLocal(uint64_t scope, const std::string& name, const Value& value, bool isConst = false);
+    Value getLocal(uint64_t scope, const std::string& name) const;
+    bool hasLocal(uint64_t scope, const std::string& name) const;
+    bool isLocalConst(uint64_t scope, const std::string& name) const;
+    Value resolveVariableValueWithScopes(const std::string& varName, const bool unknownIsString);
 
 public:
     static std::string getCurrentTimestamp();

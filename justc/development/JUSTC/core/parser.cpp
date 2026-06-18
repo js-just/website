@@ -428,13 +428,21 @@ Parser::Parser(
     tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript), globalScope(false),
     strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau), doExecute(doExecute), runAsync(runAsync),
     canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
-    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype)
+    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype), currentScope(0), rootIndex(0)
 {
     initializeBuiltIns();
+
+    rootIndex = incrementRootCounter();
+    currentScope = rootIndex;
+    
+    localScopes[rootIndex] = std::unordered_map<std::string, Value>();
+    localConstVars[rootIndex] = std::unordered_map<std::string, bool>();
+
     if (initialContext) {
         for (const auto& [key, value] : *initialContext) {
             variables[key] = value;
             constVars[key] = false;
+            setLocal(rootIndex, key, value, false);
         }
     }
 
@@ -1381,18 +1389,26 @@ ASTNode Parser::parseStatement(bool doExecute) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
         advance();
+        bool isLocal = false;
         if (match("keyword", "global")) {
             advance();
             return parseGlobal(doExecute, true);
+        } else if (match("keyword", "local")) {
+            advance();
+            isLocal = true;
         }
-        return parseVariableDeclaration(doExecute, true);
+        return parseVariableDeclaration(doExecute, true, isLocal);
     } else if (match("keyword", "var") && !isJSONArray) {
         advance();
+        bool isLocal = false;
         if (match("keyword", "global")) {
             advance();
             return parseGlobal(doExecute);
+        } else if (match("keyword", "local")) {
+            advance();
+            isLocal = true;
         }
-        return parseVariableDeclaration(doExecute);
+        return parseVariableDeclaration(doExecute, false, isLocal);
     } else if (match("keyword", "global") && !isJSONArray) {
         advance();
         bool isConst = false;
@@ -1402,6 +1418,15 @@ ASTNode Parser::parseStatement(bool doExecute) {
             isConst = true;
         }
         return parseGlobal(doExecute, isConst);
+    } else if (match("keyword", "local") && !isJSONArray) {
+        advance();
+        bool isConst = false;
+        if (match("keyword", "var")) advance();
+        else if (match("keyword", "const")) {
+            advance();
+            isConst = true;
+        }
+        return parseVariableDeclaration(doExecute, isConst, true);
     } else {
         return parseCommand(doExecute);
     }
@@ -1427,10 +1452,11 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
             match("JavaScript") || match("Luau") || match(endOfScript) || match(".") || match(",") ||
             match("{") || match("["));
 }
-ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
+ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local) {
     std::string identifier = currentToken().value;
     ASTNode node("VARIABLE_DECLARATION", identifier, currentToken().start);
     node.constant = constant;
+    node.local = local;
     advance();
 
     // handle dashes in variable names
@@ -1583,11 +1609,28 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant) {
         } catch (...) {}
     }
 
-    if (variables.find(identifier) != variables.end()) { // assignment
-        variables[identifier] = Value();
-    } else { // declaration
-        variables[identifier] = Value();
-        constVars[identifier] = constant;
+    if (node.local) {
+        if (node.value.type != DataType::UNKNOWN) {
+            setLocal(currentScope, identifier, node.value, constant);
+        }
+        
+        if (variables.find(identifier) != variables.end()) {
+            variables[identifier] = Value();
+        } else {
+            variables[identifier] = Value();
+            constVars[identifier] = constant;
+        }
+    } else {
+        if (variables.find(identifier) != variables.end()) {
+            variables[identifier] = Value();
+        } else {
+            variables[identifier] = Value();
+            constVars[identifier] = constant;
+        }
+        
+        if (node.value.type != DataType::UNKNOWN) {
+            setLocal(rootIndex, identifier, node.value, constant);
+        }
     }
 
     if (doExecute && isBuiltinVariable(identifier)) {
@@ -3378,6 +3421,8 @@ bool Parser::dfsCycleDetection(const std::string& node,
 Value Parser::resolveVariableValue(const std::string& varName, const bool unknownIsString) {
     if (hasGlobal(varName)) {
         return getGlobal(varName);
+    } else if (hasLocal(currentScope, varName)) {
+        return resolveVariableValueWithScopes(varName, unknownIsString);
     }
 
     auto it = variables.find(varName);
@@ -4077,6 +4122,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
     }
     advance();
 
+    enterScope();
     std::stringstream body;
 
     braceCount = 1;
@@ -4101,6 +4147,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
         case 0: case 3: { // if/elseif
             std::string currOp = conditionType == 0 ? "if" : "elseif";
             bool conditionResult = i2v(isolated("return " + first.str() + " .", doExecute, startPos, &conditionContext, "'" + currOp + "' condition at " + Utility::position(currentToken().start, input))).toBoolean();
+            exitScope();
 
             if (conditionResult) {
                 return shared(conditionBody, doExecute, startPos, &conditionBodyContext, "'" + currOp + "' body at " + Utility::position(currentToken().start, input), !isIsolated);
@@ -4145,6 +4192,7 @@ Value Parser::parseCondition(bool doExecute, bool wasIsolated) {
                 }
                 conditionResult = i2v(isolated(conditionStr, doExecute, startPos, &conditionContext, "'while' condition at " + Utility::position(currentToken().start, input))).toBoolean();
             }
+            exitScope();
             return Value::createNull();
         } default:
             throw std::runtime_error(errMsg);
@@ -5217,6 +5265,103 @@ void Parser::unregisterGlobal(const std::string& name) {
 }
 void Parser::clearGlobals() {
     clearGlobals_();
+}
+
+std::string Parser::getCurrentScopeName() const {
+    if (currentScope == rootIndex) {
+        return "root_" + std::to_string(rootIndex);
+    }
+    return "scope_" + std::to_string(currentScope);
+}
+void Parser::enterScope() {
+    static uint64_t scopeIdCounter = 0;
+    uint64_t newScope = ++scopeIdCounter;
+    
+    scopeStack.push_back(currentScope);
+    currentScope = newScope;
+    
+    localScopes[newScope] = std::unordered_map<std::string, Value>();
+    localConstVars[newScope] = std::unordered_map<std::string, bool>();
+}
+void Parser::exitScope() {
+    if (!scopeStack.empty()) {
+        localScopes.erase(currentScope);
+        localConstVars.erase(currentScope);
+        
+        currentScope = scopeStack.back();
+        scopeStack.pop_back();
+    }
+}
+void Parser::setLocal(uint64_t scope, const std::string& name, const Value& value, bool isConst) {
+    auto it = localScopes.find(scope);
+    if (it != localScopes.end()) {
+        it->second[name] = value;
+        localConstVars[scope][name] = isConst;
+    }
+}
+Value Parser::getLocal(uint64_t scope, const std::string& name) const {
+    auto it = localScopes.find(scope);
+    if (it != localScopes.end()) {
+        auto varIt = it->second.find(name);
+        if (varIt != it->second.end()) {
+            return varIt->second;
+        }
+    }
+    return Value::createNull();
+}
+bool Parser::hasLocal(uint64_t scope, const std::string& name) const {
+    auto it = localScopes.find(scope);
+    if (it != localScopes.end()) {
+        return it->second.find(name) != it->second.end();
+    }
+    return false;
+}
+bool Parser::isLocalConst(uint64_t scope, const std::string& name) const {
+    auto it = localConstVars.find(scope);
+    if (it != localConstVars.end()) {
+        auto constIt = it->second.find(name);
+        if (constIt != it->second.end()) {
+            return constIt->second;
+        }
+    }
+    return false;
+}
+Value Parser::resolveVariableValueWithScopes(const std::string& varName, const bool unknownIsString) {
+    if (hasLocal(currentScope, varName)) {
+        return getLocal(currentScope, varName);
+    }
+    
+    for (auto it = scopeStack.rbegin(); it != scopeStack.rend(); ++it) {
+        if (hasLocal(*it, varName)) {
+            return getLocal(*it, varName);
+        }
+    }
+    
+    if (hasLocal(rootIndex, varName)) {
+        return getLocal(rootIndex, varName);
+    }
+    
+    if (hasGlobal(varName)) {
+        return getGlobal(varName);
+    }
+    
+    auto it = variables.find(varName);
+    if (it != variables.end() && it->second.type != DataType::UNKNOWN) {
+        return it->second;
+    }
+    
+    if (unknownIsString) {
+        Value result;
+        result.type = DataType::STRING;
+        result.name = varName;
+        result.string_value = varName;
+        return result;
+    }
+    
+    Value result;
+    result.type = DataType::UNKNOWN;
+    result.name = "unknown";
+    return result;
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
