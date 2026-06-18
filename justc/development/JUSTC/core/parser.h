@@ -407,8 +407,9 @@ private:
 
     ASTNode parseStatement(bool doExecute);
     bool CanIgnoreNoAssigmentOperator();
+    Value makeValue(Value value, bool b);
     ASTNode parseGlobal(bool doExecute, bool constant = false);
-    ASTNode parseVariableDeclaration(bool doExecute, bool constant = false, bool local = false);
+    ASTNode parseVariableDeclaration(bool doExecute, bool constant = false, bool local = false, bool global = false);
     ASTNode parseCommand(bool doExecute);
     ASTNode parseScopeCommand();
     ASTNode parseOutputCommand();

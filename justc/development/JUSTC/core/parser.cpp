@@ -1439,7 +1439,7 @@ ASTNode Parser::parseGlobal(bool doExecute, bool constant) {
         global.identifier = funcValue.name;
         global.constant = constant;
     } else {
-        global = parseVariableDeclaration(doExecute, constant);
+        global = parseVariableDeclaration(doExecute, constant, false, true);
     }
     global.type = "GLOBAL";
     registerGlobal(global.identifier, global.value, constant);
@@ -1452,7 +1452,11 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
             match("JavaScript") || match("Luau") || match(endOfScript) || match(".") || match(",") ||
             match("{") || match("["));
 }
-ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local) {
+Value Parser::makeValue(Value value, bool b) {
+    if (b) return value;
+    return Value();
+}
+ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local, bool global) {
     std::string identifier = currentToken().value;
     ASTNode node("VARIABLE_DECLARATION", identifier, currentToken().start);
     node.constant = constant;
@@ -1523,9 +1527,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             extractReferences(exprValue, node.references);
 
             if (variables.find(identifier) != variables.end()) {
-                variables[identifier] = Value();
+                variables[identifier] = makeValue(node.value, node.local || global);
             } else {
-                variables[identifier] = Value();
+                variables[identifier] = makeValue(node.value, node.local || global);
                 constVars[identifier] = constant;
             }
 
@@ -1544,9 +1548,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             extractReferences(exprValue, node.references);
 
             if (variables.find(identifier) != variables.end()) {
-                variables[identifier] = Value();
+                variables[identifier] = makeValue(node.value, node.local || global);
             } else {
-                variables[identifier] = Value();
+                variables[identifier] = makeValue(node.value, node.local || global);
                 constVars[identifier] = constant;
             }
 
@@ -1615,16 +1619,16 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         }
         
         if (variables.find(identifier) != variables.end()) {
-            variables[identifier] = Value();
+            variables[identifier] = makeValue(node.value, node.local || global);
         } else {
-            variables[identifier] = Value();
+            variables[identifier] = makeValue(node.value, node.local || global);
             constVars[identifier] = constant;
         }
     } else {
         if (variables.find(identifier) != variables.end()) {
-            variables[identifier] = Value();
+            variables[identifier] = makeValue(node.value, node.local || global);
         } else {
-            variables[identifier] = Value();
+            variables[identifier] = makeValue(node.value, node.local || global);
             constVars[identifier] = constant;
         }
         
@@ -4587,6 +4591,7 @@ void Parser::evaluateAllVariablesSync() {
     for (auto& node : ast) {
         if (node.type == "VARIABLE_DECLARATION") {
             std::string varName = node.identifier;
+            if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) continue;
             if (variables.find(varName) == variables.end()) {
                 variables[varName] = Value();
                 constVars[varName] = node.constant;
@@ -4599,7 +4604,7 @@ void Parser::evaluateAllVariablesSync() {
         passes++;
 
         for (auto& [varName, mut] : mutated) {
-            if (isBuiltinVariable(varName)) {
+            if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) {
                 changed = true;
                 continue;
             }
@@ -4632,7 +4637,7 @@ void Parser::evaluateAllVariablesSync() {
         for (auto& node : ast) {
             if (node.type == "VARIABLE_DECLARATION") {
                 std::string varName = node.identifier;
-                if (isBuiltinVariable(varName)) {
+                if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) {
                     changed = true;
                     continue;
                 }
