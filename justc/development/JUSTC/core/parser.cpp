@@ -4605,7 +4605,6 @@ void Parser::evaluateAllVariablesSync() {
 
         for (auto& [varName, mut] : mutated) {
             if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) {
-                changed = true;
                 continue;
             }
             if (mut.applied) continue;
@@ -4638,7 +4637,6 @@ void Parser::evaluateAllVariablesSync() {
             if (node.type == "VARIABLE_DECLARATION") {
                 std::string varName = node.identifier;
                 if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) {
-                    changed = true;
                     continue;
                 }
 
