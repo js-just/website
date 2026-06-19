@@ -29,6 +29,7 @@ SOFTWARE.
 #include <string>
 #include <string_view>
 #include "unicode.hpp"
+#include <cstdint>
 
 #ifdef __EMSCRIPTEN__
 
