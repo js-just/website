@@ -48,6 +48,8 @@ SOFTWARE.
 #include "builtins.h"
 #include "global.h"
 #include "justo.hpp"
+#include <cstdint>
+#include <limits>
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -1452,10 +1454,6 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
             match("JavaScript") || match("Luau") || match(endOfScript) || match(".") || match(",") ||
             match("{") || match("["));
 }
-Value Parser::makeValue(Value value, bool b) {
-    if (b) return value;
-    return Value();
-}
 ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local, bool global) {
     std::string identifier = currentToken().value;
     ASTNode node("VARIABLE_DECLARATION", identifier, currentToken().start);
@@ -1527,9 +1525,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             extractReferences(exprValue, node.references);
 
             if (variables.find(identifier) != variables.end()) {
-                variables[identifier] = makeValue(node.value, node.local || global);
+                variables[identifier] = node.value;
             } else {
-                variables[identifier] = makeValue(node.value, node.local || global);
+                variables[identifier] = node.value;
                 constVars[identifier] = constant;
             }
 
@@ -1548,9 +1546,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             extractReferences(exprValue, node.references);
 
             if (variables.find(identifier) != variables.end()) {
-                variables[identifier] = makeValue(node.value, node.local || global);
+                variables[identifier] = node.value;
             } else {
-                variables[identifier] = makeValue(node.value, node.local || global);
+                variables[identifier] = node.value;
                 constVars[identifier] = constant;
             }
 
@@ -1619,16 +1617,16 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         }
         
         if (variables.find(identifier) != variables.end()) {
-            variables[identifier] = makeValue(node.value, node.local || global);
+            variables[identifier] = node.value;
         } else {
-            variables[identifier] = makeValue(node.value, node.local || global);
+            variables[identifier] = node.value;
             constVars[identifier] = constant;
         }
     } else {
         if (variables.find(identifier) != variables.end()) {
-            variables[identifier] = makeValue(node.value, node.local || global);
+            variables[identifier] = node.value;
         } else {
-            variables[identifier] = makeValue(node.value, node.local || global);
+            variables[identifier] = node.value;
             constVars[identifier] = constant;
         }
         
@@ -4585,19 +4583,11 @@ Value Parser::octalToValue(const std::string& octStr) {
 
 void Parser::evaluateAllVariablesSync() {
     bool changed;
-    int passes = 0;
-    const int MAX_PASSES = 127;
-
-    for (auto& node : ast) {
-        if (node.type == "VARIABLE_DECLARATION") {
-            std::string varName = node.identifier;
-            if (isBuiltinVariable(varName) || hasLocal(currentScope, varName)) continue;
-            if (variables.find(varName) == variables.end()) {
-                variables[varName] = Value();
-                constVars[varName] = node.constant;
-            }
-        }
-    }
+    uint64_t passes = 0;
+    const uint64_t MAX_PASSES = std::min(
+        static_cast<uint64_t>(0xFF) * variables.size(), 
+        std::numeric_limits<uint64_t>::max()
+    );
 
     do {
         changed = false;
