@@ -160,7 +160,11 @@ enum class NumericType : uint8_t {
     UINT16 = 11,
     UINT32 = 12,
     UINT64 = 13,
-    UINT128 = 14
+    UINT128 = 14,
+    CUINT8 = 15,
+    CUINT16 = 16,
+    CUINT32 = 17,
+    CUINT64 = 18
 };
 
 struct NumericValue {
@@ -272,10 +276,10 @@ struct NumericValue {
             case NumericType::INT128: return sizeof(__int128);
             case NumericType::UINT128: return sizeof(unsigned __int128);
             #endif
-            case NumericType::UINT8: return sizeof(uint8_t);
-            case NumericType::UINT16: return sizeof(uint16_t);
-            case NumericType::UINT32: return sizeof(uint32_t);
-            case NumericType::UINT64: return sizeof(uint64_t);
+            case NumericType::UINT8: case NumericType::CUINT8: return sizeof(uint8_t);
+            case NumericType::UINT16: case NumericType::CUINT16: return sizeof(uint16_t);
+            case NumericType::UINT32: case NumericType::CUINT32: return sizeof(uint32_t);
+            case NumericType::UINT64: case NumericType::CUINT64: return sizeof(uint64_t);
             default: return sizeof(double);
         }
     }

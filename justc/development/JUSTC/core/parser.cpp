@@ -399,16 +399,16 @@ Value Value::createNumberWithType(T num, NumericType numType) {
                 *(unsigned __int128*)result.numeric_data->data = static_cast<unsigned __int128>(num);
                 break;
             #endif
-            case NumericType::UINT8:
+            case NumericType::UINT8: case NumericType::CUINT8:
                 *(uint8_t*)result.numeric_data->data = static_cast<uint8_t>(num);
                 break;
-            case NumericType::UINT16:
+            case NumericType::UINT16: case NumericType::CUINT16:
                 *(uint16_t*)result.numeric_data->data = static_cast<uint16_t>(num);
                 break;
-            case NumericType::UINT32:
+            case NumericType::UINT32: case NumericType::CUINT32:
                 *(uint32_t*)result.numeric_data->data = static_cast<uint32_t>(num);
                 break;
-            case NumericType::UINT64:
+            case NumericType::UINT64: case NumericType::CUINT64:
                 *(uint64_t*)result.numeric_data->data = static_cast<uint64_t>(num);
                 break;
             default:
@@ -509,16 +509,16 @@ std::string Value::toNumericString() const {
             break;
         }
         #endif
-        case NumericType::UINT8:
+        case NumericType::UINT8: case NumericType::CUINT8:
             ss << (unsigned int)*(uint8_t*)numeric_data->data;
             break;
-        case NumericType::UINT16:
+        case NumericType::UINT16: case NumericType::CUINT16:
             ss << *(uint16_t*)numeric_data->data;
             break;
-        case NumericType::UINT32:
+        case NumericType::UINT32: case NumericType::CUINT32:
             ss << *(uint32_t*)numeric_data->data;
             break;
-        case NumericType::UINT64:
+        case NumericType::UINT64: case NumericType::CUINT64:
             ss << *(uint64_t*)numeric_data->data;
             break;
         case NumericType::FLOAT128: {
@@ -1606,14 +1606,7 @@ ASTNode Parser::parseStatement(bool doExecute) {
 
     } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
         return parseCommand(doExecute);
-    } else if ((
-        match("identifier") || match("string") ||
-        match("keyword", "int8") || match("keyword", "int16") || match("keyword", "int32") ||
-        match("keyword", "int64") || match("keyword", "int128") || match("keyword", "uint8") ||
-        match("keyword", "uint16") || match("keyword", "uint32") || match("keyword", "uint64") ||
-        match("keyword", "uint128") || match("keyword", "float32") || match("keyword", "float64") ||
-        match("keyword", "float128")
-    ) && !isJSONArray) {
+    } else if ((match("identifier") || match("string") || isCPPType()) && !isJSONArray) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
         advance();
@@ -3969,6 +3962,60 @@ Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cppt
                     result = Value::createNumberWithType(num, NumericType::UINT64);
                 } else if (cpptype == "uint128") {
                     result = Value::createNumberWithType(parseToUInt128(value.name), NumericType::UINT128);
+                } else if (cpptype == "cuint8") {
+                    long long raw = std::stoll(cleaned);
+                    uint8_t num;
+                    if (raw < 0) num = 0;
+                    else if (raw > 255) num = 255;
+                    else num = static_cast<uint8_t>(raw);
+                    result = Value::createNumberWithType(num, NumericType::CUINT8);
+                } else if (cpptype == "cuint16") {
+                    long long raw = std::stoll(cleaned);
+                    uint16_t num;
+                    if (raw < 0) num = 0;
+                    else if (raw > 65535) num = 65535;
+                    else num = static_cast<uint16_t>(raw);
+                    result = Value::createNumberWithType(num, NumericType::CUINT16);
+                } else if (cpptype == "cuint32") {
+                    long long raw = std::stoll(cleaned);
+                    uint32_t num;
+                    if (raw < 0) num = 0;
+                    else if (raw > 4294967295LL) num = 4294967295U;
+                    else num = static_cast<uint32_t>(raw);
+                    result = Value::createNumberWithType(num, NumericType::CUINT32);
+                } else if (cpptype == "cuint64") {
+                    if (!cleaned.empty() && cleaned[0] == '-') {
+                        uint64_t num = 0;
+                        result = Value::createNumberWithType(num, NumericType::CUINT64);
+                    } else {
+                        if (cleaned.length() > 19 || (cleaned.length() == 19 && cleaned > "9223372036854775807")) {
+                            try {
+                                unsigned long long raw_ull = std::stoull(cleaned);
+                                uint64_t num = raw_ull;
+                                if (raw_ull > 18446744073709551615ULL) {
+                                    num = 18446744073709551615ULL;
+                                }
+                                result = Value::createNumberWithType(num, NumericType::CUINT64);
+                            } catch (const std::out_of_range& e) {
+                                uint64_t num = 18446744073709551615ULL;
+                                result = Value::createNumberWithType(num, NumericType::CUINT64);
+                            }
+                        } else {
+                            try {
+                                long long raw_ll = std::stoll(cleaned);
+                                if (raw_ll < 0) {
+                                    uint64_t num = 0;
+                                    result = Value::createNumberWithType(num, NumericType::CUINT64);
+                                } else {
+                                    uint64_t num = static_cast<uint64_t>(raw_ll);
+                                    result = Value::createNumberWithType(num, NumericType::CUINT64);
+                                }
+                            } catch (const std::out_of_range& e) {
+                                uint64_t num = 18446744073709551615ULL;
+                                result = Value::createNumberWithType(num, NumericType::CUINT64);
+                            }
+                        }
+                    }
                 } else if (cpptype == "float32") {
                     float num = std::stof(cleaned);
                     result = Value::createNumberWithType(num, NumericType::FLOAT32);
