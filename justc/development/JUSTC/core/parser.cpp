@@ -50,6 +50,31 @@ SOFTWARE.
 #include "justo.hpp"
 #include <cstdint>
 #include <limits>
+#include "cpptypes.h"
+#include <iomanip>
+#include <functional>
+
+#ifdef __SIZEOF_FLOAT128__
+    #if JUSTC_HAS_QUADMATH
+        #include <quadmath.h>
+        #define JUSTC_FLOAT128_SUPPORT 1
+    #else
+        #define JUSTC_FLOAT128_SUPPORT 0
+    #endif
+#else
+    #define JUSTC_FLOAT128_SUPPORT 0
+#endif
+
+#ifdef _MSC_VER
+    #define JUSTC_INT128_SUPPORT 0
+    #define JUSTC_UINT128_SUPPORT 0
+#elif defined(__SIZEOF_INT128__)
+    #define JUSTC_INT128_SUPPORT 1
+    #define JUSTC_UINT128_SUPPORT 1
+#else
+    #define JUSTC_INT128_SUPPORT 0
+    #define JUSTC_UINT128_SUPPORT 0
+#endif
 
 #ifdef __EMSCRIPTEN__
     #include "parser.emscripten.h"
@@ -112,7 +137,7 @@ std::string Value::toString() const {
         case DataType::VARIABLE:
             return string_value;
         case DataType::NUMBER:
-            return std::to_string(number_value);
+            return toNumericString();
         case DataType::HEXADECIMAL:
             return "x" + std::to_string(static_cast<int>(number_value));
         case DataType::BINARY: {
@@ -324,6 +349,196 @@ Value Value::createJsonArray(const std::vector<Value>& arr) {
     return result;
 }
 
+template<typename T>
+Value Value::createNumberWithType(T num, NumericType numType) {
+    Value result;
+    result.type = DataType::NUMBER;
+    result.number_value = static_cast<double>(num);
+    
+    result.numeric_data = std::make_shared<NumericValue>();
+    result.numeric_data->value = static_cast<double>(num);
+    result.numeric_data->type = numType;
+    
+    size_t size = NumericValue::getTypeSize(numType);
+    result.numeric_data->data = malloc(size);
+    if (static_cast<bool>(result.numeric_data->data)) {
+        switch (numType) {
+            case NumericType::FLOAT32:
+                *(float*)result.numeric_data->data = static_cast<float>(num);
+                break;
+            case NumericType::FLOAT64:
+                *(double*)result.numeric_data->data = static_cast<double>(num);
+                break;
+            case NumericType::BIGNUM:
+                *(long double*)result.numeric_data->data = static_cast<long double>(num);
+                break;
+            #if JUSTC_FLOAT128_SUPPORT
+            case NumericType::FLOAT128:
+                *(__float128*)result.numeric_data->data = static_cast<__float128>(num);
+                break;
+            #endif
+            case NumericType::INT8:
+                *(int8_t*)result.numeric_data->data = static_cast<int8_t>(num);
+                break;
+            case NumericType::INT16:
+                *(int16_t*)result.numeric_data->data = static_cast<int16_t>(num);
+                break;
+            case NumericType::INT32:
+                *(int32_t*)result.numeric_data->data = static_cast<int32_t>(num);
+                break;
+            case NumericType::INT64:
+                *(int64_t*)result.numeric_data->data = static_cast<int64_t>(num);
+                break;
+            #if JUSTC_INT128_SUPPORT
+            case NumericType::INT128:
+                *(__int128*)result.numeric_data->data = static_cast<__int128>(num);
+                break;
+            #endif
+            #if JUSTC_UINT128_SUPPORT
+            case NumericType::UINT128:
+                *(unsigned __int128*)result.numeric_data->data = static_cast<unsigned __int128>(num);
+                break;
+            #endif
+            case NumericType::UINT8:
+                *(uint8_t*)result.numeric_data->data = static_cast<uint8_t>(num);
+                break;
+            case NumericType::UINT16:
+                *(uint16_t*)result.numeric_data->data = static_cast<uint16_t>(num);
+                break;
+            case NumericType::UINT32:
+                *(uint32_t*)result.numeric_data->data = static_cast<uint32_t>(num);
+                break;
+            case NumericType::UINT64:
+                *(uint64_t*)result.numeric_data->data = static_cast<uint64_t>(num);
+                break;
+            default:
+                *(double*)result.numeric_data->data = static_cast<double>(num);
+                break;
+        }
+    }
+
+    result.name = result.toNumericString();
+    
+    return result;
+}
+
+template Value Value::createNumberWithType<int8_t>(int8_t, NumericType);
+template Value Value::createNumberWithType<int16_t>(int16_t, NumericType);
+template Value Value::createNumberWithType<int32_t>(int32_t, NumericType);
+template Value Value::createNumberWithType<int64_t>(int64_t, NumericType);
+#if JUSTC_INT128_SUPPORT
+template Value Value::createNumberWithType<__int128>(__int128, NumericType);
+#endif
+#if JUSTC_UINT128_SUPPORT
+template Value Value::createNumberWithType<unsigned __int128>(unsigned __int128, NumericType);
+#endif
+template Value Value::createNumberWithType<uint8_t>(uint8_t, NumericType);
+template Value Value::createNumberWithType<uint16_t>(uint16_t, NumericType);
+template Value Value::createNumberWithType<uint32_t>(uint32_t, NumericType);
+template Value Value::createNumberWithType<uint64_t>(uint64_t, NumericType);
+template Value Value::createNumberWithType<float>(float, NumericType);
+template Value Value::createNumberWithType<double>(double, NumericType);
+template Value Value::createNumberWithType<long double>(long double, NumericType);
+#if JUSTC_FLOAT128_SUPPORT
+template Value Value::createNumberWithType<__float128>(__float128, NumericType);
+#endif
+
+std::string Value::toNumericString() const {
+    if (!static_cast<bool>(numeric_data)) {
+        return std::to_string(number_value);
+    }
+    
+    std::stringstream ss;
+    switch (numeric_data->type) {
+        case NumericType::FLOAT32:
+            ss << std::setprecision(7) << *(float*)numeric_data->data;
+            break;
+        case NumericType::FLOAT64:
+            ss << std::setprecision(15) << *(double*)numeric_data->data;
+            break;
+        case NumericType::BIGNUM:
+            ss << std::setprecision(18) << *(long double*)numeric_data->data;
+            break;
+        case NumericType::INT8:
+            ss << (int)*(int8_t*)numeric_data->data;
+            break;
+        case NumericType::INT16:
+            ss << *(int16_t*)numeric_data->data;
+            break;
+        case NumericType::INT32:
+            ss << *(int32_t*)numeric_data->data;
+            break;
+        case NumericType::INT64:
+            ss << *(int64_t*)numeric_data->data;
+            break;
+        #if JUSTC_INT128_SUPPORT
+        case NumericType::INT128: {
+            __int128 val = *(const __int128*)numeric_data->data;
+            if (val < 0) {
+                ss << "-";
+                val = -val;
+            }
+            if (val == 0) {
+                ss << "0";
+            } else {
+                std::string str;
+                while (val > 0) {
+                    int digit = val % 10;
+                    str = char('0' + digit) + str;
+                    val /= 10;
+                }
+                ss << str;
+            }
+            break;
+        }
+        #endif
+        #if JUSTC_UINT128_SUPPORT
+        case NumericType::UINT128: {
+            unsigned __int128 val = *(const unsigned __int128*)numeric_data->data;
+            if (val == 0) {
+                ss << "0";
+            } else {
+                std::string str;
+                while (val > 0) {
+                    int digit = val % 10;
+                    str = char('0' + digit) + str;
+                    val /= 10;
+                }
+                ss << str;
+            }
+            break;
+        }
+        #endif
+        case NumericType::UINT8:
+            ss << (unsigned int)*(uint8_t*)numeric_data->data;
+            break;
+        case NumericType::UINT16:
+            ss << *(uint16_t*)numeric_data->data;
+            break;
+        case NumericType::UINT32:
+            ss << *(uint32_t*)numeric_data->data;
+            break;
+        case NumericType::UINT64:
+            ss << *(uint64_t*)numeric_data->data;
+            break;
+        case NumericType::FLOAT128: {
+            #if JUSTC_FLOAT128_SUPPORT
+                char buffer[64];
+                quadmath_snprintf(buffer, sizeof(buffer), "%.20Qe", 
+                                *(const __float128*)numeric_data->data);
+                ss << buffer;
+            #else
+                ss << std::setprecision(18) << *(long double*)numeric_data->data;
+            #endif
+            break;
+        }
+        default:
+            ss << numeric_data->value;
+            break;
+    }
+    return ss.str();
+}
+
 namespace {
 
 Value stringArray(const std::vector<std::string_view>& strings) {
@@ -432,6 +647,7 @@ Parser::Parser(
     canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
     endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype), currentScope(0), rootIndex(0)
 {
+    initializeCPPTypes();
     initializeBuiltIns();
 
     rootIndex = incrementRootCounter();
@@ -582,6 +798,9 @@ Parser::Parser(
             runner += " ARM";
         #endif
     scriptProperties["Runner"] = stringToValue(runner);
+    scriptProperties["int128"] = booleanToValue(JUSTC_INT128_SUPPORT);
+    scriptProperties["uint128"] = booleanToValue(JUSTC_UINT128_SUPPORT);
+    scriptProperties["float128"] = booleanToValue(JUSTC_FLOAT128_SUPPORT);
     builtinObject("Script", scriptProperties);
 
     Value chartypeValue;
@@ -1387,7 +1606,14 @@ ASTNode Parser::parseStatement(bool doExecute) {
 
     } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
         return parseCommand(doExecute);
-    } else if ((match("identifier") || match("string")) && !isJSONArray) {
+    } else if ((
+        match("identifier") || match("string") ||
+        match("keyword", "int8") || match("keyword", "int16") || match("keyword", "int32") ||
+        match("keyword", "int64") || match("keyword", "int128") || match("keyword", "uint8") ||
+        match("keyword", "uint16") || match("keyword", "uint32") || match("keyword", "uint64") ||
+        match("keyword", "uint128") || match("keyword", "float32") || match("keyword", "float64") ||
+        match("keyword", "float128")
+    ) && !isJSONArray) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
         advance();
@@ -1455,6 +1681,12 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
             match("{") || match("["));
 }
 ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local, bool global) {
+    std::string cpptype = "default";
+    if (isCPPType()) {
+        cpptype = currentToken().value;
+        advance();
+    }
+
     std::string identifier = currentToken().value;
     ASTNode node("VARIABLE_DECLARATION", identifier, currentToken().start);
     node.constant = constant;
@@ -1518,9 +1750,9 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
     if (match(":")) {
         advance();
         typeDecl = currentToken().value;
-        if (!match("identifier")) {
+        if (!match("identifier") && !match("string") && !match("link")) {
             // then `:` and `=` are the same
-            Value exprValue = parseExpression(doExecute);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
@@ -1541,7 +1773,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             node.typeDeclaration = Utility::typeDeclaration2dataType(typeDecl, Utility::position(currentToken().start, input) + ".");
         } catch (...) {
             // then `:` and `=` are the same
-            Value exprValue = parseExpression(doExecute);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
@@ -1565,7 +1797,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         assignOp = currentToken().value;
         advance();
 
-        Value exprValue = parseExpression(doExecute);
+        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
         node.value = exprValue;
         extractReferences(exprValue, node.references);
     }
@@ -1573,7 +1805,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         assignOp = currentToken().value;
         advance();
 
-        Value exprValue = parseExpression(doExecute);
+        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
         exprValue = handleInequality(exprValue);
         node.value = exprValue;
         extractReferences(exprValue, node.references);
@@ -1596,7 +1828,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         if (isEnd()) {
             throw std::runtime_error("Expected assignment operator at " + Utility::position(currentToken().start, input) + ", got EOF.");
         } else if (CanIgnoreNoAssigmentOperator()) {
-            Value exprValue = parseExpression(doExecute);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
         } else throw std::runtime_error("Expected assignment operator at " + Utility::position(currentToken().start, input) + ", got \"" + currentToken().value +"\".");
@@ -2063,6 +2295,8 @@ Value Parser::parsePrimary(bool doExecute) {
 
         if (!numStr.empty() && std::tolower(numStr.back()) == 'b') {
             result.name = std::to_string(num) + "B";
+        } else {
+            result.name = numStr;
         }
 
         return result;
@@ -3549,6 +3783,215 @@ Value Parser::applyTypeDeclaration(const Value value, const ASTNode node) {
             throw typeDeclarationError(result.type, typeDeclaration, node);
             break;
     }
+    return result;
+}
+std::string Parser::stripUnderscores(const std::string& str) {
+    std::string result;
+    for (char c : str) {
+        if (c != '_') {
+            result += c;
+        }
+    }
+    return result;
+}
+#ifdef __SIZEOF_INT128__
+__int128 Parser::parseToInt128(const std::string& str) {
+    std::string cleaned = stripUnderscores(str);
+    bool isNegative = false;
+    size_t start = 0;
+    
+    if (cleaned[0] == '-') {
+        isNegative = true;
+        start = 1;
+    } else if (cleaned[0] == '+') {
+        start = 1;
+    }
+    
+    int base = 10;
+    if (cleaned.length() >= start + 2) {
+        char second = std::tolower(cleaned[start + 1]);
+        if (cleaned[start] == '0') {
+            if (second == 'x' || second == 'X') {
+                base = 16;
+                start += 2;
+            } else if (second == 'b' || second == 'B') {
+                base = 2;
+                start += 2;
+            } else if (second == 'o' || second == 'O') {
+                base = 8;
+                start += 2;
+            }
+        }
+    }
+    
+    __int128 result = 0;
+    for (size_t i = start; i < cleaned.length(); i++) {
+        char c = cleaned[i];
+        int digit;
+        
+        if (base == 16) {
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+            else continue;
+        } else if (base == 2) {
+            if (c == '0' || c == '1') digit = c - '0';
+            else continue;
+        } else if (base == 8) {
+            if (c >= '0' && c <= '7') digit = c - '0';
+            else continue;
+        } else {
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else continue;
+        }
+        
+        if (result > (__int128)std::numeric_limits<unsigned long long>::max() / base) {
+            #ifdef __EMSCRIPTEN__
+                warn_int128(Utility::position(currentToken().start, input).c_str(), getCurrentTimestamp().c_str());
+            #else
+                std::cout << "C++ int128 overflow at " + Utility::position(currentToken().start, input) + "." << std::endl;
+            #endif
+        }
+        result = result * base + digit;
+    }
+    
+    return isNegative ? -result : result;
+}
+unsigned __int128 Parser::parseToUInt128(const std::string& str) {
+    std::string cleaned = stripUnderscores(str);
+    size_t start = 0;
+    
+    if (cleaned[0] == '+') {
+        start = 1;
+    }
+    
+    int base = 10;
+    if (cleaned.length() >= start + 2) {
+        char second = std::tolower(cleaned[start + 1]);
+        if (cleaned[start] == '0') {
+            if (second == 'x' || second == 'X') {
+                base = 16;
+                start += 2;
+            } else if (second == 'b' || second == 'B') {
+                base = 2;
+                start += 2;
+            } else if (second == 'o' || second == 'O') {
+                base = 8;
+                start += 2;
+            }
+        }
+    }
+    
+    unsigned __int128 result = 0;
+    for (size_t i = start; i < cleaned.length(); i++) {
+        char c = cleaned[i];
+        int digit;
+        
+        if (base == 16) {
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+            else continue;
+        } else if (base == 2) {
+            if (c == '0' || c == '1') digit = c - '0';
+            else continue;
+        } else if (base == 8) {
+            if (c >= '0' && c <= '7') digit = c - '0';
+            else continue;
+        } else {
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else continue;
+        }
+        
+        result = result * base + digit;
+    }
+    
+    return result;
+}
+#else
+long long Parser::parseToInt128(const std::string& str) {
+    std::string cleaned = stripUnderscores(str);
+    try {
+        return std::stoll(cleaned);
+    } catch (...) {
+        return 0;
+    }
+}
+unsigned long long Parser::parseToUInt128(const std::string& str) {
+    std::string cleaned = stripUnderscores(str);
+    try {
+        return std::stoull(cleaned);
+    } catch (...) {
+        return 0;
+    }
+}
+#endif
+#if JUSTC_FLOAT128_SUPPORT
+__float128 Parser::parseToFloat128(const std::string& str) {
+    std::string cleaned = stripUnderscores(str);
+    return strtoflt128(cleaned.c_str(), nullptr);
+}
+#endif
+Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cpptype, const DataType typeDecl) {
+    if (cpptype == "default") return value;
+
+    Value result = value;
+
+    if (isCPPNumber(cpptype)) {
+        switch (typeDecl) {
+            case DataType::UNKNOWN:
+            case DataType::NUMBER:
+            case DataType::HEXADECIMAL:
+            case DataType::BINARY:
+            case DataType::OCTAL: {
+                std::string cleaned = stripUnderscores(value.name);
+                if (cpptype == "int8") {
+                    result = Value::createNumberWithType(static_cast<int8_t>(std::stoi(cleaned)), NumericType::INT8);
+                } else if (cpptype == "int16") {
+                    result = Value::createNumberWithType(static_cast<int16_t>(std::stoi(cleaned)), NumericType::INT16);
+                } else if (cpptype == "int32") {
+                    int32_t num = std::stoi(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::INT32);
+                } else if (cpptype == "int64") {
+                    int64_t num = std::stoll(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::INT64);
+                } else if (cpptype == "int128") {
+                    result = Value::createNumberWithType(parseToInt128(value.name), NumericType::INT128);
+                } else if (cpptype == "uint8") {
+                    result = Value::createNumberWithType(static_cast<uint8_t>(std::stoul(cleaned)), NumericType::UINT8);
+                } else if (cpptype == "uint16") {
+                    result = Value::createNumberWithType(static_cast<uint16_t>(std::stoul(cleaned)), NumericType::UINT16);
+                } else if (cpptype == "uint32") {
+                    uint32_t num = std::stoul(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::UINT32);
+                } else if (cpptype == "uint64") {
+                    uint64_t num = std::stoull(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::UINT64);
+                } else if (cpptype == "uint128") {
+                    result = Value::createNumberWithType(parseToUInt128(value.name), NumericType::UINT128);
+                } else if (cpptype == "float32") {
+                    float num = std::stof(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::FLOAT32);
+                } else if (cpptype == "float128") {
+                    #if JUSTC_FLOAT128_SUPPORT
+                        __float128 num = parseToFloat128(cleaned);
+                        result = Value::createNumberWithType(num, NumericType::FLOAT128);
+                    #else
+                        long double num = std::stold(cleaned);
+                        result = Value::createNumberWithType(num, NumericType::BIGNUM);
+                    #endif
+                } else { // float64
+                    double num = std::stod(cleaned);
+                    result = Value::createNumberWithType(num, NumericType::FLOAT64);
+                }
+                break;
+            }
+            default:
+                throw std::runtime_error("C++ type declaration error: Cannot convert " + dataTypeToString(typeDecl) + " to " + cpptype + " at " + Utility::position(currentToken().start, input) + ".");
+                break;
+        }
+    }
+
     return result;
 }
 
@@ -5053,6 +5496,17 @@ std::vector<Value> Parser::parseArguments(bool doExecute) {
     return args;
 }
 
+void Parser::initializeCPPTypes() {
+    cpptypes = ::cpptypes;
+    cppnumbers = ::cppnumbers;
+}
+bool Parser::isCPPType() {
+    if (!match("keyword")) return false;
+    return std::find(cpptypes.begin(), cpptypes.end(), currentToken().value) != cpptypes.end();
+}
+bool Parser::isCPPNumber(const std::string& cpptype) {
+    return std::find(cppnumbers.begin(), cppnumbers.end(), cpptype) != cppnumbers.end();
+}
 void Parser::initializeBuiltIns() {
     builtins = ::builtins;
 }

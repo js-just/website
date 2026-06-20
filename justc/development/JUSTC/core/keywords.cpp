@@ -53,5 +53,10 @@ const std::vector<std::string> keywords = {
     "static", "const", "define", "undefine",
     "echo", "log", "logfile", "space", "var",
     "new", "goto", "embeds", "isolated", "if",
-    "for", "while", "lambda", "from", "options"
+    "for", "while", "lambda", "from", "options",
+
+    // cpp type keywords
+    "int8", "int16", "int32", "int64", "int128",
+    "uint8", "uint16", "uint32", "uint64",
+    "uint128", "float32", "float64", "float128"
 };

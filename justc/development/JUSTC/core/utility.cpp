@@ -41,7 +41,9 @@ SOFTWARE.
 #endif
 
 std::string Utility::numberValue2string(const Value& value) {
-    if (value.number_value == std::floor(value.number_value)) {
+    if (static_cast<bool>(value.numeric_data)) {
+        return value.toNumericString();
+    } else if (value.number_value == std::floor(value.number_value)) {
         return std::to_string(static_cast<long long>(value.number_value));
     } else {
         return std::to_string(value.number_value);

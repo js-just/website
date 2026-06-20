@@ -38,6 +38,36 @@ SOFTWARE.
 #include "lexer.h"
 #include "version.h"
 #include <functional>
+#include <cstring>
+#include <iomanip>
+#include <limits>
+
+#ifdef _MSC_VER
+    #define JUSTC_HAS_INT128 0
+    #define JUSTC_HAS_UINT128 0
+    #define JUSTC_HAS_FLOAT128 0
+    using int128_t = long long;
+    using uint128_t = unsigned long long;
+#elif defined(__SIZEOF_INT128__)
+    #define JUSTC_HAS_INT128 1
+    #define JUSTC_HAS_UINT128 1
+    using int128_t = __int128;
+    using uint128_t = unsigned __int128;
+    #ifdef __SIZEOF_FLOAT128__
+        #if JUSTC_HAS_QUADMATH
+            #define JUSTC_HAS_FLOAT128 1
+            #include <quadmath.h>
+        #endif
+    #else
+        #define JUSTC_HAS_FLOAT128 0
+    #endif
+#else
+    #define JUSTC_HAS_INT128 0
+    #define JUSTC_HAS_UINT128 0
+    #define JUSTC_HAS_FLOAT128 0
+    using int128_t = long long;
+    using uint128_t = unsigned long long;
+#endif
 
 struct Value;
 class Parser;
@@ -115,6 +145,142 @@ inline std::string dataTypeToString(DataType type) {
     }
 };
 
+enum class NumericType : uint8_t {
+    NONE = 0,
+    FLOAT32 = 1,
+    FLOAT64 = 2,
+    BIGNUM = 3,
+    FLOAT128 = 4,
+    INT8 = 5,
+    INT16 = 6,
+    INT32 = 7,
+    INT64 = 8,
+    INT128 = 9,
+    UINT8 = 10,
+    UINT16 = 11,
+    UINT32 = 12,
+    UINT64 = 13,
+    UINT128 = 14
+};
+
+struct NumericValue {
+    NumericType type;
+    double value;
+    void* data;
+    
+    NumericValue() : type(NumericType::NONE), value(0.0), data(nullptr) {}
+    
+    template<typename T>
+    NumericValue(T val) : type(NumericType::NONE), value(0.0), data(nullptr) {
+        set(val);
+    }
+    
+    template<typename T>
+    void set(T val) {
+        data = malloc(sizeof(T));
+        if (data) {
+            memcpy(data, &val, sizeof(T));
+            value = static_cast<double>(val);
+            setType<T>();
+        }
+    }
+    
+    template<typename T>
+    T get() const {
+        if (!data) return T{0};
+        T result;
+        memcpy(&result, data, sizeof(T));
+        return result;
+    }
+    
+    template<typename T>
+    void setType() {
+        if constexpr (std::is_same_v<T, float>) type = NumericType::FLOAT32;
+        else if constexpr (std::is_same_v<T, double>) type = NumericType::FLOAT64;
+        else if constexpr (std::is_same_v<T, long double>) type = NumericType::BIGNUM;
+        else if constexpr (std::is_same_v<T, int8_t>) type = NumericType::INT8;
+        else if constexpr (std::is_same_v<T, int16_t>) type = NumericType::INT16;
+        else if constexpr (std::is_same_v<T, int32_t>) type = NumericType::INT32;
+        else if constexpr (std::is_same_v<T, int64_t>) type = NumericType::INT64;
+        else if constexpr (std::is_same_v<T, uint8_t>) type = NumericType::UINT8;
+        else if constexpr (std::is_same_v<T, uint16_t>) type = NumericType::UINT16;
+        else if constexpr (std::is_same_v<T, uint32_t>) type = NumericType::UINT32;
+        else if constexpr (std::is_same_v<T, uint64_t>) type = NumericType::UINT64;
+        #if JUSTC_HAS_INT128
+        else if constexpr (std::is_same_v<T, __int128>) type = NumericType::INT128;
+        else if constexpr (std::is_same_v<T, unsigned __int128>) type = NumericType::UINT128;
+        #endif
+        #if JUSTC_HAS_FLOAT128
+        else if constexpr (std::is_same_v<T, __float128>) type = NumericType::FLOAT128;
+        #endif
+        else type = NumericType::FLOAT64;
+    }
+    
+    ~NumericValue() {
+        if (data) {
+            free(data);
+            data = nullptr;
+        }
+    }
+    
+    NumericValue(const NumericValue& other) {
+        type = other.type;
+        value = other.value;
+        if (other.data) {
+            size_t size = getTypeSize(type);
+            data = malloc(size);
+            if (data) {
+                memcpy(data, other.data, size);
+            }
+        } else {
+            data = nullptr;
+        }
+    }
+    
+    NumericValue& operator=(const NumericValue& other) {
+        if (this != &other) {
+            if (data) {
+                free(data);
+                data = nullptr;
+            }
+            type = other.type;
+            value = other.value;
+            if (other.data) {
+                size_t size = getTypeSize(type);
+                data = malloc(size);
+                if (data) {
+                    memcpy(data, other.data, size);
+                }
+            }
+        }
+        return *this;
+    }
+    
+    static size_t getTypeSize(NumericType type) {
+        switch (type) {
+            case NumericType::FLOAT32: return sizeof(float);
+            case NumericType::FLOAT64: return sizeof(double);
+            case NumericType::BIGNUM: return sizeof(long double);
+            #if JUSTC_HAS_FLOAT128
+            case NumericType::FLOAT128: return 16; // __float128
+            #endif
+            case NumericType::INT8: return sizeof(int8_t);
+            case NumericType::INT16: return sizeof(int16_t);
+            case NumericType::INT32: return sizeof(int32_t);
+            case NumericType::INT64: return sizeof(int64_t);
+            #if JUSTC_HAS_INT128
+            case NumericType::INT128: return sizeof(__int128);
+            case NumericType::UINT128: return sizeof(unsigned __int128);
+            #endif
+            case NumericType::UINT8: return sizeof(uint8_t);
+            case NumericType::UINT16: return sizeof(uint16_t);
+            case NumericType::UINT32: return sizeof(uint32_t);
+            case NumericType::UINT64: return sizeof(uint64_t);
+            default: return sizeof(double);
+        }
+    }
+};
+
 struct FunctionInfo {
     std::string code;
     std::vector<std::string> paramNames;
@@ -148,6 +314,8 @@ struct Value {
     std::shared_ptr<ObjectContext> closure_context;
 
     bool native;
+    
+    std::shared_ptr<NumericValue> numeric_data;
 
     Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false) {}
     Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
@@ -217,6 +385,33 @@ struct Value {
         }
         return result;
     }
+
+    template<typename T>
+    static Value createNumberWithType(T num, NumericType numType);
+    
+    template<typename T>
+    T getNumericValue() const {
+        if (numeric_data) {
+            return numeric_data->get<T>();
+        }
+        return static_cast<T>(number_value);
+    }
+    
+    NumericType getNumericType() const {
+        if (numeric_data) {
+            return numeric_data->type;
+        }
+        return NumericType::FLOAT64;
+    }
+    
+    double toDouble() const {
+        if (numeric_data) {
+            return numeric_data->value;
+        }
+        return number_value;
+    }
+    
+    std::string toNumericString() const;
 };
 
 struct LogEntry {
@@ -437,8 +632,21 @@ private:
     void evaluateAllVariablesAsync();
     std::runtime_error typeDeclarationError(const DataType left, const DataType right, const ASTNode node);
     Value applyTypeDeclaration(const Value value, const ASTNode node);
+    Value applyCPPTypeDeclaration(const Value value, const std::string& cpptype, const DataType typeDecl);
     Value evaluateASTNode(const ASTNode& node);
     void extractReferences(const Value& value, std::vector<std::string>& references);
+
+    std::string stripUnderscores(const std::string& str);
+    #ifdef __SIZEOF_INT128__
+        __int128 parseToInt128(const std::string& str);
+        unsigned __int128 parseToUInt128(const std::string& str);
+    #else
+        long long parseToInt128(const std::string& str);
+        unsigned long long parseToUInt128(const std::string& str);
+    #endif
+    #ifdef __SIZEOF_FLOAT128__
+    __float128 parseToFloat128(const std::string& str);
+    #endif
 
     Value numberToValue(double num);
     Value booleanToValue(bool b);
@@ -533,8 +741,13 @@ private:
     }
 
     std::vector<std::string> builtins;
+    std::vector<std::string> cpptypes;
+    std::vector<std::string> cppnumbers;
     void initializeBuiltIns();
+    void initializeCPPTypes();
     bool isBuiltinVariable(const std::string& name) const;
+    bool isCPPType();
+    bool isCPPNumber(const std::string& cpptype);
     void handleBuiltinVariableAssignment(const std::string& name, const Value& value, size_t startPos);
     void removeBuiltinVariablesFromOutput();
     void builtinObject(const std::string& name, std::unordered_map<std::string, Value> props);

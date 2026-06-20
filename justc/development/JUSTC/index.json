@@ -19,6 +19,7 @@
 "core/builtins.cpp",
 "core/to.justo.cpp",
 "core/from.justo.cpp",
+"core/cpptypes.cpp",
 "core/lexer.h",
 "core/parser.h",
 "core/from.json.hpp",
@@ -50,4 +51,5 @@
 "core/global.h",
 "core/justo.hpp",
 "core/to.justo.h",
-"core/from.justo.hpp"]}
+"core/from.justo.hpp",
+"core/cpptypes.h"]}

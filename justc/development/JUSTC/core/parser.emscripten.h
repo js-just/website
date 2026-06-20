@@ -57,4 +57,8 @@ EM_JS(void, warn_exec_disabled, (const char* position, const char* name, const c
     console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') Running lexer and parser only - Cannot execute function ', '"' + UTF8ToString(name) + '"', 'at', UTF8ToString(position), '\nUse JUSTC.execute for functions.');
 });
 
+EM_JS(void, warn_int128, (const char* position, const char* timestamp), {
+    console.warn('[JUSTC] (' + UTF8ToString(timestamp) + ') C++ int128 overflow at ', UTF8ToString(position));
+});
+
 #endif
