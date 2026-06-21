@@ -90,18 +90,45 @@ std::string Utility::double2binString(const double d) {
     return std::bitset<64>(bits).to_string();
 }
 
+bool Utility::checkNumber(const Value& val) {
+    switch (val.type) {
+        case DataType::NUMBER:
+        case DataType::HEXADECIMAL:
+        case DataType::BINARY:
+        case DataType::OCTAL:
+        case DataType::BIGNUM:
+        case DataType::BASE64:
+            return true;
+        default:
+            return false;
+    }
+}
 bool Utility::checkNumbers(const Value& left, const Value& right) {
-    return ((
-        left.type == DataType::NUMBER ||
-        left.type == DataType::HEXADECIMAL ||
-        left.type == DataType::BINARY ||
-        left.type == DataType::OCTAL
-    ) && (
-        right.type == DataType::NUMBER ||
-        right.type == DataType::HEXADECIMAL ||
-        right.type == DataType::BINARY ||
-        right.type == DataType::OCTAL
-    ));
+    return (checkNumber(left) && checkNumber(right));
+}
+bool Utility::checkObject(const Value& val) {
+    switch (val.type) {
+        case DataType::JSON_OBJECT:
+        case DataType::JUSTC_OBJECT:
+            return true;
+        default:
+            return false;
+    }
+}
+bool Utility::checkObjects(const Value& left, const Value& right) {
+    return (checkObject(left) && checkObject(right));
+}
+bool Utility::checkString(const Value& val) {
+    switch (val.type) {
+        case DataType::STRING:
+        case DataType::UNKNOWN:
+            return true;
+        default:
+            return false;
+    }
+}
+bool Utility::checkStrings(const Value& left, const Value& right) {
+    return (checkString(left) && checkString(right));
 }
 
 std::pair<size_t, size_t> Utility::pos(const size_t& pos, const std::string& script) {

@@ -224,6 +224,11 @@ public:
     static void Warn(const std::string& warning);
     static std::string escapeJUSTCString(const std::string& str);
     static std::string stringifyValue(const Value& value);
+    static bool checkNumber(const Value& val);
+    static bool checkObject(const Value& val);
+    static bool checkObjects(const Value& left, const Value& right);
+    static bool checkString(const Value& val);
+    static bool checkStrings(const Value& left, const Value& right);
 };
 class UnicodeUtility {
 public:

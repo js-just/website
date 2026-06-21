@@ -327,7 +327,7 @@ Value Value::createJustcObject(const std::shared_ptr<ObjectContext>& context) {
     result.type = DataType::JUSTC_OBJECT;
     result.object_context = context;
     result.object_type = DataType::JUSTC_OBJECT;
-    result.name = "[JUSTC Object]";
+    result.name = "[Object]";
     return result;
 }
 
@@ -336,7 +336,7 @@ Value Value::createJsonObject(const std::unordered_map<std::string, Value>& obj)
     result.type = DataType::JSON_OBJECT;
     result.object_type = DataType::JSON_OBJECT;
     result.properties = obj;
-    result.name = "[JSON Object]";
+    result.name = "[Object]";
     return result;
 }
 
@@ -345,7 +345,7 @@ Value Value::createJsonArray(const std::vector<Value>& arr) {
     result.type = DataType::JSON_ARRAY;
     result.object_type = DataType::JSON_ARRAY;
     result.array_elements = arr;
-    result.name = "[JSON Array]";
+    result.name = "[Array]";
     return result;
 }
 
@@ -663,6 +663,37 @@ Parser::Parser(
             setLocal(rootIndex, key, value, false);
         }
     }
+
+    // built-in spaces / type methods
+
+    typeMethods[DataType::STRING] = {
+        {"Reverse", "String::Reverse"},
+        {"GraphemeReverse", "String::GraphemeReverse"},
+        {"CodePointReverse", "String::CodePointReverse"},
+        {"ByteReverse", "String::ByteReverse"},
+        {"Trim", "String::Trim"},
+        {"Repeat", "String::Repeat"},
+        {"Slice", "String::Slice"},
+        {"GraphemeSlice", "String::GraphemeSlice"},
+        {"CodePointSlice", "String::CodePointSlice"},
+        {"ByteSlice", "String::ByteSlice"},
+        {"Lower", "String::Lower"},
+        {"Upper", "String::Upper"},
+        {"NormalizeNFC", "String::NormalizeNFC"},
+        {"NormalizeNFD", "String::NormalizeNFD"},
+        {"NormalizeNFKC", "String::NormalizeNFKC"},
+        {"NormalizeNFKD", "String::NormalizeNFKD"},
+        {"Length", "String::Length"},
+        {"GraphemeLength", "String::GraphemeLength"},
+        {"CodePointLength", "String::CodePointLength"},
+        {"ByteLength", "String::ByteLength"},
+        {"Size", "String::Size"},
+        {"EqualsIgnoreCase", "String::EqualsIgnoreCase"},
+        {"IsWhitespace", "String::IsWhitespace"},
+        {"StartsWith", "String::StartsWith"},
+        {"EndsWith", "String::EndsWith"},
+        {"Split", "String::Split"}
+    };
 
     // built-in variables
 
@@ -1172,10 +1203,6 @@ void Parser::parseOutputCommandError(const std::string mode) {
     throw std::runtime_error("Expected output mode keyword, got \"" + mode + "\" at " + Utility::position(currentToken().start, input) + ". Output mode keywords are: \"specified\", \"everything\", \"disabled\".");
 }
 ASTNode Parser::parseOutputCommand() {
-    if (asJSON) {
-        throw std::runtime_error("Running as JSON - Cannot specify output mode at " + Utility::position(currentToken().start, input) + ".");
-    }
-
     ASTNode node("OUTPUT_COMMAND", "", currentToken().start);
     advance();
 
@@ -1196,10 +1223,6 @@ ASTNode Parser::parseOutputCommand() {
 }
 
 ASTNode Parser::parseReturnCommand() {
-    if (asJSON) {
-        throw std::runtime_error("Running as JSON - Cannot parse return command at " + Utility::position(currentToken().start, input) + ".");
-    }
-
     ASTNode node("RETURN_COMMAND", "", currentToken().start);
     advance();
 
@@ -3191,31 +3214,48 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     throw std::runtime_error("\"" + funcName + "\" is not a function.");
 }
 
-Value Parser::concatenateStrings(const Value& left, const Value& right) {
+Value Parser::doubleDot(const Value& left, const Value& right) {
     Value result;
 
-    if (
-        ( left.type  != DataType::STRING  &&
-          left.type  != DataType::UNKNOWN ) ||
-        ( right.type != DataType::STRING  &&
-          right.type != DataType::UNKNOWN )
-    ) {
-        std::string error = "Cannot concatenate string with ";
-        if (left.type == DataType::STRING || left.type == DataType::UNKNOWN) {
-            throw std::runtime_error(error + dataTypeToString(right.type) + " at " + Utility::position(currentToken().start, input) + ".");
-        } else if (right.type == DataType::STRING || right.type == DataType::UNKNOWN) {
-            throw std::runtime_error(error + dataTypeToString(left.type)  + " at " + Utility::position(currentToken().start, input) + ".");
-        } else {
-            throw std::runtime_error("Unexpected operator \"..\" at " + Utility::position(currentToken().start, input) + ". Did you mean " + left.name + " + " + right.name + "?");
-        }
-    } else if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
+    // concatenate
+    if (left.type == DataType::UNKNOWN && right.type == DataType::UNKNOWN) {
         result = stringToValue(left.name + right.name);                                     // "abc .. def" = ""abcdef"", where both "abc" and "def" are not defined.
     } else if (left.type == DataType::UNKNOWN) {
         result = stringToValue(left.name + Utility::value2string(right));                   // "abc .. "def"" = ""abcdef"", where "abc" is not defined.
     } else if (right.type == DataType::UNKNOWN) {
         result = stringToValue(Utility::value2string(left) + right.name);                   // ""abc" .. def" = ""abcdef"", where "def" is not defined.
-    } else {
+    } else if (Utility::checkStrings(left, right)) {
         result = stringToValue(Utility::value2string(left) + Utility::value2string(right)); // ""abc" .. "def"" = ""abcdef"".
+    } else if (left.type == DataType::JSON_ARRAY && right.type == DataType::JSON_ARRAY) {
+        std::vector<Value> concatenated;
+
+        const auto& leftArr = left.array_elements;
+        concatenated.insert(concatenated.end(), leftArr.begin(), leftArr.end());
+        const auto& rightArr = right.array_elements;
+        concatenated.insert(concatenated.end(), rightArr.begin(), rightArr.end());
+
+        Value result = Value::createJsonArray(concatenated);
+        result.name = "[Array]";
+        return result;
+    }
+    // merge
+    else if (Utility::checkObjects(left, right)) {
+        std::unordered_map<std::string, Value> merged;
+
+        for (const auto& [key, val] : left.properties) {
+            merged[key] = val;
+        }
+        for (const auto& [key, val] : right.properties) {
+            merged[key] = val;
+        }
+
+        Value result = Value::createJsonObject(merged);
+        result.name = "[Object]";
+        return result;
+    }
+    
+    else {
+        throw std::runtime_error("Cannot concatenate " + dataTypeToString(left.type) + " with " + dataTypeToString(right.type) + " at " + Utility::position(currentToken().start, input) + ".");
     }
 
     return result;
@@ -3339,7 +3379,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
         }
     }
     else if (op == "..") {
-        result = concatenateStrings(left, right);
+        result = doubleDot(left, right);
     }
 
     else if (op == "=" || op == "is") {
@@ -4288,7 +4328,7 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         Value isolatedObject;
         isolatedObject.type = DataType::JUSTC_OBJECT;
         isolatedObject.object_type = DataType::JUSTC_OBJECT;
-        isolatedObject.name = "[JUSTC Object]";
+        isolatedObject.name = "[Object]";
 
         if (isolatedParser.outputMode == "everything") {
             isolatedObject.properties = result.returnValues;
@@ -4412,7 +4452,7 @@ Value Parser::emptyJUSTC() {
     emptyContext->outputMode = "everything";
 
     Value emptyObject = Value::createJustcObject(emptyContext);
-    emptyObject.name = "[JUSTC Object (empty)]";
+    emptyObject.name = "[Object]";
     return emptyObject;
 }
 Value Parser::functionJUSTC(const std::vector<Value>& args, size_t startPos) {
@@ -5198,7 +5238,7 @@ std::shared_ptr<ObjectContext> Parser::createObjectContext(bool inheritFromParen
 }
 Value Parser::parseJustcObject(bool doExecute) {
     if (!match("|")) {
-        throw std::runtime_error("Expected '|' for JUSTC object.");
+        throw std::runtime_error("Expected '|' for object.");
     }
     advance();
 
@@ -5265,7 +5305,7 @@ Value Parser::parseJustcObject(bool doExecute) {
     }
 
     if (pipeCount > 0) {
-        throw std::runtime_error("Unclosed JUSTC object at " + Utility::position(currentToken().start, input) + ".");
+        throw std::runtime_error("Unclosed object at " + Utility::position(currentToken().start, input) + ".");
     }
 
     auto lexerResult = Lexer::parse(objectContent, false);
@@ -5323,13 +5363,13 @@ Value Parser::parseJustcObject(bool doExecute) {
         }
     }
 
-    result.name = "[JUSTC Object]";
+    result.name = "[Object]";
     return result;
 }
 
 Value Parser::parseJsonObject(bool doExecute) {
     if (!match("{")) {
-        throw std::runtime_error("Expected \"{\" for JSON object.");
+        throw std::runtime_error("Expected \"{\" for object.");
     }
     advance();
 
@@ -5349,7 +5389,7 @@ Value Parser::parseJsonObject(bool doExecute) {
         if (match(":") || match("=") || match("-") || match("keyword", "is")) {
             advance();
         } else if (!CanIgnoreNoAssigmentOperator()) {
-            throw std::runtime_error("Expected \":\" after key in JSON object at " + Utility::position(currentToken().start, input) + ".");
+            throw std::runtime_error("Expected \":\" after key in object at " + Utility::position(currentToken().start, input) + ".");
         }
 
         Value valueVal = parseExpression(doExecute);
@@ -5363,7 +5403,7 @@ Value Parser::parseJsonObject(bool doExecute) {
     }
 
     if (!match("}")) {
-        throw std::runtime_error("Expected \"}\" to close JSON object at " + Utility::position(currentToken().start, input) + ".");
+        throw std::runtime_error("Expected \"}\" to close object at " + Utility::position(currentToken().start, input) + ".");
     }
     advance();
 
@@ -5371,13 +5411,13 @@ Value Parser::parseJsonObject(bool doExecute) {
 
     Value result = Value::createJsonObject(properties);
     result.object_context = jsonContext;
-    result.name = "[JSON Object]";
+    result.name = "[Object]";
 
     return result;
 }
 Value Parser::parseJsonArray(bool doExecute) {
     if (!match("[")) {
-        throw std::runtime_error("Expected '[' for JSON array.");
+        throw std::runtime_error("Expected '[' for array.");
     }
     advance();
 
@@ -5396,7 +5436,7 @@ Value Parser::parseJsonArray(bool doExecute) {
     }
 
     if (!match("]")) {
-        throw std::runtime_error("Expected ']' to close JSON array at " + Utility::position(currentToken().start, input) + ".");
+        throw std::runtime_error("Expected ']' to close array at " + Utility::position(currentToken().start, input) + ".");
     }
     advance();
 
@@ -5404,7 +5444,7 @@ Value Parser::parseJsonArray(bool doExecute) {
 
     Value result = Value::createJsonArray(elements);
     result.object_context = arrayContext;
-    result.name = "[JSON Array]";
+    result.name = "[Array]";
 
     return result;
 }
@@ -5444,9 +5484,40 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
     std::string rootName = std::get<std::string>(accessChain[0]);
     Value currentValue = resolveVariableValue(rootName, false);
 
-    if (!currentValue.isObject() && accessChain.size() > 1) {
-        throw std::runtime_error("\"" + rootName + "\" is not an object. Attempt to access property or index of not an object at " + Utility::position(currentToken().start, input) + ".");
-    }
+    std::string error = "\"" + rootName + "\" is not an object. Attempt to access property or index of not an object";
+    auto checkTypeMethods = [&]() -> Value {
+        if (doExecute) {
+            auto it = typeMethods.find(currentValue.type);
+            auto last = accessChain.back();
+            if (it != typeMethods.end() && std::holds_alternative<std::string>(last)) {
+                std::string funcName = std::get<std::string>(last);
+                auto itFunc = typeMethods[currentValue.type].find(funcName);
+                if (itFunc != typeMethods[currentValue.type].end()) {
+                    if (match("(")) {
+                        std::vector<Value> args = {currentValue};
+                        std::vector<Value> additionalArgs = parseArguments(doExecute);
+                        args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+                        return executeFunction(typeMethods[currentValue.type][funcName], args, currentToken().start);
+                    } else {
+                        return executeFunction(typeMethods[currentValue.type][funcName], {currentValue}, currentToken().start);
+                    }
+                }
+            }
+            if ((currentValue.type == DataType::STRING || currentValue.type == DataType::LINK) && std::holds_alternative<size_t>(last)) {
+                size_t index = std::get<size_t>(last);
+                currentValue = stringToValue(currentValue.toString());
+                return executeFunction("String::Slice", {
+                    currentValue, 
+                    numberToValue(static_cast<double>(index)), 
+                    numberToValue(static_cast<double>(index + 1))
+                }, currentToken().start);
+            }
+        }
+        throw std::runtime_error(error + " at " + Utility::position(currentToken().start, input) + ".");
+    };
+
+    if (!currentValue.isObject() && accessChain.size() > 1) return checkTypeMethods();
+    error = "Cannot access property of non-object";
 
     for (size_t i = 1; i < accessChain.size() - 1; i++) {
         if (std::holds_alternative<std::string>(accessChain[i])) {
@@ -5457,9 +5528,7 @@ Value Parser::parseObjectPropertyAccess(bool doExecute) {
             currentValue = accessIndex(currentValue, index);
         }
 
-        if (!currentValue.isObject()) {
-            throw std::runtime_error("Cannot access property of non-object at " + Utility::position(currentToken().start, input) + ".");
-        }
+        if (!currentValue.isObject()) return checkTypeMethods();
     }
 
     auto last = accessChain.back();
@@ -5510,7 +5579,7 @@ Value Parser::accessProperty(const Value& obj, const std::string& propName) {
         if (it != obj.properties.end()) {
             return it->second;
         }
-        throw std::runtime_error("Property '" + propName + "' not found in JSON object at " + Utility::position(currentToken().start, input) + ".");
+        throw std::runtime_error("Property '" + propName + "' not found in object at " + Utility::position(currentToken().start, input) + ".");
     } else if (obj.type == DataType::JSON_ARRAY) {
         throw std::runtime_error("Cannot access property '" + propName + "' on array at " + Utility::position(currentToken().start, input) + ".");
     }

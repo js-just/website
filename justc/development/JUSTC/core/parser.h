@@ -556,6 +556,8 @@ private:
     std::vector<uint64_t> scopeStack;
     uint64_t currentScope;
     uint64_t rootIndex;
+    
+    std::unordered_map<DataType, std::unordered_map<std::string, std::string>> typeMethods;
 
     // logs
     void addLog(const std::string& type, const std::string& message, size_t position = 0);
@@ -617,7 +619,7 @@ private:
     ASTNode parseImportCommand();
 
     Value executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos);
-    Value concatenateStrings(const Value& left, const Value& right);
+    Value doubleDot(const Value& left, const Value& right);
     Value evaluateExpression(const Value& left, const std::string& op, const Value& right, bool doExecute);
     Value handleInequality(const Value& value);
     Value handleConditional(const Value& condition, const Value& thenVal, const Value& elseVal,
