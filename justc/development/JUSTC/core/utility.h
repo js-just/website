@@ -290,5 +290,14 @@ public:
         }
     }
 };
+class StringEscape {
+public:
+    static std::string unescape(const std::string& str);
+    static std::string escape(const std::string& str);
+    static bool isValidEscape(const std::string& str);
+private:
+    static char hexToChar(char c);
+    static std::string codepointToUTF8(uint32_t cp);
+};
 
 #endif

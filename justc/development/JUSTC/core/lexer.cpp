@@ -164,15 +164,14 @@ void Lexer::readMultiLineComment() {
     }
 }
 
-ParserToken Lexer::readString(char quote) {
+ParserToken Lexer::readString(char quote, bool raw) {
     size_t start = ++position;
     std::string value = "";
-    while (position < input.length() &&
-           (input[position] != quote ||
-           (input[position] == quote && position > 0 && input[position - 1] == '\\'))) {
-        value += input[position++];
+    while (position < input.length() && (input[position] != quote || (input[position] == quote && position > 0 && input[position - 1] == '\\'))) {
+        if (!(input[position] == '\\' && input[position + 1] == quote)) value += input[position++];
     }
     position++;
+    if (!raw) value = StringEscape::unescape(value);
     return ParserToken{"string", value, start};
 }
 
@@ -472,7 +471,7 @@ void Lexer::tokenize() {
 
         if (ch == '"' || ch == '\'') {
             addDollarBefore();
-            tokens.push_back(readString(ch));
+            tokens.push_back(readString(ch, ch == '\''));
             continue;
         }
 

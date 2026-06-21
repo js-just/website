@@ -75,7 +75,7 @@ private:
     char peek(size_t offset = 1) const;
     void readComment();
     void readMultiLineComment();
-    ParserToken readString(char quote);
+    ParserToken readString(char quote, bool raw = false);
     ParserToken readLink();
     ParserToken readNumber();
     ParserToken readIdentifier();

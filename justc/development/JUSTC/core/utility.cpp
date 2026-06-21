@@ -261,7 +261,7 @@ std::string Utility::_stringifyValue(const Value& value, int indentLevel) {
             return "0o" + double2octString(value.number_value);
 
         case DataType::STRING:
-            return "\"" + escapeJUSTCString(value.string_value) + "\"";
+            return "\"" + StringEscape::escape(value.string_value) + "\"";
 
         case DataType::LINK:
             return "<" + escapeJUSTCString(value.string_value) + ">";
@@ -355,4 +355,225 @@ std::string Utility::_stringifyValue(const Value& value, int indentLevel) {
 
 std::string Utility::stringifyValue(const Value& value) {
     return "return " + _stringifyValue(value, 0) + " .";
+}
+
+char StringEscape::hexToChar(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return 0;
+}
+
+std::string StringEscape::codepointToUTF8(uint32_t cp) {
+    std::string result;
+    if (cp < 0x80) {
+        result += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        result += static_cast<char>(0xC0 | (cp >> 6));
+        result += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        result += static_cast<char>(0xE0 | (cp >> 12));
+        result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        result += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+        result += static_cast<char>(0xF0 | (cp >> 18));
+        result += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        result += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+    return result;
+}
+
+std::string StringEscape::unescape(const std::string& str) {
+    std::string result;
+    result.reserve(str.length());
+    
+    for (size_t i = 0; i < str.length(); i++) {
+        char c = str[i];
+        
+        if (c == '\\' && i + 1 < str.length()) {
+            char next = str[i + 1];
+            i++;
+            
+            switch (next) {
+                case 'n':  result += '\n'; break;
+                case 'r':  result += '\r'; break;
+                case 't':  result += '\t'; break;
+                case 'v':  result += '\v'; break;
+                case 'f':  result += '\f'; break;
+                case 'b':  result += '\b'; break;
+                case 'a':  result += '\a'; break;
+                case '\\': result += '\\'; break;
+                case '"':  result += '"';  break;
+                case '\'': result += '\''; break;
+                case '?':  result += '?';  break;
+                
+                case '0': case '1': case '2': case '3':
+                case '4': case '5': case '6': case '7': {
+                    std::string octal;
+                    octal += next;
+                    
+                    for (int j = 0; j < 2 && i + 1 < str.length(); j++) {
+                        char nextChar = str[i + 1];
+                        if (nextChar >= '0' && nextChar <= '7') {
+                            octal += nextChar;
+                            i++;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    int value = 0;
+                    for (char oct : octal) {
+                        value = (value << 3) + (oct - '0');
+                    }
+                    
+                    if (value <= 0xFF) {
+                        result += static_cast<char>(value);
+                    } else {
+                        result += codepointToUTF8(value);
+                    }
+                    break;
+                }
+                
+                case 'u': {
+                    if (i + 4 < str.length()) {
+                        std::string hex = str.substr(i + 1, 4);
+                        bool valid = true;
+                        for (char h : hex) {
+                            if (!((h >= '0' && h <= '9') || 
+                                  (h >= 'a' && h <= 'f') || 
+                                  (h >= 'A' && h <= 'F'))) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        
+                        if (valid) {
+                            uint32_t cp = 0;
+                            for (char h : hex) {
+                                cp = (cp << 4) + hexToChar(h);
+                            }
+                            result += codepointToUTF8(cp);
+                            i += 4;
+                        } else {
+                            result += next;
+                        }
+                    } else {
+                        result += next;
+                    }
+                    break;
+                }
+                
+                case 'U': {
+                    if (i + 8 < str.length()) {
+                        std::string hex = str.substr(i + 1, 8);
+                        bool valid = true;
+                        for (char h : hex) {
+                            if (!((h >= '0' && h <= '9') || 
+                                  (h >= 'a' && h <= 'f') || 
+                                  (h >= 'A' && h <= 'F'))) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        
+                        if (valid) {
+                            uint32_t cp = 0;
+                            for (char h : hex) {
+                                cp = (cp << 4) + hexToChar(h);
+                            }
+                            result += codepointToUTF8(cp);
+                            i += 8;
+                        } else {
+                            result += next;
+                        }
+                    } else {
+                        result += next;
+                    }
+                    break;
+                }
+                
+                case 'x': {
+                    if (i + 2 < str.length()) {
+                        std::string hex = str.substr(i + 1, 2);
+                        bool valid = true;
+                        for (char h : hex) {
+                            if (!((h >= '0' && h <= '9') || 
+                                  (h >= 'a' && h <= 'f') || 
+                                  (h >= 'A' && h <= 'F'))) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        
+                        if (valid) {
+                            int value = (hexToChar(hex[0]) << 4) + hexToChar(hex[1]);
+                            result += static_cast<char>(value);
+                            i += 2;
+                        } else {
+                            result += next;
+                        }
+                    } else {
+                        result += next;
+                    }
+                    break;
+                }
+                
+                default:
+                    result += next;
+                    break;
+            }
+        } else {
+            result += c;
+        }
+    }
+    
+    return result;
+}
+
+std::string StringEscape::escape(const std::string& str) {
+    std::string result;
+    result.reserve(str.length() * 2);
+    
+    for (char c : str) {
+        switch (c) {
+            case '\n': result += "\\n"; break;
+            case '\r': result += "\\r"; break;
+            case '\t': result += "\\t"; break;
+            case '\v': result += "\\v"; break;
+            case '\f': result += "\\f"; break;
+            case '\b': result += "\\b"; break;
+            case '\a': result += "\\a"; break;
+            case '\\': result += "\\\\"; break;
+            case '"':  result += "\\\""; break;
+            case '\'': result += "\\'"; break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    char buf[5];
+                    snprintf(buf, sizeof(buf), "\\x%02x", static_cast<unsigned char>(c));
+                    result += buf;
+                } else {
+                    result += c;
+                }
+                break;
+        }
+    }
+    
+    return result;
+}
+
+bool StringEscape::isValidEscape(const std::string& str) {
+    for (size_t i = 0; i < str.length(); i++) {
+        if (str[i] == '\\') {
+            if (i + 1 >= str.length()) return false;
+            
+            char next = str[i + 1];
+            std::string validEscapes = "nrtvfba\\\"\'?01234567uUx";
+            if (validEscapes.find(next) == std::string::npos) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
