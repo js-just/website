@@ -167,10 +167,28 @@ void Lexer::readMultiLineComment() {
 ParserToken Lexer::readString(char quote, bool raw) {
     size_t start = ++position;
     std::string value = "";
-    while (position < input.length() && (input[position] != quote || (input[position] == quote && position > 0 && input[position - 1] == '\\'))) {
-        if (!(input[position] == '\\' && input[position + 1] == quote)) value += input[position++];
+    
+    while (position < input.length()) {
+        char ch = input[position];
+        
+        if (ch == '\\' && position + 1 < input.length()) {
+            if (input[position + 1] == quote) {
+                position += 2;
+                value += quote;
+            } else {
+                value += ch;
+                value += input[position + 1];
+                position += 2;
+            }
+        } else if (ch == quote) {
+            position++;
+            break;
+        } else {
+            value += ch;
+            position++;
+        }
     }
-    position++;
+    
     if (!raw) value = StringEscape::unescape(value);
     return ParserToken{"string", value, start};
 }
