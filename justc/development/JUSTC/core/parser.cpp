@@ -1094,7 +1094,11 @@ ParseResult Parser::parse(bool doExecute) {
                     throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
                 }
             } else {
-                throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+                try {
+                    parseExpression(doExecute);
+                } catch (...) {
+                    throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
+                }
             }
 
             skipCommas();
@@ -1918,7 +1922,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
     return node;
 }
 
-Value Parser::parseExpression(bool doExecute, bool identifierMode) {
+Value Parser::parseExpression(bool doExecute, bool identifierMode, bool doFunctionCall) {
     if (match("keyword", "function") || match("keyword", "isolated")) {
         std::string funcName = std::to_string(position);
         bool gotName = false;
@@ -1935,11 +1939,11 @@ Value Parser::parseExpression(bool doExecute, bool identifierMode) {
         }
         return parseFunctionDeclaration(doExecute, funcName, false);
     }
-    return parseConditional(doExecute, identifierMode);
+    return parseConditional(doExecute, identifierMode, doFunctionCall);
 }
 
-Value Parser::parseConditional(bool doExecute, bool identifierMode) {
-    Value condition = parseBitwiseOR(doExecute, identifierMode);
+Value Parser::parseConditional(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value condition = parseBitwiseOR(doExecute, identifierMode, doFunctionCall);
 
     if (!identifierMode) {
         if (match("keyword", "then") || match("==")) {
@@ -1992,60 +1996,60 @@ Value Parser::parseConditional(bool doExecute, bool identifierMode) {
     return condition;
 }
 
-Value Parser::parseBitwiseOR(bool doExecute, bool identifierMode) {
-    Value left = parseBitwiseXOR(doExecute, identifierMode);
+Value Parser::parseBitwiseOR(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseBitwiseXOR(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "OR") || match("|")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseBitwiseXOR(doExecute, identifierMode);
+        Value right = parseBitwiseXOR(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
-Value Parser::parseBitwiseXOR(bool doExecute, bool identifierMode) {
-    Value left = parseBitwiseAND(doExecute, identifierMode);
+Value Parser::parseBitwiseXOR(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseBitwiseAND(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "XOR") || match("^")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseBitwiseAND(doExecute, identifierMode);
+        Value right = parseBitwiseAND(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
-Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
-    Value left = parseBitwiseNOT(doExecute, identifierMode);
+Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseBitwiseNOT(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "AND") || match("&")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseBitwiseNOT(doExecute, identifierMode);
+        Value right = parseBitwiseNOT(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
-Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
-    Value left = parsePipelineOrMethodCall(doExecute, identifierMode);
+Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parsePipelineOrMethodCall(doExecute, identifierMode, doFunctionCall);
 
     while (match("<<") || match(">>")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePipelineOrMethodCall(doExecute, identifierMode);
+        Value right = parsePipelineOrMethodCall(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
+Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode, bool doFunctionCall) {
     if (match("keyword", "NOT") || match("~")) {
         Value left;
 
@@ -2053,17 +2057,17 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
             std::string op = currentToken().value;
             advance();
 
-            Value right = parseBitwiseSHIFT(doExecute, identifierMode);
+            Value right = parseBitwiseSHIFT(doExecute, identifierMode, doFunctionCall);
             left = evaluateExpression(left, op, right, doExecute);
         }
 
         return left;
     }
-    else return parseBitwiseSHIFT(doExecute, identifierMode);
+    else return parseBitwiseSHIFT(doExecute, identifierMode, doFunctionCall);
 }
 
-Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode) {
-    Value left = parseElvisOrNullCoalescing(doExecute, identifierMode);
+Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseElvisOrNullCoalescing(doExecute, identifierMode, doFunctionCall);
 
     while (match("|>") || (
         left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && (match("[") ||
@@ -2073,29 +2077,29 @@ Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseElvisOrNullCoalescing(doExecute, true);
+        Value right = parseElvisOrNullCoalescing(doExecute, true, false);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseElvisOrNullCoalescing(bool doExecute, bool identifierMode) {
-    Value left = parseLogicalOR(doExecute, identifierMode);
+Value Parser::parseElvisOrNullCoalescing(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseLogicalOR(doExecute, identifierMode, doFunctionCall);
 
     while (match("?:") || match("??")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseLogicalOR(doExecute, identifierMode);
+        Value right = parseLogicalOR(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseLogicalOR(bool doExecute, bool identifierMode) {
-    Value left = parseLogicalXOR(doExecute, identifierMode);
+Value Parser::parseLogicalOR(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseLogicalXOR(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "or") || match("||") ||
            match("keyword", "orn't") || match("!|") ||
@@ -2104,29 +2108,29 @@ Value Parser::parseLogicalOR(bool doExecute, bool identifierMode) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseLogicalXOR(doExecute, identifierMode);
+        Value right = parseLogicalXOR(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseLogicalXOR(bool doExecute, bool identifierMode) {
-    Value left = parseLogicalAND(doExecute, identifierMode);
+Value Parser::parseLogicalXOR(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseLogicalAND(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "xor") || match("keyword", "xnor")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseLogicalAND(doExecute, identifierMode);
+        Value right = parseLogicalAND(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseLogicalAND(bool doExecute, bool identifierMode) {
-    Value left = parseLogicalIMPLY(doExecute, identifierMode);
+Value Parser::parseLogicalAND(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseLogicalIMPLY(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "and") || match("&&") ||
            match("keyword", "andn't") || match("!&") ||
@@ -2135,29 +2139,29 @@ Value Parser::parseLogicalAND(bool doExecute, bool identifierMode) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseLogicalIMPLY(doExecute, identifierMode);
+        Value right = parseLogicalIMPLY(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseLogicalIMPLY(bool doExecute, bool identifierMode) {
-    Value left = parseEquality(doExecute, identifierMode);
+Value Parser::parseLogicalIMPLY(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseEquality(doExecute, identifierMode, doFunctionCall);
 
     while (match("keyword", "imply") || match("keyword", "nimply")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseEquality(doExecute, identifierMode);
+        Value right = parseEquality(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseEquality(bool doExecute, bool identifierMode) {
-    Value left = parseComparison(doExecute, identifierMode);
+Value Parser::parseEquality(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseComparison(doExecute, identifierMode, doFunctionCall);
 
     if (!identifierMode) {
         while (match("keyword", "is") || match("=") ||
@@ -2167,7 +2171,7 @@ Value Parser::parseEquality(bool doExecute, bool identifierMode) {
             std::string op = currentToken().value;
             advance();
 
-            Value right = parseComparison(doExecute, identifierMode);
+            Value right = parseComparison(doExecute, identifierMode, doFunctionCall);
             left = evaluateExpression(left, op, right, doExecute);
         }
     }
@@ -2175,70 +2179,70 @@ Value Parser::parseEquality(bool doExecute, bool identifierMode) {
     return left;
 }
 
-Value Parser::parseComparison(bool doExecute, bool identifierMode) {
-    Value left = parseTerm(doExecute, identifierMode);
+Value Parser::parseComparison(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseTerm(doExecute, identifierMode, doFunctionCall);
 
     while (match("<") || match(">") || match("<=") || match(">=")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseTerm(doExecute, identifierMode);
+        Value right = parseTerm(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseTerm(bool doExecute, bool identifierMode) {
-    Value left = parseFactor(doExecute, identifierMode);
+Value Parser::parseTerm(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseFactor(doExecute, identifierMode, doFunctionCall);
 
     while (match("+") || match("minus") || match("..")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseFactor(doExecute, identifierMode);
+        Value right = parseFactor(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseFactor(bool doExecute, bool identifierMode) {
-    Value left = parsePower(doExecute, identifierMode);
+Value Parser::parseFactor(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parsePower(doExecute, identifierMode, doFunctionCall);
 
     while (match("*") || match("/") || match("%") || (match(":") && !identifierMode)) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePower(doExecute, identifierMode);
-        if (match(":") && !Utility::checkNumber(right)) right = parsePower(doExecute, true); // method call
+        Value right = parsePower(doExecute, identifierMode, doFunctionCall);
+        if (match(":") && !Utility::checkNumber(right)) right = parsePower(doExecute, true, false); // method call
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parsePower(bool doExecute, bool identifierMode) {
-    Value left = parseUnary(doExecute, identifierMode);
+Value Parser::parsePower(bool doExecute, bool identifierMode, bool doFunctionCall) {
+    Value left = parseUnary(doExecute, identifierMode, doFunctionCall);
 
     while (match("**")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseUnary(doExecute, identifierMode);
+        Value right = parseUnary(doExecute, identifierMode, doFunctionCall);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
     return left;
 }
 
-Value Parser::parseUnary(bool doExecute, bool identifierMode) {
+Value Parser::parseUnary(bool doExecute, bool identifierMode, bool doFunctionCall) {
     if ((match("minus") && !identifierMode) || match("+") || match("!") ||
         (match("-") && !identifierMode) || match("#")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseUnary(doExecute, identifierMode);
+        Value right = parseUnary(doExecute, identifierMode, doFunctionCall);
 
         if (op == "#") {
             return evaluateLengthOperator(right);
@@ -2257,10 +2261,10 @@ Value Parser::parseUnary(bool doExecute, bool identifierMode) {
         match("keyword", "NOT") || match("<<") || match(">>") || match("keyword", "AND") || match("&") ||
         match("keyword", "XOR") || match("^") || match("keyword", "OR") || match("|")
     ) {
-        return parseBitwiseOR(doExecute, identifierMode);
+        return parseBitwiseOR(doExecute, identifierMode, doFunctionCall);
     }
 
-    return parsePrimary(doExecute);
+    return parsePrimary(doExecute, doFunctionCall);
 }
 
 Value Parser::evaluateLengthOperator(const Value& value) {
@@ -2335,7 +2339,7 @@ Value Parser::astNodeToValue(const ASTNode& node) {
     }
 }
 
-Value Parser::parsePrimary(bool doExecute) {
+Value Parser::parsePrimary(bool doExecute, bool doFunctionCall) {
     if (match("number")) {
         std::string numStr = currentToken().value;
         double num = parseNumber(numStr);
@@ -2408,9 +2412,9 @@ Value Parser::parsePrimary(bool doExecute) {
         }
 
         if (peekToken().type == "(") {
-            return parseFunctionCall(doExecute);
+            return parseFunctionCall(doExecute, doFunctionCall);
         } else if (peekToken().type == "::") {
-            return parseSpaceCall(doExecute);
+            return parseSpaceCall(doExecute, doFunctionCall);
         }
 
         Value result;
@@ -2424,11 +2428,11 @@ Value Parser::parsePrimary(bool doExecute) {
         }
     }
     else if (match("keyword") && peekToken().type == "(") {
-        return parseFunctionCall(doExecute);
+        return parseFunctionCall(doExecute, doFunctionCall);
     }
     else if (match("(")) {
         advance();
-        Value result = parseExpression(doExecute);
+        Value result = parseExpression(doExecute, false, doFunctionCall);
         if (!match(")")) {
             throw std::runtime_error("Expected \")\" at " + Utility::position(currentToken().start, input) + ".");
         }
@@ -2558,7 +2562,7 @@ Value Parser::parsePrimary(bool doExecute) {
     throw std::runtime_error("Invalid or unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
 }
 
-Value Parser::parseFunctionCall(bool doExecute) {
+Value Parser::parseFunctionCall(bool doExecute, bool doFunctionCall) {
     std::string funcName = currentToken().value;
     size_t startPos = currentToken().start;
 
@@ -2573,10 +2577,10 @@ Value Parser::parseFunctionCall(bool doExecute) {
     }
 
     Value funcValue = resolveVariableValue(funcName, false);
-
+    advance();
+    if (!doFunctionCall) return funcValue;
+    
     if (funcValue.type == DataType::FUNCTION) {
-        advance();
-
         if (!match("(")) {
             throw std::runtime_error("Expected '(' after function name at " + Utility::position(currentToken().start, input) + ".");
         }
@@ -2595,8 +2599,6 @@ Value Parser::parseFunctionCall(bool doExecute) {
 
         return callFunction(funcValue, args, currentToken().start, doExecute);
     } else {
-        advance();
-
         if (!match("(")) {
             throw std::runtime_error("Expected '(' after function name at " + Utility::position(currentToken().start, input) + ".");
         }
@@ -2616,7 +2618,7 @@ Value Parser::parseFunctionCall(bool doExecute) {
         return executeFunction(funcName, args, currentToken().start);
     }
 }
-Value Parser::parseSpaceCall(bool doExecute) {
+Value Parser::parseSpaceCall(bool doExecute, bool doFunctionCall) {
     std::string spaceName = currentToken().value;
     advance();
 
@@ -2626,7 +2628,7 @@ Value Parser::parseSpaceCall(bool doExecute) {
     advance();
 
     tokens[position].value = spaceName + "::" + currentToken().value;
-    return parseFunctionCall(doExecute);
+    return parseFunctionCall(doExecute, doFunctionCall);
 }
 
 ASTNode Parser::parseCommand(bool doExecute) {
