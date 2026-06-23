@@ -164,13 +164,30 @@ std::string Value::toString() const {
         case DataType::INFINITE:
             return "Infinity";
         case DataType::JUSTC_OBJECT:
+        case DataType::JSON_OBJECT:
             return "[object " + name + "]";
+        case DataType::JSON_ARRAY:
+            return "[array " + name + "]";
         case DataType::CLASS:
             return "[class " + name + "]";
         case DataType::SPACE:
             return "[space " + name + "]";
         default:
             return "unknown";
+    }
+}
+std::string Value::toIdentifier() const {
+    switch (type) {
+        case DataType::UNKNOWN:
+        case DataType::FUNCTION:
+        case DataType::JUSTC_OBJECT:
+        case DataType::JSON_OBJECT:
+        case DataType::JSON_ARRAY:
+        case DataType::CLASS:
+        case DataType::SPACE:
+            return name;
+        default:
+            return toString();
     }
 }
 
@@ -1005,7 +1022,7 @@ ParseResult Parser::parse(bool doExecute) {
                     auto it = typeMethods.find(var.type);
 
                     if (var.type != DataType::UNKNOWN && it != typeMethods.end()) {
-                        std::string funcName = parseExpression(doExecute, true).toString();
+                        std::string funcName = parseExpression(doExecute, true, false).toIdentifier();
                         auto itFunc = typeMethods[var.type].find(funcName);
 
                         if (itFunc != typeMethods[var.type].end() && match("(")) {
@@ -1093,13 +1110,15 @@ ParseResult Parser::parse(bool doExecute) {
                 } catch (...) {
                     throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
                 }
-            } else {
+            } else if (position == 0 || (
+                tokens[position - 1].type == "," || tokens[position - 1].type == ";"
+            )) {
                 try {
                     parseExpression(doExecute);
                 } catch (...) {
                     throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
                 }
-            }
+            } else throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
 
             skipCommas();
         }
@@ -3650,7 +3669,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
 
     else if ((op == ":" || op == ".") && doExecute) {
         auto it = typeMethods.find(left.type);
-        std::string funcName = right.toString();
+        std::string funcName = right.toIdentifier();
         if (it != typeMethods.end()) {
             auto itFunc = typeMethods[left.type].find(funcName);
             if (itFunc != typeMethods[left.type].end()) {

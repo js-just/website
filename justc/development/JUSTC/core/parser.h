@@ -326,6 +326,7 @@ struct Value {
     Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
 
     std::string toString() const;
+    std::string toIdentifier() const;
     double toNumber() const;
     bool toBoolean() const;
 
