@@ -172,6 +172,38 @@ std::string Value::toString() const {
             return "[class " + name + "]";
         case DataType::SPACE:
             return "[space " + name + "]";
+        case DataType::FUNCTION: {
+            std::stringstream ae;
+            bool first = true;
+            for (Value val : array_elements) {
+                if (!first) ae << " ";
+                std::string td = dataTypeToTypeDecl(val.type);
+                ae << val.name;
+                if (td != "auto") ae << " : " << td;
+                first = false;
+            }
+            
+            std::stringstream args;
+            first = true;
+            for (size_t i = 0; i < function_info.paramNames.size(); i++) {
+                std::string arg = function_info.paramNames[i];
+                if (!first) args << " ";
+                std::string td = dataTypeToTypeDecl(function_info.paramTypes[i]);
+                Value dv = function_info.defaultValues[i];
+
+                args << arg;
+                if (td != "auto") args << " : " << td;
+                if (dv.type != DataType::UNKNOWN && dv.type != DataType::NULL_TYPE) args << " = " << dv.toString();
+                
+                first = false;
+            }
+
+            return std::string("[") + (
+                function_info.isIsolated ? "isolated " : ""
+            ) + "function" + name + (
+                array_elements.size() > 0 ? " [" + ae.str() + "] " : ""
+            ) + "(" + args.str() + ") {" + string_value + "}]";
+        }
         default:
             return "unknown";
     }

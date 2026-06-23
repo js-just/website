@@ -114,7 +114,7 @@ std::string YamlSerializer::valueToYaml(const Value& value) {
         case DataType::INFINITE:
             return ".inf";
         default:
-            return "invalid";
+            return escapeYamlString(value.toString());
     }
 }
 

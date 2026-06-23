@@ -90,7 +90,7 @@ std::string XmlSerializer::valueToXml(const Value& value) {
         case DataType::INFINITE:
             return "Infinity";
         default:
-            return "invalid";
+            return escapeXmlString(value.toString());
     }
 }
 

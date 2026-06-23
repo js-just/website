@@ -144,6 +144,23 @@ inline std::string dataTypeToString(DataType type) {
         default:                     return "invalid";
     }
 };
+inline std::string dataTypeToTypeDecl(DataType type) {
+    switch (type) {
+        case DataType::JUSTC_OBJECT: return "object";
+        case DataType::NUMBER:       return "number";
+        case DataType::STRING:       return "string";
+        case DataType::LINK:         return "Link";
+        case DataType::BOOLEAN:      return "boolean";
+        case DataType::JSON_OBJECT:  return "object";
+        case DataType::JSON_ARRAY:   return "array";
+        case DataType::HEXADECIMAL:  return "number";
+        case DataType::BINARY:       return "number";
+        case DataType::OCTAL:        return "number";
+        case DataType::BINARY_DATA:  return "data";
+        case DataType::BIGNUM:       return "number";
+        default:                     return "auto";
+    }
+};
 
 enum class NumericType : uint8_t {
     NONE = 0,

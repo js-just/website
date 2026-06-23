@@ -131,7 +131,7 @@ std::string JsonSerializer::valueToJson(const Value& value) {
             return ss.str();
         }
         default:
-            return "\"invalid\"";
+            return "\"" + escapeJsonString(value.toString()) + "\"";
     }
 }
 
