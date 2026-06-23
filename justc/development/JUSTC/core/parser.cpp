@@ -3327,7 +3327,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             throw std::runtime_error("Unexpected operator \"*\" at " + Utility::position(currentToken().start, input) + ".");
         }
     }
-    else if (op == "/" || op == ":") {
+    else if (op == "/" || (op == ":" && Utility::checkNumber(right))) {
         if (Utility::checkNumbers(left, right)) {
             double divisor = right.toNumber();
             if (divisor == 0) {
@@ -3610,6 +3610,24 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             case DataType::JSON_ARRAY: 
                 return index < left.array_elements.size() ? left.array_elements[index] : Value::createNull();
             default: break;
+        }
+    }
+
+    else if (op == ":" && doExecute) {
+        auto it = typeMethods.find(left.type);
+        std::string funcName = right.toString();
+        if (it != typeMethods.end()) {
+            auto itFunc = typeMethods[left.type].find(funcName);
+            if (itFunc != typeMethods[left.type].end()) {
+                if (match("(")) {
+                    std::vector<Value> args = {left};
+                    std::vector<Value> additionalArgs = parseArguments(doExecute);
+                    args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+                    return executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
+                } else {
+                    return executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
+                }
+            }
         }
     }
 
