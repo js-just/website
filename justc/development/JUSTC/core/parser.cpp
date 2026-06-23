@@ -2695,6 +2695,8 @@ Value Parser::onExecDisabled(size_t startPos, std::string name) {
 }
 
 Value Parser::executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos) {
+    std::cout << funcName << " (" << args.size() << ") at " + Utility::position(startPos, input) << std::endl;
+    addLog("ECHO", funcName, startPos);
     if (!doExecute) {
         return onExecDisabled(startPos, funcName);
     }
