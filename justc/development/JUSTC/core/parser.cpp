@@ -3599,9 +3599,11 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     else if (op == "." && doExecute) {
         auto it = typeMethods.find(left.type);
         std::string funcName = right.toString();
+        std::cout << funcName << std::endl;
         if (it != typeMethods.end()) {
             auto itFunc = typeMethods[left.type].find(funcName);
             if (itFunc != typeMethods[left.type].end()) {
+                std::cout << typeMethods[left.type][funcName] << std::endl;
                 if (match("(")) {
                     std::vector<Value> args = {left};
                     std::vector<Value> additionalArgs = parseArguments(doExecute);
