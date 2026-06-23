@@ -2004,13 +2004,13 @@ Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
     return left;
 }
 Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
-    Value left = parsePipeline(doExecute, identifierMode);
+    Value left = parsePipelineOrMethodCall(doExecute, identifierMode);
 
     while (match("<<") || match(">>")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePipeline(doExecute, identifierMode);
+        Value right = parsePipelineOrMethodCall(doExecute, identifierMode);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2034,10 +2034,12 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
     else return parseBitwiseSHIFT(doExecute, identifierMode);
 }
 
-Value Parser::parsePipeline(bool doExecute, bool identifierMode) {
+Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode) {
     Value left = parseElvisOrNullCoalescing(doExecute, identifierMode);
 
-    while (match("|>")) {
+    while (match("|>") || (left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && ((
+        match(".") && position + 1 < tokens.size()
+    ) || match("[")))) {
         std::string op = currentToken().value;
         advance();
 
@@ -3591,6 +3593,42 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             result = booleanToValue(Unicode::EqualsIgnoreCase(left.name, right.name));
         } else {
             result = booleanToValue(left.toBoolean() == right.toBoolean());
+        }
+    }
+
+    else if (op == "." && doExecute) {
+        auto it = typeMethods.find(left.type);
+        std::string funcName = right.toString();
+        if (it != typeMethods.end()) {
+            auto itFunc = typeMethods[left.type].find(funcName);
+            if (itFunc != typeMethods[left.type].end()) {
+                if (match("(")) {
+                    std::vector<Value> args = {left};
+                    std::vector<Value> additionalArgs = parseArguments(doExecute);
+                    args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+                    return executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
+                } else {
+                    return executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
+                }
+            }
+        }
+    }
+    else if (op == "[" && doExecute) {
+        if (!match("]")) throw std::runtime_error("Expected \"]\" to close index access at " + Utility::position(currentToken().start, input) + ".");
+        advance();
+
+        size_t index = static_cast<size_t>(right.toNumber());
+        switch (left.type) {
+            case DataType::STRING:
+            case DataType::LINK:
+                return executeFunction("String::Slice", {
+                    stringToValue(left.toString()), 
+                    numberToValue(static_cast<double>(index)), 
+                    numberToValue(static_cast<double>(index + 1))
+                }, currentToken().start);
+            case DataType::JSON_ARRAY: 
+                return index < left.array_elements.size() ? left.array_elements[index] : Value::createNull();
+            default: break;
         }
     }
 
