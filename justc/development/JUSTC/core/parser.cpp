@@ -999,6 +999,34 @@ ParseResult Parser::parse(bool doExecute) {
                     tokens = newTokens;
 
                     position = originalPos;
+                } else if (doExecute && match(":")) {
+                    advance();
+                    Value var = resolveVariableValue(identifier, false);
+                    auto it = typeMethods.find(var.type);
+
+                    if (var.type != DataType::UNKNOWN && it != typeMethods.end()) {
+                        std::string funcName = parseExpression(doExecute, true).toString();
+                        auto itFunc = typeMethods[var.type].find(funcName);
+
+                        if (itFunc != typeMethods[var.type].end() && match("(")) {
+                            checkVariableNameAvailable(identifier);
+
+                            std::vector<Value> args = {var};
+                            std::vector<Value> additionalArgs = parseArguments(doExecute);
+                            args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+                            Value result = executeFunction(typeMethods[var.type][funcName], args, currentToken().start);
+
+                            ASTNode node("VARIABLE_DECLARATION", result.name, currentToken().start);
+                            node.value = result;
+                            variables[result.name] = result;
+
+                            ast.push_back(node);
+                            skipCommas();
+                            continue;
+                        }
+                    }
+                    
+                    position = originalPos;
                 }
 
                 if (isIdentifier && (identifier == "echo" || identifier == "log" || identifier == "logfile")) {
@@ -2004,13 +2032,13 @@ Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
     return left;
 }
 Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
-    Value left = parsePipelineOrIndexAccess(doExecute, identifierMode);
+    Value left = parsePipelineOrMethodCall(doExecute, identifierMode);
 
     while (match("<<") || match(">>")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePipelineOrIndexAccess(doExecute, identifierMode);
+        Value right = parsePipelineOrMethodCall(doExecute, identifierMode);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2034,14 +2062,18 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
     else return parseBitwiseSHIFT(doExecute, identifierMode);
 }
 
-Value Parser::parsePipelineOrIndexAccess(bool doExecute, bool identifierMode) {
+Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode) {
     Value left = parseElvisOrNullCoalescing(doExecute, identifierMode);
 
-    while (match("|>") || (left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && match("["))) {
+    while (match("|>") || (
+        left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && (match("[") ||
+            (match(".") && position + 1 < tokens.size())
+        )
+    )) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseElvisOrNullCoalescing(doExecute, identifierMode);
+        Value right = parseElvisOrNullCoalescing(doExecute, true);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2179,6 +2211,7 @@ Value Parser::parseFactor(bool doExecute, bool identifierMode) {
         advance();
 
         Value right = parsePower(doExecute, identifierMode);
+        if (match(":") && !Utility::checkNumber(right)) right = parsePower(doExecute, true); // method call
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2695,8 +2728,6 @@ Value Parser::onExecDisabled(size_t startPos, std::string name) {
 }
 
 Value Parser::executeFunction(const std::string& funcName, const std::vector<Value>& args, size_t startPos) {
-    std::cout << funcName << " (" << args.size() << ") at " + Utility::position(startPos, input) << std::endl;
-    addLog("ECHO", funcName, startPos);
     if (!doExecute) {
         return onExecDisabled(startPos, funcName);
     }
@@ -3615,7 +3646,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
         }
     }
 
-    else if (op == ":" && doExecute) {
+    else if ((op == ":" || op == ".") && doExecute) {
         auto it = typeMethods.find(left.type);
         std::string funcName = right.toString();
         if (it != typeMethods.end()) {
