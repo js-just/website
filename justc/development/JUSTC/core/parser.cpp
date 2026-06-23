@@ -2004,13 +2004,13 @@ Value Parser::parseBitwiseAND(bool doExecute, bool identifierMode) {
     return left;
 }
 Value Parser::parseBitwiseSHIFT(bool doExecute, bool identifierMode) {
-    Value left = parsePipelineOrMethodCall(doExecute, identifierMode);
+    Value left = parsePipelineOrIndexAccess(doExecute, identifierMode);
 
     while (match("<<") || match(">>")) {
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePipelineOrMethodCall(doExecute, identifierMode);
+        Value right = parsePipelineOrIndexAccess(doExecute, identifierMode);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2034,12 +2034,10 @@ Value Parser::parseBitwiseNOT(bool doExecute, bool identifierMode) {
     else return parseBitwiseSHIFT(doExecute, identifierMode);
 }
 
-Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode) {
+Value Parser::parsePipelineOrIndexAccess(bool doExecute, bool identifierMode) {
     Value left = parseElvisOrNullCoalescing(doExecute, identifierMode);
 
-    while (match("|>") || (left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && ((
-        match(".") && position + 1 < tokens.size()
-    ) || match("[")))) {
+    while (match("|>") || (left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && match("["))) {
         std::string op = currentToken().value;
         advance();
 
@@ -3595,26 +3593,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             result = booleanToValue(left.toBoolean() == right.toBoolean());
         }
     }
-
-    else if (op == "." && doExecute) {
-        auto it = typeMethods.find(left.type);
-        std::string funcName = right.toString();
-        std::cout << funcName << std::endl;
-        if (it != typeMethods.end()) {
-            auto itFunc = typeMethods[left.type].find(funcName);
-            if (itFunc != typeMethods[left.type].end()) {
-                std::cout << typeMethods[left.type][funcName] << std::endl;
-                if (match("(")) {
-                    std::vector<Value> args = {left};
-                    std::vector<Value> additionalArgs = parseArguments(doExecute);
-                    args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
-                    return executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
-                } else {
-                    return executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
-                }
-            }
-        }
-    }
+    
     else if (op == "[" && doExecute) {
         if (!match("]")) throw std::runtime_error("Expected \"]\" to close index access at " + Utility::position(currentToken().start, input) + ".");
         advance();
