@@ -959,7 +959,6 @@ void Parser::advance() {
     if (position < tokens.size()) {
         position++;
     }
-    addLog("ECHO", std::to_string(position), position);
 }
 
 bool Parser::match(const std::string& type) const {
@@ -3715,11 +3714,12 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                     std::vector<Value> additionalArgs = parseArguments(doExecute);
                     args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                     result = executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
-                } else {
-                    result = executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
-                }
-            }
-        }
+                } 
+                else throw std::runtime_error("Expected \"(\" for function call at " + Utility::position(currentToken().start, input) + ".");
+            } 
+            else throw std::runtime_error("<" + dataTypeToString(left.type) + ">" + op + funcName + " is not a function. Call attempt at " + Utility::position(currentToken().start, input) + ".");
+        } 
+        else throw std::runtime_error(errmsg);
     }
 
     else throw std::runtime_error(errmsg);
