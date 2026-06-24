@@ -176,7 +176,7 @@ std::string Value::toString() const {
             std::stringstream ae;
             bool first = true;
             for (Value val : array_elements) {
-                if (!first) ae << " ";
+                if (!first) ae << ", ";
                 std::string td = dataTypeToTypeDecl(val.type);
                 ae << val.name;
                 if (td != "auto") ae << " : " << td;
@@ -187,7 +187,7 @@ std::string Value::toString() const {
             first = true;
             for (size_t i = 0; i < function_info.paramNames.size(); i++) {
                 std::string arg = function_info.paramNames[i];
-                if (!first) args << " ";
+                if (!first) args << ", ";
                 std::string td = dataTypeToTypeDecl(function_info.paramTypes[i]);
                 Value dv = function_info.defaultValues[i];
 
@@ -198,11 +198,11 @@ std::string Value::toString() const {
                 first = false;
             }
 
-            return std::string("[") + (
+            return std::string(
                 function_info.isIsolated ? "isolated " : ""
-            ) + "function" + name + (
+            ) + "function " + name + (
                 array_elements.size() > 0 ? " [" + ae.str() + "] " : ""
-            ) + "(" + args.str() + ") {" + string_value + "}]";
+            ) + "(" + args.str() + ") {" + string_value + "}";
         }
         default:
             return "unknown";
@@ -959,6 +959,7 @@ void Parser::advance() {
     if (position < tokens.size()) {
         position++;
     }
+    addLog("ECHO", std::to_string(position), position);
 }
 
 bool Parser::match(const std::string& type) const {
@@ -3351,6 +3352,8 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     bool leftBool = left.toBoolean();
     bool rightBool = right.toBoolean();
 
+    std::string errmsg = "Unexpected operator \"" + op + "\" at " + Utility::position(currentToken().start, input) + ".";
+
     if (op == "+") {
         if (
             (left.type == DataType::STRING  && right.type == DataType::STRING ) ||
@@ -3688,13 +3691,15 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
         switch (left.type) {
             case DataType::STRING:
             case DataType::LINK:
-                return executeFunction("String::Slice", {
+                result = executeFunction("String::Slice", {
                     stringToValue(left.toString()), 
                     numberToValue(static_cast<double>(index)), 
                     numberToValue(static_cast<double>(index + 1))
                 }, currentToken().start);
+                break;
             case DataType::JSON_ARRAY: 
-                return index < left.array_elements.size() ? left.array_elements[index] : Value::createNull();
+                result = index < left.array_elements.size() ? left.array_elements[index] : Value::createNull();
+                break;
             default: break;
         }
     }
@@ -3709,17 +3714,16 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                     std::vector<Value> args = {left};
                     std::vector<Value> additionalArgs = parseArguments(doExecute);
                     args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
-                    return executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
+                    result = executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
                 } else {
-                    return executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
+                    result = executeFunction(typeMethods[left.type][funcName], {left}, currentToken().start);
                 }
             }
         }
     }
 
-    else {
-        throw std::runtime_error("Unexpected operator \"" + op + "\" at " + Utility::position(currentToken().start, input) + ".");
-    }
+    else throw std::runtime_error(errmsg);
+    if (result.type == DataType::UNKNOWN) throw std::runtime_error(errmsg);
 
     return result;
 }
