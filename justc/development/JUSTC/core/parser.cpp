@@ -1142,9 +1142,10 @@ ParseResult Parser::parse(bool doExecute) {
                             args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                             Value result = executeFunction(typeMethods[var.type][funcName], args, currentToken().start);
 
-                            ASTNode node("VARIABLE_DECLARATION", result.name, currentToken().start);
+                            ASTNode node("VARIABLE_DECLARATION", var.isVariable ? var.variable : result.name, currentToken().start);
                             node.value = result;
-                            variables[result.name] = result;
+                            if (var.isVariable) assign(var, result, " at " + Utility::position(currentToken().start, input) + ".");
+                            else variables[result.name] = result;
 
                             ast.push_back(node);
                             skipCommas();
@@ -1168,7 +1169,7 @@ ParseResult Parser::parse(bool doExecute) {
             } else if (match(endOfScript)) {
                 advance();
                 if (!isEnd()) {
-                    throw std::runtime_error("After end of script - Unexpected token \"" + tokens[position + 1].value + "\" at " + Utility::position(tokens[position + 1].start, input) + ".");
+                    throw std::runtime_error("After end of script - Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
                 }
                 break;
             } else if (match("JavaScript")) {
@@ -1227,6 +1228,8 @@ ParseResult Parser::parse(bool doExecute) {
                 } catch (...) {
                     throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
                 }
+            } else if (match("(")) {
+                parseExpression(doExecute);
             } else throw std::runtime_error("Unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
 
             skipCommas();
@@ -1846,7 +1849,7 @@ ASTNode Parser::parseGlobal(bool doExecute, bool constant) {
         global = parseVariableDeclaration(doExecute, constant, false, true);
     }
     global.type = "GLOBAL";
-    registerGlobal(global.identifier, global.value, constant);
+    registerGlobal(global.identifier, global.value, constant, true);
     return global;
 }
 
@@ -2000,6 +2003,34 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         position -= 2;
         parseCommand(doExecute);
     }
+    else if (match("--") || match("++") || match("#") || match("!") || match("~")) { // unary assignment
+        Value var = resolveVariableValue(identifier, false);
+        if (var.type == DataType::UNKNOWN) throw std::runtime_error("Assignment to undefined variable at " + Utility::position(currentToken().start, input) + ".");
+        
+        Value val = var;
+        if (match("--") || match("++")) {
+            val = Value::createNumber(var.toNumber() + (
+                match("++") ? 1 : -1
+            ));
+        } else if (match("#")) {
+            val = evaluateLengthOperator(var);
+        } else if (match("!")) {
+            val = booleanToValue(!var.toBoolean());
+        } else if (match("~")) {
+            if (Utility::checkNumber(var)) {
+                int num = static_cast<int>(var.toNumber());
+                val = numberToValue(~num);
+            } else if (var.type == DataType::STRING) {
+                val = stringToValue(Utility::stringNot(var.toString()));
+            } else {
+                throw std::runtime_error("Expected number or string for bitwise NOT operation at " + Utility::position(currentToken().start, input) + ".");
+            }
+        }
+        
+        advance();
+        node.value = val;
+        if (var.isVariable) assign(var, val, " at " + Utility::position(currentToken().start, input) + ".");
+    }
     else {
         if (isEnd()) {
             throw std::runtime_error("Expected assignment operator at " + Utility::position(currentToken().start, input) + ", got EOF.");
@@ -2067,7 +2098,32 @@ Value Parser::parseExpression(bool doExecute, bool identifierMode, bool doFuncti
         }
         return parseFunctionDeclaration(doExecute, funcName, false);
     }
-    return parseConditional(doExecute, identifierMode, doFunctionCall);
+    Value result = parseConditional(doExecute, identifierMode, doFunctionCall);
+
+    if (result.isVariable && (match("--") || match("++") || match("#") || match("!") || match("~"))) { // unary assignment
+        Value val = result;
+        if (match("--") || match("++")) {
+            val = Value::createNumber(result.toNumber() + (
+                match("++") ? 1 : -1
+            ));
+        } else if (match("#")) {
+            val = evaluateLengthOperator(result);
+        } else if (match("!")) {
+            val = booleanToValue(!result.toBoolean());
+        } else if (match("~")) {
+            if (Utility::checkNumber(result)) {
+                int num = static_cast<int>(result.toNumber());
+                val = numberToValue(~num);
+            } else if (result.type == DataType::STRING) {
+                val = stringToValue(Utility::stringNot(result.toString()));
+            } else {
+                throw std::runtime_error("Expected number or string for bitwise NOT operation at " + Utility::position(currentToken().start, input) + ".");
+            }
+        }
+        assign(result, val, " at " + Utility::position(currentToken().start, input) + ".");
+    }
+
+    return result;
 }
 
 Value Parser::parseConditional(bool doExecute, bool identifierMode, bool doFunctionCall) {
@@ -3517,6 +3573,32 @@ Value Parser::doubleDot(const Value& left, const Value& right) {
 
     return result;
 }
+void Parser::assign(const Value& var, const Value& val, const std::string& pos) {
+    std::string vtype = " ";
+    if (var.varType == VariableType::GLOBAL) vtype = " global ";
+    else if (var.varType == VariableType::LOCAL) vtype = " local ";
+
+    if (var.isConst) throw std::runtime_error("Assignment to" + vtype + "constant variable \"" + var.variable + "\"" + pos);
+
+    variables[var.variable] = val;
+    switch (var.varType) {
+        case VariableType::GLOBAL:
+            registerGlobal(var.variable, val, false, true);
+            break;
+
+        case VariableType::LOCAL:
+            setLocal(currentScope, var.variable, val, false);
+            break;
+
+        case VariableType::VARIABLE:
+        default:
+            try {
+                mutated.erase(var.variable);
+            } catch (...) {}
+            mutated.try_emplace(var.variable, Mutated(val, currentToken().start));
+            break;
+    }
+}
 Value Parser::evaluateExpression(const Value& left, const std::string& op, const Value& right, bool doExecute) {
     Value result;
     bool leftBool = left.toBoolean();
@@ -3720,8 +3802,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
         }
     }
     else if (op == "~" || op == "NOT") {
-        if (right.type == DataType::NUMBER || right.type == DataType::HEXADECIMAL ||
-            right.type == DataType::BINARY || right.type == DataType::OCTAL) {
+        if (Utility::checkNumber(right)) {
             int num = static_cast<int>(right.toNumber());
             result = numberToValue(~num);
         } else if (right.type == DataType::STRING) {
@@ -3891,6 +3972,10 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
             else throw std::runtime_error("<" + dataTypeToString(left.type) + ">" + op + funcName + " is not a function. Call attempt at " + Utility::position(currentToken().start, input) + ".");
         } 
         else throw std::runtime_error(errmsg);
+
+        if (op == ":" && left.isVariable) {
+            assign(left, result, " at " + Utility::position(currentToken().start, input) + ".");
+        }
     }
 
     else throw std::runtime_error(errmsg);
@@ -3994,7 +4079,15 @@ Value Parser::resolveVariableValue(const std::string& varName, const bool unknow
 
     auto it = variables.find(varName);
     if (it != variables.end() && it->second.type != DataType::UNKNOWN) {
-        return it->second;
+        Value var = it->second;
+        var.isVariable = true;
+        var.variable = varName;
+        var.varType = VariableType::VARIABLE;
+
+        auto constIt = constVars.find(varName);
+        var.isConst = (constIt != constVars.end() && constIt->second);
+        
+        return var;
     }
 
     for (const auto& node : ast) {
@@ -4004,7 +4097,15 @@ Value Parser::resolveVariableValue(const std::string& varName, const bool unknow
                 Mutated newVal = mutatedIt->second;
                 if (newVal.startPos > node.startPos) {
                     if (newVal.value.type != DataType::UNKNOWN) {
-                        return newVal.value;
+                        Value var = newVal.value;
+                        var.isVariable = true;
+                        var.variable = varName;
+                        var.varType = VariableType::VARIABLE;
+
+                        auto constIt = constVars.find(varName);
+                        var.isConst = (constIt != constVars.end() && constIt->second);
+
+                        return var;
                     } else if (unknownIsString) {
                         Value result;
                         result.type = DataType::STRING;
@@ -4014,7 +4115,15 @@ Value Parser::resolveVariableValue(const std::string& varName, const bool unknow
                     }
                 }
             }
-            return evaluateASTNode(node);
+            Value var = evaluateASTNode(node);
+            var.isVariable = true;
+            var.variable = varName;
+            var.varType = VariableType::VARIABLE;
+
+            auto constIt = constVars.find(varName);
+            var.isConst = (constIt != constVars.end() && constIt->second);
+
+            return var;
         }
     }
 
@@ -6104,11 +6213,20 @@ void Parser::clearUserFunctions() {
     userFunctionsConst.clear();
 }
 
-void Parser::registerGlobal(const std::string& name, const Value& value, bool isConst) {
-    setGlobal(name, value, isConst);
+void Parser::registerGlobal(const std::string& name, const Value& value, bool isConst, bool isJUSTC) {
+    if (isGlobalConst(name) && !(!isGlobalJUSTC(name) && !isJUSTC)) {
+        if (isJUSTC) throw std::runtime_error("Assignment to global constant variable \"" + name + "\" at " + Utility::position(currentToken().start, input) + ".");
+        else throw std::runtime_error("Attempt to re-register global constant variable \"" + name + "\".");
+    }
+    setGlobal(name, value, isConst, isJUSTC);
 }
 Value Parser::getGlobal(const std::string& name) {
-    return getGlobal_(name);
+    Value var = getGlobal_(name);
+    var.isVariable = true;
+    var.variable = name;
+    var.varType = VariableType::GLOBAL;
+    var.isConst = isGlobalConst(name);
+    return var;
 }
 bool Parser::hasGlobal(const std::string& name) {
     return hasGlobal_(name);
@@ -6157,7 +6275,12 @@ Value Parser::getLocal(uint64_t scope, const std::string& name) const {
     if (it != localScopes.end()) {
         auto varIt = it->second.find(name);
         if (varIt != it->second.end()) {
-            return varIt->second;
+            Value var = varIt->second;
+            var.isVariable = true;
+            var.variable = name;
+            var.varType = VariableType::LOCAL;
+            var.isConst = isLocalConst(scope, name);
+            return var;
         }
     }
     return Value::createNull();
@@ -6200,7 +6323,15 @@ Value Parser::resolveVariableValueWithScopes(const std::string& varName, const b
     
     auto it = variables.find(varName);
     if (it != variables.end() && it->second.type != DataType::UNKNOWN) {
-        return it->second;
+        Value var = it->second;
+        var.isVariable = true;
+        var.variable = varName;
+        var.varType = VariableType::VARIABLE;
+
+        auto constIt = constVars.find(varName);
+        var.isConst = (constIt != constVars.end() && constIt->second);
+
+        return var;
     }
     
     if (unknownIsString) {

@@ -313,6 +313,12 @@ struct FunctionInfo {
     FunctionInfo() : hasVarArgs(false), isIsolated(false) {}
 };
 
+enum class VariableType : uint8_t {
+    VARIABLE = 0,
+    GLOBAL = 1,
+    LOCAL = 2
+};
+
 struct Value {
     DataType type;
 
@@ -326,6 +332,11 @@ struct Value {
     std::unordered_map<std::string, Value> object_value;
     std::vector<unsigned char> binary_data;
 
+    bool isVariable;
+    std::string variable;
+    VariableType varType;
+    bool isConst;
+
     std::shared_ptr<ObjectContext> object_context;
     std::unordered_map<std::string, Value> properties;
     std::vector<Value> array_elements;
@@ -338,9 +349,9 @@ struct Value {
     
     std::shared_ptr<NumericValue> numeric_data;
 
-    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false) {}
-    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
-    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false) {}
+    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
+    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
+    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
 
     std::string toString() const;
     std::string toIdentifier() const;
@@ -795,6 +806,8 @@ private:
     bool isLocalConst(uint64_t scope, const std::string& name) const;
     Value resolveVariableValueWithScopes(const std::string& varName, const bool unknownIsString);
 
+    void assign(const Value& var, const Value& val, const std::string& pos = ".");
+
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
@@ -810,7 +823,7 @@ public:
 
     void variableUpdateListener(Function func);
 
-    void registerGlobal(const std::string& name, const Value& value, bool isConst = true);
+    void registerGlobal(const std::string& name, const Value& value, bool isConst = true, bool isJUSTC = false);
     Value getGlobal(const std::string& name);
     bool hasGlobal(const std::string& name);
     void unregisterGlobal(const std::string& name);
