@@ -585,6 +585,8 @@ private:
 
     Value astNodeToValue(const ASTNode& node);
 
+    Value getIdentifier();
+
     Value parseExpression(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);
     Value parsePrimary(bool doExecute, bool doFunctionCall = true);
     Value parseConditional(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);

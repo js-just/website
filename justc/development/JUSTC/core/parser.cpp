@@ -210,6 +210,11 @@ std::string Value::toString() const {
 }
 std::string Value::toIdentifier() const {
     switch (type) {
+        case DataType::STRING:
+        case DataType::LINK:
+        case DataType::PATH:
+        case DataType::VARIABLE:
+            return string_value;
         case DataType::UNKNOWN:
         case DataType::FUNCTION:
         case DataType::JUSTC_OBJECT:
@@ -1054,7 +1059,7 @@ ParseResult Parser::parse(bool doExecute) {
                     auto it = typeMethods.find(var.type);
 
                     if (var.type != DataType::UNKNOWN && it != typeMethods.end()) {
-                        std::string funcName = parseExpression(doExecute, true, false).toIdentifier();
+                        std::string funcName = (match("identifier") ? getIdentifier() : parseExpression(doExecute, true, false)).toIdentifier();
                         auto itFunc = typeMethods[var.type].find(funcName);
 
                         if (itFunc != typeMethods[var.type].end() && match("(")) {
@@ -2047,6 +2052,12 @@ Value Parser::parseConditional(bool doExecute, bool identifierMode, bool doFunct
     return condition;
 }
 
+Value Parser::getIdentifier() {
+    Value result = stringToValue(currentToken().value);
+    advance();
+    return result;
+}
+
 Value Parser::parseBitwiseOR(bool doExecute, bool identifierMode, bool doFunctionCall) {
     Value left = parseBitwiseXOR(doExecute, identifierMode, doFunctionCall);
 
@@ -2128,7 +2139,7 @@ Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode, boo
         std::string op = currentToken().value;
         advance();
 
-        Value right = parseElvisOrNullCoalescing(doExecute, true, false);
+        Value right = op == "." && match("identifier") ? getIdentifier() : parseElvisOrNullCoalescing(doExecute, true, false);
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -2265,8 +2276,10 @@ Value Parser::parseFactor(bool doExecute, bool identifierMode, bool doFunctionCa
         std::string op = currentToken().value;
         advance();
 
-        Value right = parsePower(doExecute, identifierMode, doFunctionCall);
-        if (match(":") && !Utility::checkNumber(right)) right = parsePower(doExecute, true, false); // method call
+        Value right = op == ":" && !Utility::checkNumber(right) ? (
+            match("identifier") ? getIdentifier() : parsePower(doExecute, true, false) // method call
+        ) : parsePower(doExecute, identifierMode, doFunctionCall);
+        
         left = evaluateExpression(left, op, right, doExecute);
     }
 
@@ -3651,18 +3664,18 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     }
 
     else if (op == "|>") {
-        std::string funcName = right.name;
-        if (right.type == DataType::STRING) {
-            funcName = right.toString();
-        }
         std::vector<Value> args;
         args.push_back(left);
 
-        Value funcValue = resolveVariableValue(funcName, false);
-        if (funcValue.type == DataType::FUNCTION) {
-            result = callFunction(funcValue, args, currentToken().start, doExecute);
+        if (match("(")) {
+            std::vector<Value> additionalArgs = parseArguments(doExecute);
+            args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+        }
+
+        if (right.type == DataType::FUNCTION) {
+            result = callFunction(right, args, currentToken().start, doExecute);
         } else {
-            result = executeFunction(funcName, args, currentToken().start);
+            result = executeFunction(right.toIdentifier(), args, currentToken().start);
         }
     }
 
@@ -3714,7 +3727,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                     std::vector<Value> additionalArgs = parseArguments(doExecute);
                     args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                     result = executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
-                } 
+                }
                 else throw std::runtime_error("Expected \"(\" for function call at " + Utility::position(currentToken().start, input) + ".");
             } 
             else throw std::runtime_error("<" + dataTypeToString(left.type) + ">" + op + funcName + " is not a function. Call attempt at " + Utility::position(currentToken().start, input) + ".");
