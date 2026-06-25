@@ -610,3 +610,59 @@ std::string Utility::doubleToString(double value) {
     oss << std::noshowpoint << value;
     return oss.str();
 }
+
+bool Utility::compareValues(const Value& left, const Value& right) {
+    if (left.type != right.type && !checkObjects(left, right) && !checkStrings(left, right) && !checkNumbers(left, right)) return false;
+
+    if (checkNumbers(left, right)) return left.number_value == right.number_value;
+    if (checkStrings(left, right)) return left.toString() == right.toString();
+
+    switch (left.type) {
+        case DataType::NUMBER:
+        case DataType::HEXADECIMAL:
+        case DataType::BINARY:
+        case DataType::OCTAL:
+            return left.number_value == right.number_value;
+        
+        case DataType::STRING:
+        case DataType::LINK:
+        case DataType::PATH:
+        case DataType::VARIABLE:
+            return left.string_value == right.string_value;
+        
+        case DataType::BOOLEAN:
+            return left.boolean_value == right.boolean_value;
+        
+        case DataType::NULL_TYPE:
+            return true;
+
+        case DataType::NOT_A_NUMBER:
+        case DataType::INFINITE:
+            return left.toNumber() == right.toNumber();
+
+        case DataType::JUSTC_OBJECT:
+        case DataType::JSON_OBJECT:
+            if (left.properties.size() != right.properties.size()) return false;
+            for (const auto& [key, val] : left.properties) {
+                auto it = right.properties.find(key);
+                if (it == right.properties.end()) return false;
+                if (!compareValues(val, it->second)) return false;
+            }
+            return true;
+
+        case DataType::JSON_ARRAY:
+            if (left.array_elements.size() != right.array_elements.size()) return false;
+            for (size_t i = 0; i < left.array_elements.size(); i++) {
+                if (!compareValues(left.array_elements[i], right.array_elements[i])) return false;
+            }
+            return true;
+
+        case DataType::BINARY_DATA:
+            return left.binary_data == right.binary_data;
+
+        case DataType::FUNCTION:
+            return _stringifyValue(left) == _stringifyValue(right);
+
+        default: return left.toBoolean() == right.toBoolean();
+    }
+}

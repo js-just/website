@@ -788,6 +788,10 @@ Parser::Parser(
         {"ToNumber", "Number"},
         {"ToInt", "ParseInt"},
         {"ToLink", "Link"},
+        {"Join", "Array::Join"},
+        {"Includes", "Array::Includes"},
+        {"IndexOf", "Array::IndexOf"},
+        {"LastIndexOf", "Array::LastIndexOf"},
     };
     typeMethods[DataType::NULL_TYPE] = {
         {"ToString", "String"},
@@ -3310,11 +3314,11 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
 
                 #else
 
-                    throw std::runtime_error("Cannot run JavaScript due to OS limitations. Attempt to execute JavaScript code at " + Utility::position(startPos, input) + ".");
+                    throw std::runtime_error("Cannot run JavaScript due to OS limitations. Attempt to execute JavaScript code");
 
                 #endif
             } else {
-                throw std::runtime_error("JavaScript disallowed - Cannot run JavaScript \"" + args[0].toString() + "\" at " + Utility::position(startPos, input) + ".");
+                throw std::runtime_error("JavaScript disallowed - Cannot run JavaScript \"" + args[0].toString() + "\"");
             }
         }
         if (funcName == "Luau" || funcName == "Luau.Execute") {
@@ -3349,7 +3353,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 result.name = funcName + "(...)";
                 return result;
             } else {
-                throw std::runtime_error("Luau disallowed - Cannot run Luau \"" + args[0].toString() + "\" at " + Utility::position(startPos, input) + ".");
+                throw std::runtime_error("Luau disallowed - Cannot run Luau \"" + args[0].toString() + "\"");
             }
         }
         if (funcName == "JUSTO" || funcName == "JUSTO.Parse") {
@@ -3370,6 +3374,41 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             } else {
                 return booleanToValue(false);
             }
+        }
+        if (funcName == "Array::Join") {
+            std::stringstream ss;
+            std::string sep = ",";
+            if (args.size() > 1) sep = args[1].toString();
+            bool first = true;
+            for (Value val : args[0].array_elements) {
+                if (!first) ss << sep;
+                ss << val.toString();
+                first = false;
+            }
+            return stringToValue(ss.str());
+        }
+        if (funcName == "Array::Includes") {
+            if (args.size() < 2) return booleanToValue(false);
+            bool includes = false;
+            for (Value val : args[0].array_elements) {
+                includes = Utility::compareValues(val, args[1]);
+                if (includes) break;
+            }
+            return booleanToValue(includes);
+        }
+        if (funcName == "Array::IndexOf") {
+            if (args.size() < 2) throw std::runtime_error("Expected value");
+            for (size_t i = 0; i < args[0].array_elements.size(); i++) {
+                if (Utility::compareValues(args[0].array_elements[i], args[1])) return Value::createNumber(static_cast<double>(i));
+            }
+            throw std::runtime_error("Value not found in array");
+        }
+        if (funcName == "Array::LastIndexOf") {
+            if (args.size() < 2) throw std::runtime_error("Expected value");
+            for (size_t i = args[0].array_elements.size() - 1; i >= 0; i--) {
+                if (Utility::compareValues(args[0].array_elements[i], args[1])) return Value::createNumber(static_cast<double>(i));
+            }
+            throw std::runtime_error("Value not found in array");
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
@@ -3549,10 +3588,10 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
     }
 
     else if (op == "=" || op == "is") {
-        result = booleanToValue(left.toNumber() == right.toNumber());
+        result = booleanToValue(Utility::compareValues(left, right));
     }
     else if (op == "!=" || op == "isn't") {
-        result = booleanToValue(left.toNumber() != right.toNumber());
+        result = booleanToValue(!Utility::compareValues(left, right));
     }
     else if (op == "<" && Utility::checkNumbers(left, right)) {
         result = booleanToValue(left.toNumber() < right.toNumber());

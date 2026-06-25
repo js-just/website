@@ -230,6 +230,7 @@ public:
     static bool checkString(const Value& val);
     static bool checkStrings(const Value& left, const Value& right);
     static std::string doubleToString(double value);
+    static bool compareValues(const Value& left, const Value& right);
 };
 class UnicodeUtility {
 public:
