@@ -598,26 +598,26 @@ private:
 
     Value getIdentifier();
 
-    Value parseExpression(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);
+    Value parseExpression(bool doExecute, bool identifierMode = false, bool doFunctionCall = true, bool ignoreColon = false);
     Value parsePrimary(bool doExecute, bool doFunctionCall = true);
-    Value parseConditional(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);
-    Value parseBitwiseOR(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);
-    Value parseBitwiseXOR(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseBitwiseAND(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseBitwiseSHIFT(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseBitwiseNOT(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parsePipelineOrMethodCall(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseElvisOrNullCoalescing(bool doExecute, bool identifierMode, bool doFunctionCall = true);
-    Value parseLogicalOR(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseLogicalXOR(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseLogicalAND(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseLogicalIMPLY(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseEquality(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseComparison(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseTerm(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseFactor(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parsePower(bool doExecute, bool identifierMode, bool doFunctionCall);
-    Value parseUnary(bool doExecute, bool identifierMode = false, bool doFunctionCall = true);
+    Value parseConditional(bool doExecute, bool identifierMode = false, bool doFunctionCall = true, bool ignoreColon = false);
+    Value parseBitwiseOR(bool doExecute, bool identifierMode = false, bool doFunctionCall = true, bool ignoreColon = false);
+    Value parseBitwiseXOR(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon);
+    Value parseBitwiseAND(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon);
+    Value parseBitwiseSHIFT(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon);
+    Value parseBitwiseNOT(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon);
+    Value parsePipelineOrMethodCall(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon);
+    Value parseElvisOrNullCoalescing(bool doExecute, bool identifierMode, bool doFunctionCall = true, bool ignoreColon = false);
+    Value parseLogicalOR(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseLogicalXOR(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseLogicalAND(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseLogicalIMPLY(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseEquality(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseComparison(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseTerm(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseFactor(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parsePower(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon = false);
+    Value parseUnary(bool doExecute, bool identifierMode = false, bool doFunctionCall = true, bool ignoreColon = false);
     Value parseFunctionCall(bool doExecute, bool doFunctionCall = true);
     Value parseSpaceCall(bool doExecute, bool doFunctionCall = true);
     std::vector<Value> parseLambda(bool doExecute, size_t pos);
@@ -807,6 +807,7 @@ private:
     Value resolveVariableValueWithScopes(const std::string& varName, const bool unknownIsString);
 
     void assign(const Value& var, const Value& val, const std::string& pos = ".");
+    bool isInBracketedExpression();
 
 public:
     static std::string getCurrentTimestamp();
