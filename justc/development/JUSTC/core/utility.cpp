@@ -604,3 +604,9 @@ bool StringEscape::isValidEscape(const std::string& str) {
     }
     return true;
 }
+
+std::string Utility::doubleToString(double value) {
+    std::ostringstream oss;
+    oss << std::noshowpoint << value;
+    return oss.str();
+}

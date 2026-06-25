@@ -229,6 +229,7 @@ public:
     static bool checkObjects(const Value& left, const Value& right);
     static bool checkString(const Value& val);
     static bool checkStrings(const Value& left, const Value& right);
+    static std::string doubleToString(double value);
 };
 class UnicodeUtility {
 public:

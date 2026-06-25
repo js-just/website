@@ -293,7 +293,7 @@ Value Value::createNumber(double num) {
     Value result;
     result.type = DataType::NUMBER;
     result.number_value = num;
-    result.name = std::to_string(num);
+    result.name = Utility::doubleToString(num);
     return result;
 }
 
@@ -499,7 +499,7 @@ template Value Value::createNumberWithType<__float128>(__float128, NumericType);
 
 std::string Value::toNumericString() const {
     if (!static_cast<bool>(numeric_data)) {
-        return std::to_string(number_value);
+        return Utility::doubleToString(number_value);
     }
     
     std::stringstream ss;
@@ -720,7 +720,24 @@ Parser::Parser(
 
     // built-in spaces / type methods
 
+    typeMethods[DataType::JUSTC_OBJECT] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::NUMBER] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
     typeMethods[DataType::STRING] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+
         {"Reverse", "String::Reverse"},
         {"GraphemeReverse", "String::GraphemeReverse"},
         {"CodePointReverse", "String::CodePointReverse"},
@@ -747,6 +764,54 @@ Parser::Parser(
         {"StartsWith", "String::StartsWith"},
         {"EndsWith", "String::EndsWith"},
         {"Split", "String::Split"}
+    };
+    typeMethods[DataType::LINK] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::BOOLEAN] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::JSON_OBJECT] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::JSON_ARRAY] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::NULL_TYPE] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::FUNCTION] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::NOT_A_NUMBER] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
+    };
+    typeMethods[DataType::INFINITE] = {
+        {"ToString", "String"},
+        {"ToNumber", "Number"},
+        {"ToInt", "ParseInt"},
+        {"ToLink", "Link"},
     };
 
     // built-in variables
@@ -2133,7 +2198,7 @@ Value Parser::parsePipelineOrMethodCall(bool doExecute, bool identifierMode, boo
 
     while (match("|>") || (
         left.type != DataType::VARIABLE && left.type != DataType::UNKNOWN && (match("[") ||
-            (match(".") && position + 1 < tokens.size())
+            (match(".") && position + 1 < tokens.size() && ((position - 1 >= 0 && tokens[position - 1].type != "keyword") || !(position - 1 >= 0)))
         )
     )) {
         std::string op = currentToken().value;
@@ -5084,15 +5149,7 @@ Value Parser::numberToValue(double num) {
     Value result;
     result.type = DataType::NUMBER;
     result.number_value = num;
-
-    std::string str = std::to_string(num);
-    if (!str.empty() && std::tolower(str.back()) == 'b') {
-        str.pop_back();
-        result.name = str + "B";
-    } else {
-        result.name = str;
-    }
-
+    result.name = Utility::doubleToString(num);
     return result;
 }
 
