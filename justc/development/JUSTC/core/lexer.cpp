@@ -631,124 +631,20 @@ void Lexer::tokenize() {
             continue;
         }
 
-        if (embeds && ch == '{' && peek() == '{') {
+        if ((ch == 'l' || ch == 'j' || ch == 'c' || ch == 'o') && (peek() == '"' || peek() == '\'')) {
             addDollarBefore();
-            std::stringstream JavaScript;
-            size_t brackets = 2;
-            size_t startPos = position;
-            size_t str = 0;
-            size_t comment = 0;
-            position += 2;
-            while(position < input.length() && brackets > 0) {
-                JavaScript << input[position];
-                if (input[position] == '{') {
-                    brackets++;
-                } else if (input[position] == '}' && str == 0 && comment == 0) {
-                    brackets--;
-                } else if (input[position] == '\'' && str == 0 && comment == 0) {
-                    str = 1;
-                } else if (input[position] == '\'' && str == 1 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '"' && str == 0 && comment == 0) {
-                    str = 2;
-                } else if (input[position] == '"' && str == 2 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '`' && str == 0 && comment == 0) {
-                    str = 3;
-                } else if (input[position] == '`' && str == 3 && input[position - 1] != '\\' && comment == 0) {
-                    str = 0;
-                } else if (input[position] == '/' && peek() == '/' && str == 0 && comment == 0) {
-                    comment = 1;
-                } else if (input[position] == '/' && peek() == '*' && str == 0 && comment == 0) {
-                    comment = 2;
-                } else if (((input[position] == '\r' && peek() == '\n') || input[position] == '\n' || input[position] == '\r') && str == 0 && comment == 1) {
-                    comment = 0;
-                } else if (input[position] == '*' && peek() == '/' && str == 0 && comment == 2) {
-                    comment = 0;
-                }
-                position++;
-            }
-            if (brackets != 0 || str != 0 || comment != 0) throw new std::runtime_error("Unexpected EOF.");
-            std::string JavaScript_str = JavaScript.str();
-            std::string result = JavaScript_str.substr(0, JavaScript_str.size() - 2); // remove "}}" at the end
+            char qch = peek();
+            position++;
+            ParserToken str = readString(qch, qch == '\'');
+            std::string type = ch == 'l' ? "Luau" : ch == 'j' ? "JavaScript" : ch == 'c' ? "JUSTC" : "JUSTO";
+            tokens.push_back(ParserToken{type, str.value, str.start});
             if (warn) {
                 #ifdef __EMSCRIPTEN__
-                warn_lexer_js(Parser::getCurrentTimestamp().c_str(), Utility::position(startPos, input).c_str());
+                warn_lexer_lang(Parser::getCurrentTimestamp().c_str(), Utility::position(position, input).c_str(), type.c_str());
                 #else
-                std::cout << warnPrefix + "Warning: JavaScript may be corrupted in the lexer output." << std::endl;
+                std::cout << warnPrefix + "Warning: " + type + " may be corrupted in the lexer output." << std::endl;
                 #endif
             }
-            tokens.push_back(ParserToken{"JavaScript", result, startPos});
-            continue;
-        }
-        if (embeds && ch == '<' && peek() == '<' && (tokens.empty() || (
-            tokens[tokens.size() - 1].type != "number" &&
-            tokens[tokens.size() - 1].type != "base64" &&
-            tokens[tokens.size() - 1].type != "binary" &&
-            tokens[tokens.size() - 1].type != "octal" &&
-            tokens[tokens.size() - 1].type != "hex" &&
-            tokens[tokens.size() - 1].type != "big" &&
-            tokens[tokens.size() - 1].type != "int" &&
-            tokens[tokens.size() - 1].type != "exp"
-        ))) {
-            addDollarBefore();
-            std::stringstream Luau;
-            size_t brackets = 1;
-            size_t startPos = position;
-            size_t str = 0;
-            size_t comment = 0;
-
-            position += 2; // "<<"
-
-            while (position < input.length() && brackets > 0) {
-                char current = input[position];
-                Luau << current;
-
-                if (str == 0 && comment == 0) {
-                    if (current == '<' && peek(1) == '<') {
-                        brackets++;
-                    } else if (current == '>' && peek(1) == '>') {
-                        brackets--;
-                    }
-                }
-
-                if (comment == 0) {
-                    if (str == 0 && (current == '\'' || current == '"')) {
-                        str = current;
-                    } else if (str != 0 && current == str && input[position-1] != '\\') {
-                        str = 0;
-                    }
-                }
-
-                if (str == 0) {
-                    if (comment == 0 && current == '-' && peek(1) == '-') {
-                        comment = 1;
-                    } else if (comment == 1 && (current == '\n' || current == '\r')) {
-                        comment = 0;
-                    }
-                }
-
-                position++;
-            }
-
-            if (brackets > 0 || str != 0) {
-                throw std::runtime_error("Unexpected EOF.");
-            }
-
-            std::string Luau_str = Luau.str();
-            if (Luau_str.length() >= 1) {
-                Luau_str = Luau_str.substr(0, Luau_str.length() - 1); // ">"
-            }
-
-            tokens.push_back(ParserToken{"Luau", Luau_str, startPos});
-            if (warn) {
-                #ifdef __EMSCRIPTEN__
-                warn_lexer_luau(Parser::getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
-                #else
-                std::cout << warnPrefix + "Warning: Luau may be corrupted in the lexer output." << std::endl;
-                #endif
-            }
-            position++; // ">"
             continue;
         }
 
@@ -765,7 +661,7 @@ void Lexer::tokenize() {
             const size_t currPos = position;
 
             if (currToken.type == "keyword") {
-                if (currToken.value == "goto") {
+                if (currToken.value == "lgt") {
                     if (std::find(gotopos.begin(), gotopos.end(), currPos) != gotopos.end()) {
                         #ifdef __EMSCRIPTEN__
                         warn_lexer_goto(Parser::getCurrentTimestamp().c_str(), Utility::position(position, input).c_str());
@@ -789,15 +685,6 @@ void Lexer::tokenize() {
                     } catch (...) {
                         throw std::runtime_error("Invalid goto usage at " + Utility::position(position, input) + ".");
                     }
-                } else if (currToken.value == "embeds" && tokens[tokens.size() - 1].type == "keyword" && (
-                    tokens[tokens.size() - 1].value == "enable" || tokens[tokens.size() - 1].value == "disable"
-                )) {
-                    if (tokens[tokens.size() - 1].value == "enable") {
-                        embeds = true;
-                    } else {
-                        embeds = false;
-                    }
-                    continue;
                 }
             }
 

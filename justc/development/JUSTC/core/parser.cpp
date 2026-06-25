@@ -788,10 +788,13 @@ Parser::Parser(
         {"ToNumber", "Number"},
         {"ToInt", "ParseInt"},
         {"ToLink", "Link"},
+
         {"Join", "Array::Join"},
         {"Includes", "Array::Includes"},
         {"IndexOf", "Array::IndexOf"},
         {"LastIndexOf", "Array::LastIndexOf"},
+        {"Reverse", "Array::Reverse"},
+        {"ForEach", "Array::ForEach"}
     };
     typeMethods[DataType::NULL_TYPE] = {
         {"ToString", "String"},
@@ -3193,6 +3196,18 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 std::vector<std::string> result( {args[0].toString()} );
                 return stringArray(result);
             }
+            if (args[1].toString() == "") {
+                size_t len = static_cast<size_t>(executeFunction("String::Length", {args[0]}, startPos).toNumber());
+                std::vector<std::string> result;
+                for (size_t i = 0; i < len; i++) {
+                    result.push_back(executeFunction("String::Slice", {
+                        args[0],
+                        numberToValue(static_cast<double>(i)),
+                        numberToValue(static_cast<double>(i + 1))
+                    }, startPos).toString());
+                }
+                return stringArray(result);
+            }
             return stringArray(String::Split(args[0].toString(), args[1].toString()));
         }
         if (funcName == "String::CodePointReverse" || (
@@ -3409,6 +3424,45 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
                 if (Utility::compareValues(args[0].array_elements[i], args[1])) return Value::createNumber(static_cast<double>(i));
             }
             throw std::runtime_error("Value not found in array");
+        }
+        if (funcName == "Array::Reverse") {
+            std::vector<Value> arr = args[0].array_elements;
+            std::reverse(arr.begin(), arr.end());
+
+            Value result = Value::createJsonArray(arr);
+            result.name = "[Array]";
+            return result;
+        }
+        if (funcName == "Array::ForEach") {
+            if (args.size() < 2 || args[1].type != DataType::FUNCTION) throw std::runtime_error("Expected function");
+            Value lastResult = Value::createNull();
+            lastResult.type = DataType::NULL_TYPE;
+
+            for (size_t i = 0; i < args[0].array_elements.size(); i++) {
+                lastResult = callFunction(args[1], {
+                    args[0].array_elements[i], 
+                    Value::createNumber(static_cast<double>(i)),
+                    args[0]
+                }, startPos, doExecute);
+            }
+
+            return lastResult;
+        }
+        if (funcName == "Array::Filter") {
+            if (args.size() < 2 || args[1].type != DataType::FUNCTION) throw std::runtime_error("Expected function");
+            std::vector<Value> arr;
+            
+            for (size_t i = 0; i < args[0].array_elements.size(); i++) {
+                if (callFunction(args[1], {
+                    args[0].array_elements[i], 
+                    Value::createNumber(static_cast<double>(i)),
+                    args[0]
+                }, startPos, doExecute).toBoolean()) arr.push_back(args[0].array_elements[i]);
+            }
+
+            Value result = Value::createJsonArray(arr);
+            result.name = "[Array]";
+            return result;
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
