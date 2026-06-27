@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#include "run.js.hpp"
+#include "js.hpp"
 #include <string>
 #include <cstring>
 #include <vector>

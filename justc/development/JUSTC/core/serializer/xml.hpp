@@ -24,18 +24,21 @@ SOFTWARE.
 
 */
 
-#ifndef JSON_PARSER_HPP
-#define JSON_PARSER_HPP
+#ifndef XML_SERIALIZER_H
+#define XML_SERIALIZER_H
 
-#include <vector>
+#include "../parser.h"
 #include <string>
-#include "parser.h"
 
-namespace JsonParser {
-    bool parseJsonTokens(const char* tokensJson, std::vector<ParserToken>& parserTokens, std::string& input);
-    #ifndef __EMSCRIPTEN__
-    std::string stringify(const std::string& input);
-    #endif
-}
+class XmlSerializer {
+public:
+    static std::string serialize(const ParseResult& result);
+    static std::string serialize(const std::vector<ParserToken>& tokens, const std::string& input);
+
+private:
+    static std::string escapeXmlString(const std::string& str);
+    static std::string valueToXml(const Value& value);
+    static std::string tokensToXml(const std::vector<ParserToken>& tokens);
+};
 
 #endif

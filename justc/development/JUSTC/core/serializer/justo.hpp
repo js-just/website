@@ -27,7 +27,7 @@ SOFTWARE.
 #ifndef JUSTO_SERIALIZER_H
 #define JUSTO_SERIALIZER_H
 
-#include "parser.h"
+#include "../parser.h"
 #include <string>
 
 class JUSTOSerializer {

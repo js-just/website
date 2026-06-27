@@ -39,7 +39,7 @@ SOFTWARE.
 #include "utility.h"
 #include <vector>
 #include "import.hpp"
-#include "run.luau.hpp"
+#include "lang/luau.hpp"
 #include <string>
 #include <unordered_map>
 #include "built-in/s.hpp"
@@ -126,7 +126,7 @@ SOFTWARE.
         return output;
     }
 #else
-    #include "run.js.hpp"
+    #include "lang/js.hpp"
 #endif
 
 std::string Value::toString() const {

@@ -29,7 +29,7 @@ SOFTWARE.
 
 #include <vector>
 #include <string>
-#include "parser.h"
+#include "../parser.h"
 
 namespace JUSTO_Parser {
     bool parseJUSTOTokens(const char* tokensJUSTO, std::vector<ParserToken>& parserTokens, std::string& input);

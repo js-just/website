@@ -24,68 +24,62 @@ SOFTWARE.
 
 */
 
-#include "from.justo.hpp"
+#include "json.hpp"
 #include <cstdlib>
 #include <string>
 #include <sstream>
+#ifndef __EMSCRIPTEN__
+#include <nlohmann/json.hpp>
+#endif
 
-namespace JUSTO_Parser {
-bool parseJUSTOTokens(const char* tokensJUSTO, std::vector<ParserToken>& parserTokens, std::string& input) {
-    if (!tokensJUSTO) return false;
+namespace JsonParser {
 
-    std::string justoStr(tokensJUSTO);
+bool parseJsonTokens(const char* tokensJson, std::vector<ParserToken>& parserTokens, std::string& input) {
+    if (!tokensJson) return false;
 
-    size_t tokensStart = justoStr.find("\"tokens\":a[");
+    std::string jsonStr(tokensJson);
+
+    size_t tokensStart = jsonStr.find("\"tokens\":[");
     if (tokensStart == std::string::npos) return false;
-    size_t inputStart = justoStr.find("input:\"");
+    size_t inputStart = jsonStr.find("\"input\":\"");
     if (inputStart == std::string::npos) return false;
-    input += justoStr.substr(inputStart, tokensStart - 2 - inputStart);
+    input += jsonStr.substr(inputStart, tokensStart - 2 - inputStart);
 
-    size_t pos = tokensStart + 11;
+    size_t pos = tokensStart + 10;
 
-    while (pos < justoStr.length()) {
-        if (justoStr[pos] == 'o') {
-            pos++;
-            if (justoStr[pos] != '{') break;
-
+    while (pos < jsonStr.length()) {
+        if (jsonStr[pos] == '{') {
             ParserToken token;
-            size_t tokenEnd = justoStr.find('}', pos);
+            size_t tokenEnd = jsonStr.find('}', pos);
             if (tokenEnd == std::string::npos) break;
 
-            std::string tokenStr = justoStr.substr(pos, tokenEnd - pos + 1);
+            std::string tokenStr = jsonStr.substr(pos, tokenEnd - pos + 1);
 
-            size_t typeStart = tokenStr.find("type:\"");
+            size_t typeStart = tokenStr.find("\"type\":\"");
             if (typeStart != std::string::npos) {
                 typeStart += 8;
                 size_t typeEnd = tokenStr.find('"', typeStart);
-                while (justoStr[typeEnd - 1] == '\\') {
-                    typeEnd = tokenStr.find('"', typeEnd);
-                }
                 if (typeEnd != std::string::npos) {
                     token.type = tokenStr.substr(typeStart, typeEnd - typeStart);
                 }
             }
 
-            size_t valueStart = tokenStr.find("value:\"");
+            size_t valueStart = tokenStr.find("\"value\":\"");
             if (valueStart != std::string::npos) {
                 valueStart += 9;
                 size_t valueEnd = tokenStr.find('"', valueStart);
-                while (justoStr[valueEnd - 1] == '\\') {
-                    valueEnd = tokenStr.find('"', valueEnd);
-                }
                 if (valueEnd != std::string::npos) {
                     token.value = tokenStr.substr(valueStart, valueEnd - valueStart);
                 }
             }
 
-            size_t startStart = tokenStr.find("start:n");
+            size_t startStart = tokenStr.find("\"start\":");
             if (startStart != std::string::npos) {
                 startStart += 8;
-                size_t startEnd = tokenStr.find_first_of(";}", startStart);
+                size_t startEnd = tokenStr.find_first_of(",}", startStart);
                 if (startEnd != std::string::npos) {
                     std::string startStr = tokenStr.substr(startStart, startEnd - startStart);
                     token.start = std::atoi(startStr.c_str());
-                    tokenEnd = startEnd;
                 }
             }
 
@@ -94,7 +88,7 @@ bool parseJUSTOTokens(const char* tokensJUSTO, std::vector<ParserToken>& parserT
             }
 
             pos = tokenEnd + 1;
-        } else if (justoStr[pos] == ']') {
+        } else if (jsonStr[pos] == ']') {
             break;
         } else {
             pos++;
@@ -103,4 +97,35 @@ bool parseJUSTOTokens(const char* tokensJUSTO, std::vector<ParserToken>& parserT
 
     return !parserTokens.empty();
 }
+
+#ifndef __EMSCRIPTEN__
+std::string stringify(const std::string& input) {
+    nlohmann::json j = nlohmann::json::parse(input);
+    std::ostringstream output;
+
+    bool first = true;
+    for (auto& item : j.items()) {
+        std::string name = item.key();
+        auto& value = item.value();
+        if (!first) {
+            output << ",";
+        }
+        first = false;
+
+        output << name << "=";
+        if (value.is_string()) {
+            output << "\"" << value.get<std::string>() << "\"";
+        } else if (value.is_boolean()) {
+            output << (value.get<bool>() ? "y" : "n");
+        } else if (value.is_null()) {
+            output << "";
+        } else {
+            output << value;
+        }
+    }
+    output << ".";
+    return output.str();
+}
+#endif
+
 }

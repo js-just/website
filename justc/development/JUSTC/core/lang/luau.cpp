@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#include "run.luau.hpp"
+#include "luau.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <vector>

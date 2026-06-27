@@ -24,11 +24,10 @@ SOFTWARE.
 
 */
 
-#include    "to.json.h"
-#include  "from.json.hpp"
+#include "serializer/json.hpp"
+#include "serializer/justo.hpp"
+#include "serializer/xml.hpp"
+#include "serializer/yaml.hpp"
 
-#include     "to.xml.h"
-#include    "to.yaml.h"
-
-#include   "to.justo.h"
-#include "from.justo.hpp"
+#include "parser/json.hpp"
+#include "parser/justo.hpp"

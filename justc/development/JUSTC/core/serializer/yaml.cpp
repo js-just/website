@@ -24,18 +24,18 @@ SOFTWARE.
 
 */
 
-#include "to.yaml.h"
+#include "yaml.hpp"
 #include <sstream>
 #include <algorithm>
 #include <iostream>
-#include "parser.h"
+#include "../parser.h"
 #include <cmath>
-#include "utility.h"
-#include "version.h"
+#include "../utility.h"
+#include "../version.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#include "to.json.h"
+#include "json.hpp"
 #endif
 
 std::string YamlSerializer::escapeYamlString(const std::string& str) {

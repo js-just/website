@@ -24,14 +24,14 @@ SOFTWARE.
 
 */
 
-#include "to.json.h"
+#include "json.hpp"
 #include <sstream>
 #include <algorithm>
 #include <iostream>
-#include "parser.h"
+#include "../parser.h"
 #include <cmath>
-#include "utility.h"
-#include "version.h"
+#include "../utility.h"
+#include "../version.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
