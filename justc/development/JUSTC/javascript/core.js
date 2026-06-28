@@ -24,8 +24,6 @@ SOFTWARE.
 
 */
 
-const { version } = require('os');
-
 (()=>{
     "use strict";
 
@@ -1124,13 +1122,13 @@ const { version } = require('os');
                         if (!JUSTC.OutputModes.includes(outputMode)) throw new JUSTC.Error(JUSTC.Errors.outputMode);
 
                         let data;
-                        if (bytes instanceof Uint8Array) {
-                            data = bytes;
-                        } else if (bytes instanceof ArrayBuffer) {
-                            data = new Uint8Array(bytes);
-                        } else if (typeof bytes === 'string') {
+                        if (binary instanceof Uint8Array) {
+                            data = binary;
+                        } else if (binary instanceof ArrayBuffer) {
+                            data = new Uint8Array(binary);
+                        } else if (typeof binary === 'string') {
                             const encoder = new TextEncoder();
-                            data = encoder.encode(bytes);
+                            data = encoder.encode(binary);
                         } else {
                             throw new JUSTC.Error('JUSTB.load expects Uint8Array, ArrayBuffer, or binary string.');
                         }
