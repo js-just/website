@@ -1169,7 +1169,7 @@ const { version } = require('os');
             },
             configurable: false
         });
-    }
+    };
 
     JUSTC.CreateAsyncExports = function() {
         const exports = {};

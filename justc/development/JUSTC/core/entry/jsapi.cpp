@@ -56,9 +56,31 @@ std::string outputString(const std::string& mode, const ParseResult& result) {
     } else if (mode == "justo") {
         return JUSTOSerializer::serialize(result);
     } else if (mode == "justb") {
-        std::stringstream ss;
-        JustbCompiler::compile(result, ss);
-        return ss.str();
+        if (!result.error.empty()) {
+            return "{\"error\":\"" + JsonSerializer::escapeJsonString(result.error) + "\"}";
+        } else {
+            std::stringstream ss;
+            JustbCompiler::compile(result, ss);
+            
+            std::stringstream json;
+            json << "{";
+
+            json << "\"type\":\"justb\",\"return\":\"" << JsonSerializer::escapeJsonString(ss.str()) << "\",";
+            json << "\"logs\":" << JsonSerializer::serialize(result.logs) << ",";
+
+            // logfile object
+            json << "\"logfile\":{";
+            json << "\"file\":\"" << JsonSerializer::escapeJsonString(result.logFilePath) << "\",";
+            json << "\"logs\":\"" << JsonSerializer::escapeJsonString(result.logFileContent) << "\"";
+            json << "},";
+
+            // import logs array
+            json << "\"imported\":";
+            json << JsonSerializer::serialize(result.importLogs);
+
+            json << "}";
+            return json.str();
+        }
     } else {
         return JsonSerializer::serialize(result);
     }
