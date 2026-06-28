@@ -41,21 +41,37 @@ SOFTWARE.
 #include <unordered_map>
 #include <memory>
 #include <algorithm>
+#include "../compiler/justb.hpp"
+#include "../loader/justb.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 
-template<typename... Args>
-std::string outputString(std::string mode, Args... args) {
+std::string outputString(const std::string& mode, const ParseResult& result) {
     if (mode == "xml") {
-        return XmlSerializer::serialize(args...);
+        return XmlSerializer::serialize(result);
     } else if (mode == "yaml") {
-        return YamlSerializer::serialize(args...);
+        return YamlSerializer::serialize(result);
     } else if (mode == "justo") {
-        return JUSTOSerializer::serialize(args...);
+        return JUSTOSerializer::serialize(result);
+    } else if (mode == "justb") {
+        std::stringstream ss;
+        JustbCompiler::compile(result, ss);
+        return ss.str();
     } else {
-        return JsonSerializer::serialize(args...);
+        return JsonSerializer::serialize(result);
+    }
+}
+std::string outputString(const std::string& mode, const std::vector<ParserToken>& tokens, const std::string& input) {
+    if (mode == "xml") {
+        return XmlSerializer::serialize(tokens, input);
+    } else if (mode == "yaml") {
+        return YamlSerializer::serialize(tokens, input);
+    } else if (mode == "justo") {
+        return JUSTOSerializer::serialize(tokens, input);
+    } else {
+        return JsonSerializer::serialize(tokens, input);
     }
 }
 
@@ -131,7 +147,7 @@ extern "C" {
 
 char* lexer(const char* input, const char* outputMode) {
     if (input == nullptr) return nullptr;
-    std::string mode(outputMode == nullptr ? "justo" : outputMode);
+    std::string mode(outputMode == nullptr || outputMode == "justb" ? "justo" : outputMode);
 
     try {
         auto parsed = Lexer::parse(input, true);
@@ -393,6 +409,18 @@ char* justoParse(const char* justoString) {
     } catch (const std::exception& e) {
         return strdup(";");
     }
+}
+
+char* load(const unsigned char* bytes, size_t length, const char* outputMode) {
+    if (bytes == nullptr) return nullptr;
+    std::string mode(outputMode == nullptr ? "json" : outputMode);
+
+    std::string data(reinterpret_cast<const char*>(bytes), length);
+    std::stringstream ss(data);
+    ParseResult result = JustbLoader::load(ss);
+
+    std::string json = outputString(mode, result);
+    return strdup(json.c_str());
 }
 
 }

@@ -41,6 +41,10 @@ SOFTWARE.
 #include <cstring>
 #include <iomanip>
 #include <limits>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/memory.hpp>
 
 #ifdef _MSC_VER
     #define JUSTC_HAS_INT128 0
@@ -311,6 +315,32 @@ struct FunctionInfo {
     bool isIsolated;
 
     FunctionInfo() : hasVarArgs(false), isIsolated(false) {}
+
+    template <class Archive>
+    void serialize(Archive& archive) {
+        std::vector<int> paramTypesInt;
+        if (Archive::is_loading::value) {
+            archive(paramTypesInt);
+            paramTypes.resize(paramTypesInt.size());
+            for (size_t i = 0; i < paramTypesInt.size(); ++i) {
+                paramTypes[i] = static_cast<DataType>(paramTypesInt[i]);
+            }
+        } else {
+            paramTypesInt.resize(paramTypes.size());
+            for (size_t i = 0; i < paramTypes.size(); ++i) {
+                paramTypesInt[i] = static_cast<int>(paramTypes[i]);
+            }
+            archive(paramTypesInt);
+        }
+        
+        archive(
+            code,
+            paramNames,
+            defaultValues,
+            hasVarArgs,
+            isIsolated
+        );
+    }
 };
 
 enum class VariableType : uint8_t {
@@ -445,6 +475,46 @@ struct Value {
     }
     
     std::string toNumericString() const;
+
+    template <class Archive>
+    void serialize(Archive& archive) {
+        int typeInt = static_cast<int>(type);
+        archive(typeInt);
+        type = static_cast<DataType>(typeInt);
+
+        switch (type) {
+            case DataType::NUMBER:
+            case DataType::HEXADECIMAL:
+            case DataType::BINARY:
+            case DataType::OCTAL:
+                archive(number_value);
+                break;
+            case DataType::STRING:
+            case DataType::LINK:
+            case DataType::PATH:
+            case DataType::VARIABLE:
+                archive(string_value);
+                break;
+            case DataType::BOOLEAN:
+                archive(boolean_value);
+                break;
+            case DataType::JSON_OBJECT:
+            case DataType::JUSTC_OBJECT:
+                archive(properties);
+                break;
+            case DataType::JSON_ARRAY:
+                archive(array_elements);
+                break;
+            case DataType::FUNCTION:
+                archive(name, string_value, function_info);
+                break;
+            case DataType::BINARY_DATA:
+                archive(binary_data);
+                break;
+            default:
+                break;
+        }
+    }
 };
 
 struct LogEntry {

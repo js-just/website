@@ -24,11 +24,14 @@ SOFTWARE.
 
 */
 
+const { version } = require('os');
+
 (()=>{
     "use strict";
 
     const JUSTC = {};
     const JUSTO = {};
+    const JUSTB = {};
     JUSTC.Checks = {
         funcRegex: /^function\s*\w*\s*\(\)\s*\{\s*\[native code\]\s*\}$/,
         objRegex: /^\[object\s*\w*\]$/,
@@ -109,6 +112,7 @@ SOFTWARE.
         redefine: 'JUSTC cannot be redefined.',
         fetchWasm: 'Failed to fetch JUSTC WebAssembly module:',
         redefineO: 'JUSTO cannot be redefined.',
+        redefineB: 'JUSTB cannot be redefined.',
     };
 
     if (isBrowser) {
@@ -472,7 +476,7 @@ SOFTWARE.
     };
 
     JUSTC.OutputModes = [
-        'json', 'xml', 'yaml', 'justo'
+        'json', 'xml', 'yaml', 'justo', 'justb'
     ];
 
     JUSTC.VFS = isBrowser ? class VirtualFileSystem {
@@ -1111,6 +1115,61 @@ SOFTWARE.
             configurable: false
         });
     };
+    JUSTB.Output = function(where) {
+        OBJECT.defineProperty(where, 'JUSTB', {
+            get: function() {
+                return OBJECT.freeze({
+                    load: function loadJUSTB(binary, outputMode = JUSTC.DefaultOutputMode) {
+                        JUSTC.CheckWASM();
+                        if (!JUSTC.OutputModes.includes(outputMode)) throw new JUSTC.Error(JUSTC.Errors.outputMode);
+
+                        let data;
+                        if (bytes instanceof Uint8Array) {
+                            data = bytes;
+                        } else if (bytes instanceof ArrayBuffer) {
+                            data = new Uint8Array(bytes);
+                        } else if (typeof bytes === 'string') {
+                            const encoder = new TextEncoder();
+                            data = encoder.encode(bytes);
+                        } else {
+                            throw new JUSTC.Error('JUSTB.load expects Uint8Array, ArrayBuffer, or binary string.');
+                        }
+
+                        const ptr = JUSTC.WASM._malloc(data.length + 1);
+                        if (!ptr) throw new JUSTC.Error('JUSTB.load: Failed to allocate memory in WASM.');
+
+                        JUSTC.WASM.HEAPU8.set(data, ptr);
+                        JUSTC.WASM.HEAPU8[ptr + data.length] = 0;
+
+                        let result = new JUSTC.Error();
+                        try {
+                            const resultPtr = JUSTC.WASM.ccall(
+                                'load',
+                                'number',
+                                ['string', 'string'],
+                                [ptr, outputMode]
+                            );
+
+                            const resultJson = JUSTC.WASM.UTF8ToString(resultPtr);
+                            JUSTC.WASM.ccall('free_string', null, ['number'], [resultPtr]);
+
+                            result = JUSTC.TryCatchLog(() => json_.parse(resultJson), resultJson).return || {};
+                        } finally {
+                            JUSTC.WASM._free(ptr);
+                        }
+                        return result;
+                    },
+                    get ['version']() {
+                        return JUSTC.Public.version;
+                    },
+                });
+            },
+            set: function() {
+                JUSTC.ErrorIfEnabled(JUSTC.Errors.redefineB);
+            },
+            configurable: false
+        });
+    }
 
     JUSTC.CreateAsyncExports = function() {
         const exports = {};
@@ -1146,6 +1205,7 @@ SOFTWARE.
             enumerable: false
         });
         JUSTO.Output(exports);
+        JUSTB.Output(exports);
 
         return exports;
     };
@@ -1296,29 +1356,7 @@ SOFTWARE.
             configurable: false
         });
         JUSTO.Output(globalThis_.window);
-        if (!isSafari && isDev) setTimeout(async()=>{
-            const RegisterSource = async function(url, vfs) {
-                const text = await(await FETCH(url)).text();
-                vfs.createFile(url, text, {
-                    mimeType: url.endsWith('.cpp') ? 'text/x-c++src' :
-                              url.endsWith('.hpp') ? 'text/x-c++hdr' :
-                              url.endsWith('.h')   ? 'text/x-chdr'   :
-                              'text/x-csrc'
-                })
-            };
-            try {
-                const urlprefix = SCRIPT.src.slice(0,-8)+'JUSTC/';
-                const indexjson = await(await FETCH(urlprefix)).json();
-                JUSTC['+VERSION'] = indexjson['version'][1] || null;
-                const sources = indexjson['sources'];
-                const CurrentVFS = new JUSTC.VFS();
-                if (!ARRAY.isArray(sources)) return;
-                for (const source of sources) {
-                    if (typeof source != 'string') continue;
-                    await RegisterSource(urlprefix+source, CurrentVFS);
-                }
-            } catch (_) {}
-        },0);
+        JUSTB.Output(globalThis_.window);
     } else if (isModule) {
         if (isNode) JUSTC.PrivateFunctions.Available.push('core.cli');
         module.exports = JUSTC.CreateAsyncExports();
