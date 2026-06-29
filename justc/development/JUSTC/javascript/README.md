@@ -2,118 +2,169 @@
 > ### JUSTC language is currently in development and is experimental!
 > Documentation is coming after release of new Just an Ultimate Site Tool update. Currently, you can use [experimental JUSTC demo website](https://just.js.org/justc/development/test.html).
 
-![JUSTC](.github/image.png)
+<div align="center">
+    <img src="./.github/image.png" alt="JUSTC Banner" height="500"><br>
+</div> <br><br>
 
-# <img align="top" src="https://just.js.org/justc/logo-50.svg" alt="JUSTC Logo" width="40" height="40"> JUSTC [![Compile](https://github.com/js-just/JUSTC/actions/workflows/compile.yml/badge.svg)](https://github.com/js-just/JUSTC/actions/workflows/compile.yml)
-JUSTC (Just an Ultimate Site Tool Configuration language) is a powerful, small, safe, human-optimized, easy-to-use object notation (or configuration) language designed to replace JSON (JavaScript Object Notation) and also designed to be backwards compatible with JSON, with embeddable JavaScript and Luau.
+# <img align="top" src="https://just.js.org/justc/logo-50.svg" alt="JUSTC Logo" width="40" height="40"> JUSTC ![Latest version](https://img.shields.io/npm/v/justc?label=&color=6e3bf3) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://just.js.org/justc/license.txt) [![Compile](https://github.com/js-just/JUSTC/actions/workflows/compile.yml/badge.svg)](https://github.com/js-just/JUSTC/actions/workflows/compile.yml)
+**JUSTC** (**J**USTC's **U**niversal **S**erialization, **T**ranspilation & **C**ompilation) is a powerful scripting language designed for automation, with JavaScript™ and Luau included, designed to be backwards compatible with JSON. <br>
 
-# Installation and usage
-```
-npm i -g justc
-```
+**JUSTB** (**J**USTC's **U**niversal **S**tructuren't **T**emporary **B**ytecode) is a bytecode format and a part of JUSTC, designed for faster loading and smaller file sizes. <br>
+**JUSTO** (**J**USTC's **U**niversal  **S**imple **T**ext **O**bject) is a mid-level object notation language with simple syntax, designed for easy and fast parsing, also a part of JUSTC.
 
-CLI:
-```
+JUSTC is a free and open-source software, made for Just an Ultimate Site Tool, the Web, and everything else.
+
+## Features
+- JUSTC is **compilable** to `.justb` (JUSTB), Linux applications and `.lib` (planned), macOS applications and `.dylib` (planned), Windows `.exe` and `.dll` (planned);
+- **Interpretable**;
+- **Serializable** to JSON, JUSTO, XML, YAML;
+- **Transpilable** to JavaScript (planned) and Luau (planned);
+- **Cross-platform**: WebAssembly (JavaScript&nbsp;- Node.js and browsers), Linux, macOS, Windows.
+
+# Quick Start
+
+### CLI
+
+```bash
 justc --help
 ```
 
-> [!NOTE]
-> You can remove `-g` flag if you don't want to install JUSTC globally.
-> ```
-> npm i justc
-> ```
-> CLI:
-> ```
-> npx justc --help
-> ```
+### Web
 
-JavaScript (Node.js):
+```html
+<script src="https://unpkg.com/justc"></script>
+<script>
+    await JUSTC.initialize();
+    await JUSTC.execute(`
+        echo "Hello, World!".
+    `);
+</script>
+```
+
+### Node.js
+
+```bash
+npm install justc
+```
+
 ```js
 const JUSTC = require("justc");
 
-// example:
 JUSTC.execute(`
-
-    foo = "Hello ",
-    bar = "World!",
-    baz = value(foo)..value(bar),
-
-    output specified,
-    return [baz] as ['output'].
-
+    echo "Hello, World!".
 `).then(result => console.log(result));
-```
-
-JavaScript (Browsers):
-```js
-await JUSTC.initialize()
-
-// example:
-const result = JUSTC.execute(`
-
-    foo = "Hello ",
-    bar = "World!",
-    baz = value(foo)..value(bar),
-
-    output specified,
-    return [baz] as ['output'].
-
-`);
-console.log(result);
 ```
 
 ---
 
-# <img align="top" src="https://just.js.org/justo/logo-50.svg" alt="JUSTO Logo" width="40" height="40"> JUSTO
-JUSTO (Just an Ultimate Site Tool Object notation language) is a part of JUSTC.
+# License
 
-# Usage
+JUSTC, JUSTB, and JUSTO are open-source software,
+licensed under the [MIT License](https://just.js.org/justc/license.txt).
 
-JavaScript (Node.js):
-```js
-const JUSTC = require("justc");
+Copyright (c) 2025-2026 JustStudio.
+(The dot in "JustStudio." is part of the name.)
 
-// example:
-console.log(JUSTC.JUSTO.stringify({
-    "foo": "Hello ",
-    "bar": "World!"
-}));
-console.log(JUSTC.JUSTO.parse('o{foo:"Hello ";bar:"World!"}'));
+### For Web Developers
+
+If you are using the official JUSTC distribution from
+[just.js.org/justc](https://just.js.org/justc),
+[unpkg.com/justc](https://unpkg.com/justc) or npm,
+**attribution is not required** in your website's UI or source code.
+
+We have already included:
+- License headers in all scripts
+- Source maps with license headers
+- `LICENSE` and `README.md` files in the distribution
+- Copyright notices in WASM binary custom sections
+
+Otherwise, or if your website blocks source map loading in some way,
+please include the Desktop/Mobile Applications notice.
+
+### For Desktop/Mobile Applications
+
+If your application **uses** JUSTC, or at least JUSTB or JUSTO,
+please include the following notice in your credits or about screen:
+
+```
+This software uses JUSTC, JUSTB and JUSTO,
+licensed under the MIT License.
+Copyright (c) 2025-2026 JustStudio.
+(The dot in "JustStudio." is part of the name.)
+https://just.js.org/justc
+https://juststudio.is-a.dev
 ```
 
-JavaScript (Browsers):
-```js
-// example:
-console.log(JUSTO.stringify({
-    "foo": "Hello ",
-    "bar": "World!"
-}));
-console.log(JUSTO.parse('o{foo:"Hello ";bar:"World!"}'));
-```
+### For Developers Building from Source
+
+If you compile JUSTC from source or distribute it as part of
+your project, you must include the MIT License notice.
+See [LICENSE](./LICENSE) for details.
+
+### Logo and banner
+
+Attribution making use of the [JUSTC logo](https://github.com/js-just/website/blob/main/justc/logo.svg) or [JUSTC banner](./.github/image.png) is also encouraged when reasonable.
 
 ---
 
 # Dependencies
-JUSTC uses C++ as its implementation language. The entire project requires C++17. It should build (and compile to WebAssembly) without issues on Linux Ubuntu.[^1]
+JUSTC uses C++ as its implementation language. The entire project requires C++17.
 
-JUSTC depends on:
-- [Luau](https://github.com/luau-lang/luau) by [Roblox](https://github.com/Roblox) [^2]
-- [JSON](https://github.com/nlohmann/json) by [Niels Lohmann](https://github.com/nlohmann) [^3]
-- [CPR](https://github.com/libcpr/cpr) [^4]
-- [QuickJS CMake](https://github.com/robloach/quickjs-cmake) by [Rob Loach](https://github.com/RobLoach) [^5]
-- [QuickJS](https://github.com/bellard/quickjs) by [bellard](https://github.com/bellard) [^6]
+JUSTC incorporates code from the following open-source projects:
 
-> [!NOTE]
-> JUSTC WebAssembly module does not depend on QuickJS and/or QuickJS CMake. Instead, it uses JavaScript `eval` function.
+### Core Dependencies (Native Builds - Linux/macOS/Windows)
 
-[^1]: DOWNLOADING THE SOURCE CODE AND BUILDING IT ON YOUR MACHINE IS NOT RECOMMENDED AND IS AT YOUR OWN RISK. Instead, install the compiled JUSTC WebAssembly module as an NPM package.
-[^2]: Luau is licensed under the MIT License: https://github.com/luau-lang/luau/blob/master/LICENSE.txt
-[^3]: JSON by Niels Lohmann is licensed under the MIT License: https://github.com/nlohmann/json/blob/develop/LICENSE.MIT
-[^4]: CPR is licensed under the MIT License: https://github.com/libcpr/cpr/blob/master/LICENSE
-[^5]: QuickJS CMake is licensed under the MIT License: https://github.com/RobLoach/quickjs-cmake/blob/master/LICENSE
-[^6]: QuickJS is licensed under the MIT License: https://github.com/bellard/quickjs/blob/master/LICENSE
+- [Cereal](https://github.com/USCiLab/cereal) by [iLab @ USC](https://github.com/USCiLab) — Licensed under the BSD-3-Clause license:
+Copyright (c) 2013-2022, Randolph Voorhies, Shane Grant.
+https://github.com/USCiLab/cereal/blob/master/LICENSE
 
-# License
-JUSTC implementation is distributed under the terms of [MIT License](https://github.com/js-just/JUSTC/blob/main/LICENSE).
+- [CPR](https://github.com/libcpr/cpr) by [libcpr](https://github.com/libcpr) — Licensed under the MIT License: 
+Copyright (c) 2017-2021 Huu Nguyen.
+Copyright (c) 2022 libcpr and many other contributors.
+https://github.com/libcpr/cpr/blob/master/LICENSE
 
-When JUSTC is integrated into external projects, we ask that you honor the license agreement and include JUSTC attribution into the user-facing product documentation. Attribution making use of the [JUSTC logo](https://github.com/js-just/website/blob/main/justc/logo.svg) is also encouraged when reasonable.
+- [ICU](https://icu.unicode.org/) by [Unicode](https://www.unicode.org/) — Licensed under the UNICODE LICENSE V3:
+Copyright (c) 2016-2025 Unicode, Inc.
+https://github.com/unicode-org/icu/blob/main/LICENSE
+
+- [Luau](https://luau-lang.org/) by [Roblox](https://github.com/Roblox) — Licensed under the MIT License:
+Copyright (c) 2019-2025 Roblox Corporation.
+Copyright (c) 1994–2019 Lua.org, PUC-Rio.
+https://github.com/luau-lang/luau/blob/master/LICENSE.txt
+
+- [nlohmann/json](https://github.com/nlohmann/json) by [Niels Lohmann](https://github.com/nlohmann) — Licensed under the MIT License:
+Copyright (c) 2013-2026 Niels Lohmann.
+https://github.com/nlohmann/json/blob/develop/LICENSE.MIT
+
+- [QuickJS](https://bellard.org/quickjs/) by [bellard](https://github.com/bellard) — Licensed under the MIT License:
+Copyright (c) 2017-2021 Fabrice Bellard.
+Copyright (c) 2017-2021 Charlie Gordon.
+https://github.com/bellard/quickjs/blob/master/LICENSE
+
+- [QuickJS CMake](https://github.com/robloach/quickjs-cmake) by [Rob Loach](https://robloach.net/) — Licensed under the MIT License:
+Copyright (c) 2022 Rob Loach.
+https://github.com/RobLoach/quickjs-cmake/blob/master/LICENSE
+
+### WebAssembly 
+- Does **not** use CPR (HTTP Requests support via XHR API)
+- Does **not** use nlohmann/json
+- Does **not** use QuickJS and QuickJS CMake
+- Does **not** use ICU (Unicode support via Intl API)
+
+### Reference / Inspiration
+- [Lua](https://www.lua.org/) by [PUC-Rio](https://www.puc-rio.br/) — Licensed under the MIT License:
+  Copyright (c) 1994-2025 Lua.org, PUC-Rio.
+  https://www.lua.org/license.html
+  (*Luau is a fork of Lua*)
+
+---
+
+# Acknowledgements
+
+- **JavaScript™** is a trademark of Oracle Corporation.
+  For more information, see https://www.oracle.com/legal/trademarks/
+
+- Special thanks to the authors and maintainers of:
+  **Cereal**, **CPR**, **ICU**, **Lua**, **Luau**, 
+  **nlohmann/json**, **QuickJS** and **QuickJS CMake**
+  for their excellent work, which made JUSTC possible.
