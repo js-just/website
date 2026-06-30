@@ -114,35 +114,35 @@ JUSTC incorporates code from the following open-source projects:
 
 ### Core Dependencies (Native Builds - Linux/macOS/Windows)
 
-- [Cereal](https://github.com/USCiLab/cereal) by [iLab @ USC](https://github.com/USCiLab) — Licensed under the BSD-3-Clause license:
-Copyright (c) 2013-2022, Randolph Voorhies, Shane Grant.
+- [Cereal](https://github.com/USCiLab/cereal) by [iLab @ USC](https://github.com/USCiLab) — Licensed under the BSD-3-Clause license: <br>
+Copyright (c) 2013-2022, Randolph Voorhies, Shane Grant. <br>
 https://github.com/USCiLab/cereal/blob/master/LICENSE
 
-- [CPR](https://github.com/libcpr/cpr) by [libcpr](https://github.com/libcpr) — Licensed under the MIT License: 
-Copyright (c) 2017-2021 Huu Nguyen.
-Copyright (c) 2022 libcpr and many other contributors.
+- [CPR](https://github.com/libcpr/cpr) by [libcpr](https://github.com/libcpr) — Licensed under the MIT License: <br>
+Copyright (c) 2017-2021 Huu Nguyen. <br>
+Copyright (c) 2022 libcpr and many other contributors. <br>
 https://github.com/libcpr/cpr/blob/master/LICENSE
 
-- [ICU](https://icu.unicode.org/) by [Unicode](https://www.unicode.org/) — Licensed under the UNICODE LICENSE V3:
-Copyright (c) 2016-2025 Unicode, Inc.
+- [ICU](https://icu.unicode.org/) by [Unicode](https://www.unicode.org/) — Licensed under the UNICODE LICENSE V3: <br>
+Copyright (c) 2016-2025 Unicode, Inc. <br>
 https://github.com/unicode-org/icu/blob/main/LICENSE
 
-- [Luau](https://luau-lang.org/) by [Roblox](https://github.com/Roblox) — Licensed under the MIT License:
-Copyright (c) 2019-2025 Roblox Corporation.
-Copyright (c) 1994–2019 Lua.org, PUC-Rio.
+- [Luau](https://luau-lang.org/) by [Roblox](https://github.com/Roblox) — Licensed under the MIT License: <br>
+Copyright (c) 2019-2025 Roblox Corporation. <br>
+Copyright (c) 1994–2019 Lua.org, PUC-Rio. <br>
 https://github.com/luau-lang/luau/blob/master/LICENSE.txt
 
-- [nlohmann/json](https://github.com/nlohmann/json) by [Niels Lohmann](https://github.com/nlohmann) — Licensed under the MIT License:
-Copyright (c) 2013-2026 Niels Lohmann.
+- [nlohmann/json](https://github.com/nlohmann/json) by [Niels Lohmann](https://github.com/nlohmann) — Licensed under the MIT License: <br>
+Copyright (c) 2013-2026 Niels Lohmann. <br>
 https://github.com/nlohmann/json/blob/develop/LICENSE.MIT
 
-- [QuickJS](https://bellard.org/quickjs/) by [bellard](https://github.com/bellard) — Licensed under the MIT License:
-Copyright (c) 2017-2021 Fabrice Bellard.
-Copyright (c) 2017-2021 Charlie Gordon.
+- [QuickJS](https://bellard.org/quickjs/) by [bellard](https://github.com/bellard) — Licensed under the MIT License: <br>
+Copyright (c) 2017-2021 Fabrice Bellard. <br>
+Copyright (c) 2017-2021 Charlie Gordon. <br>
 https://github.com/bellard/quickjs/blob/master/LICENSE
 
-- [QuickJS CMake](https://github.com/robloach/quickjs-cmake) by [Rob Loach](https://robloach.net/) — Licensed under the MIT License:
-Copyright (c) 2022 Rob Loach.
+- [QuickJS CMake](https://github.com/robloach/quickjs-cmake) by [Rob Loach](https://robloach.net/) — Licensed under the MIT License: <br>
+Copyright (c) 2022 Rob Loach. <br>
 https://github.com/RobLoach/quickjs-cmake/blob/master/LICENSE
 
 ### WebAssembly 

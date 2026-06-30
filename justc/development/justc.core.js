@@ -26,7 +26,7 @@ SOFTWARE.
 
 /*
 
-Just an Ultimate Site Tool Configuration language v0.2.0 (development)
+Just an Ultimate Site Tool Configuration language v0.3.0 (development)
 
 */
 
