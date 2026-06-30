@@ -2787,6 +2787,11 @@ Value Parser::parsePrimary(bool doExecute, bool doFunctionCall) {
         advance();
         return Value::createNull();
     }
+    else if (match("jsx_element")) {
+        std::string jsxStr = currentToken().value;
+        advance();
+        return parseJSXElement(jsxStr);
+    }
 
     throw std::runtime_error("Invalid or unexpected token \"" + currentToken().value + "\" at " + Utility::position(currentToken().start, input) + ".");
 }
@@ -3556,6 +3561,9 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             Value result = Value::createJsonArray(arr);
             result.name = "[Array]";
             return result;
+        }
+        if (funcName == "RenderJSX") {
+            return Value::createString(renderJSX(args[0]));
         }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
@@ -6389,6 +6397,105 @@ Value Parser::resolveVariableValueWithScopes(const std::string& varName, const b
     Value result;
     result.type = DataType::UNKNOWN;
     result.name = "unknown";
+    return result;
+}
+
+Value Parser::parseJSXElement(const std::string& jsxStr) {
+    return isolated("return " + jsxStr + " .", doExecute, currentToken().start, nullptr, "JSX parse", false);
+}
+
+std::string Parser::renderJSX(const Value& jsxElement) {
+    if (jsxElement.type != DataType::JSON_OBJECT) {
+        return jsxElement.toString();
+    }
+    
+    std::string type = jsxElement.getProperty("type", Value::createString("")).toString();
+    Value props = jsxElement.getProperty("props", Value::createNull());
+    Value children = jsxElement.getProperty("children", Value::createNull());
+    
+    if (type.empty()) return "";
+    
+    std::string result = "<" + type;
+    
+    if (props.type == DataType::JSON_OBJECT) {
+        for (const auto& [key, value] : props.properties) {
+            if (key == "className" || key == "class") {
+                result += " class=\"" + value.toString() + "\"";
+            } else if (key == "id") {
+                result += " id=\"" + value.toString() + "\"";
+            } else if (key == "style") {
+                if (value.type == DataType::JSON_OBJECT) {
+                    result += " style=\"";
+                    bool first = true;
+                    for (const auto& [prop, val] : value.properties) {
+                        if (!first) result += ";";
+                        first = false;
+                        std::string cssProp = prop;
+                        for (size_t i = 0; i < cssProp.length(); i++) {
+                            if (isupper(cssProp[i])) {
+                                cssProp.insert(i, "-");
+                                cssProp[i+1] = tolower(cssProp[i+1]);
+                                i++;
+                            }
+                        }
+                        result += cssProp + ":" + val.toString();
+                    }
+                    result += "\"";
+                } else {
+                    result += " style=\"" + value.toString() + "\"";
+                }
+            } else if (key == "href") {
+                result += " href=\"" + value.toString() + "\"";
+            } else if (key == "src") {
+                result += " src=\"" + value.toString() + "\"";
+            } else if (key == "alt") {
+                result += " alt=\"" + value.toString() + "\"";
+            } else if (key == "onClick" || key == "onClick") {
+                result += " onclick=\"" + value.toString() + "\"";
+            } else if (key == "onChange") {
+                result += " onchange=\"" + value.toString() + "\"";
+            } else if (key == "value") {
+                result += " value=\"" + value.toString() + "\"";
+            } else if (key == "placeholder") {
+                result += " placeholder=\"" + value.toString() + "\"";
+            } else if (value.toBoolean() && (key == "disabled" || key == "checked" || key == "selected")) {
+                result += " " + key;
+            } else if (key != "children") {
+                result += " " + key + "=\"" + value.toString() + "\"";
+            }
+        }
+    }
+    
+    static const std::vector<std::string> selfClosing = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr"
+    };
+    
+    if (std::find(selfClosing.begin(), selfClosing.end(), type) != selfClosing.end()) {
+        result += " />";
+        return result;
+    }
+    
+    result += ">";
+    
+    if (children.type == DataType::JSON_ARRAY) {
+        for (const auto& child : children.array_elements) {
+            switch (child.type) {
+                case DataType::STRING:
+                    result += child.string_value;
+                    break;
+                case DataType::JSON_OBJECT:
+                case DataType::JUSTC_OBJECT:
+                    result += renderJSX(child);
+                    break;
+                default:
+                    result += child.toString();
+                    break;
+            }
+        }
+    }
+    
+    result += "</" + type + ">";
     return result;
 }
 

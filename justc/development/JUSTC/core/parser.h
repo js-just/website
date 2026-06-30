@@ -420,6 +420,13 @@ struct Value {
         }
         return placeholder;
     }
+    Value getProperty(const std::string& name, Value placeholder) const {
+        auto it = properties.find(name);
+        if (it != properties.end()) {
+            return it->second;
+        }
+        return placeholder;
+    }
 
     static Value createNumber(double num);
     static Value createString(const std::string& str);
@@ -878,6 +885,9 @@ private:
 
     void assign(const Value& var, const Value& val, const std::string& pos = ".");
     bool isInBracketedExpression();
+
+    Value parseJSXElement(const std::string& jsxStr);
+    std::string renderJSX(const Value& jsxElement);
 
 public:
     static std::string getCurrentTimestamp();
