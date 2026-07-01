@@ -678,6 +678,7 @@ void Lexer::tokenize() {
 
         if (ch == 'l' && peek() == '<') {
             addDollarBefore();
+            position++;
             tokens.push_back(readLink());
             continue;
         }

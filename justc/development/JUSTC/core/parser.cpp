@@ -1356,8 +1356,11 @@ ParseResult Parser::parse(bool doExecute) {
         result.importLogs = importLogs;
 
     } catch (const std::exception& e) {
-        result.error = e.what();
-        addLog("ERROR", e.what(), currentToken().start);
+        std::pair<size_t, size_t> pos = Utility::pos(currentToken().start, input);
+        std::string err = std::string(e.what()) + "\n    at " + scriptName + ":" + std::to_string(pos.first) + ":" + std::to_string(pos.second);
+
+        result.error = err;
+        addLog("ERROR", err, currentToken().start);
     }
 
     return result;
@@ -6500,6 +6503,16 @@ std::string Parser::renderJSX(const Value& jsxElement) {
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
-    Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false, nullptr, CharType::GRAPHEME);
-    return parser.parse(doExecute);
+    #ifndef __EMSCRIPTEN__
+    try {
+    #endif
+
+        Parser parser(tokens, doExecute, runAsync, input, allowJavaScript, canAllowJS, scriptName, scriptType, allowLuau, canAllowLuau, false, nullptr, CharType::GRAPHEME);
+        return parser.parse(doExecute);
+
+    #ifndef __EMSCRIPTEN__
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string(e.what()) + "\n\nJUSTC v" + JUSTC_VERSION);
+    }
+    #endif
 }

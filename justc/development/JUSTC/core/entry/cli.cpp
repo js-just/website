@@ -458,13 +458,21 @@ std::string serializeResult(const ParseResult& result, const std::string& format
     }
 }
 
+auto lexer(std::string code) {
+    try {
+        return Lexer::parse(code);
+    } catch (const std::exception& e) {
+        throwError(std::string(e.what()) + "\n\nJUSTC v" + JUSTC_VERSION);
+    }
+}
+
 void handleExecute(const CommandLineFlags& flags) {
     if (flags.input.empty()) {
         throwError("No input file specified for execution");
     }
 
     std::string code = readFile(flags.input);
-    auto lexerResult = Lexer::parse(code);
+    auto lexerResult = lexer(code);
     ParseResult result = Parser::parseTokens(lexerResult.second, true, flags.async, code, flags.allowJS, flags.allowJS, flags.input, "script", flags.allowLuau, flags.allowLuau);
 
     if (!result.error.empty()) {
@@ -483,7 +491,7 @@ void handleSerialize(const CommandLineFlags& flags) {
 
     std::string format = getOutputFormat(flags.format);
     std::string code = readFile(flags.input);
-    auto lexerResult = Lexer::parse(code);
+    auto lexerResult = lexer(code);
     ParseResult result = Parser::parseTokens(lexerResult.second, false, flags.async, code, flags.allowJS, flags.allowJS, flags.input, "script", flags.allowLuau, flags.allowLuau);
 
     if (!result.error.empty()) {
@@ -505,7 +513,7 @@ void handleCompileJustb(const CommandLineFlags& flags) {
     }
 
     std::string code = readFile(flags.input);
-    auto lexerResult = Lexer::parse(code);
+    auto lexerResult = lexer(code);
     ParseResult result = Parser::parseTokens(lexerResult.second, true, flags.async, code, flags.allowJS, flags.allowJS, flags.input, "script", flags.allowLuau, flags.allowLuau);
 
     if (!result.error.empty()) {
@@ -551,7 +559,7 @@ void handleCheck(const CommandLineFlags& flags) {
 
     if (ext == "justc") {
         std::string code = readFile(flags.input);
-        auto lexerResult = Lexer::parse(code);
+        auto lexerResult = lexer(code);
         ParseResult result = Parser::parseTokens(lexerResult.second, false, flags.async, code, flags.allowJS, flags.allowJS, flags.input, "script", flags.allowLuau, flags.allowLuau);
 
         if (!result.error.empty()) {
@@ -593,7 +601,7 @@ void handelJsonToJusto(const CommandLineFlags& flags) {
 
     std::string json = readFile(flags.input);
     std::string justc = JsonParser::stringify(json);
-    auto lexerResult = Lexer::parse(justc);
+    auto lexerResult = lexer(justc);
     ParseResult result = Parser::parseTokens(lexerResult.second, false, flags.async, justc, flags.allowJS, flags.allowJS, flags.input, "script", flags.allowLuau, flags.allowLuau);
     std::string justo = serializeResult(result, "justo");
 
@@ -636,7 +644,7 @@ int main(int argc, char* argv[]) {
             }
         } else if (flags.command == "evaluate") {
             std::string code = flags.input;
-            auto lexerResult = Lexer::parse(code);
+            auto lexerResult = lexer(code);
             ParseResult result = Parser::parseTokens(lexerResult.second, true, flags.async, code, flags.allowJS, flags.allowJS, "<eval>", "script", flags.allowLuau, flags.allowLuau);
 
             if (!result.error.empty()) {
