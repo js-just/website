@@ -379,6 +379,9 @@ std::string Utility::_stringifyValue(const Value& value, int indentLevel) {
             return "nil";
     }
 }
+std::string Utility::_stringifyValue(const Value::Property& value, int indentLevel) {
+    return _stringifyValue(value.value, indentLevel);
+}
 
 std::string Utility::stringifyValue(const Value& value) {
     return "return " + _stringifyValue(value, 0) + " .";
@@ -665,4 +668,16 @@ bool Utility::compareValues(const Value& left, const Value& right) {
 
         default: return left.toBoolean() == right.toBoolean();
     }
+}
+bool Utility::compareValues(const Value::Property& left, const Value& right) {
+    if (left.hasGetter) return false;
+    return compareValues(left.value, right);
+}
+bool Utility::compareValues(const Value& left, const Value::Property& right) {
+    if (right.hasGetter) return false;
+    return compareValues(left, right.value);
+}
+bool Utility::compareValues(const Value::Property& left, const Value::Property& right) {
+    if (left.hasGetter || right.hasGetter) return false;
+    return compareValues(left.value, right.value);
 }

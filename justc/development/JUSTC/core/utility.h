@@ -39,6 +39,7 @@ SOFTWARE.
 class Utility {
 private:
     static std::string _stringifyValue(const Value& value, int indentLevel = 0);
+    static std::string _stringifyValue(const Value::Property& value, int indentLevel = 0);
 public:
     template<typename Op>
     static inline std::string stringMath(
@@ -231,6 +232,9 @@ public:
     static bool checkStrings(const Value& left, const Value& right);
     static std::string doubleToString(double value);
     static bool compareValues(const Value& left, const Value& right);
+    static bool compareValues(const Value::Property& left, const Value& right);
+    static bool compareValues(const Value& left, const Value::Property& right);
+    static bool compareValues(const Value::Property& left, const Value::Property& right);
 };
 class UnicodeUtility {
 public:

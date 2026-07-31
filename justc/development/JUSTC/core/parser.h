@@ -88,7 +88,7 @@ struct ObjectContext {
     std::unordered_map<std::string, std::shared_ptr<ObjectContext>> childObjects;
 };
 
-enum class DataType {
+enum class DataType : int8_t {
     JUSTC_OBJECT =  0,
     NUMBER       =  1,
     STRING       =  2,
@@ -304,6 +304,83 @@ struct NumericValue {
             default: return sizeof(double);
         }
     }
+
+    template <class Archive>
+    void serialize(Archive& archive) {
+        int typeInt = static_cast<int>(type);
+        archive(typeInt);
+        type = static_cast<NumericType>(typeInt);
+        
+        archive(value);
+        
+        if (Archive::is_loading::value) {
+            if (data) {
+                free(data);
+                data = nullptr;
+            }
+            size_t size = getTypeSize(type);
+            data = malloc(size);
+            if (data) {
+                switch (type) {
+                    case NumericType::FLOAT32:
+                        *(float*)data = static_cast<float>(value);
+                        break;
+                    case NumericType::FLOAT64:
+                        *(double*)data = value;
+                        break;
+                    case NumericType::BIGNUM:
+                        *(long double*)data = static_cast<long double>(value);
+                        break;
+                    #if JUSTC_HAS_FLOAT128
+                    case NumericType::FLOAT128:
+                        *(__float128*)data = static_cast<__float128>(value);
+                        break;
+                    #endif
+                    case NumericType::INT8:
+                        *(int8_t*)data = static_cast<int8_t>(value);
+                        break;
+                    case NumericType::INT16:
+                        *(int16_t*)data = static_cast<int16_t>(value);
+                        break;
+                    case NumericType::INT32:
+                        *(int32_t*)data = static_cast<int32_t>(value);
+                        break;
+                    case NumericType::INT64:
+                        *(int64_t*)data = static_cast<int64_t>(value);
+                        break;
+                    #if JUSTC_HAS_INT128
+                    case NumericType::INT128:
+                        *(__int128*)data = static_cast<__int128>(value);
+                        break;
+                    #endif
+                    #if JUSTC_HAS_UINT128
+                    case NumericType::UINT128:
+                        *(unsigned __int128*)data = static_cast<unsigned __int128>(value);
+                        break;
+                    #endif
+                    case NumericType::UINT8:
+                    case NumericType::CUINT8:
+                        *(uint8_t*)data = static_cast<uint8_t>(value);
+                        break;
+                    case NumericType::UINT16:
+                    case NumericType::CUINT16:
+                        *(uint16_t*)data = static_cast<uint16_t>(value);
+                        break;
+                    case NumericType::UINT32:
+                    case NumericType::CUINT32:
+                        *(uint32_t*)data = static_cast<uint32_t>(value);
+                        break;
+                    case NumericType::UINT64:
+                    case NumericType::CUINT64:
+                        *(uint64_t*)data = static_cast<uint64_t>(value);
+                        break;
+                    default:
+                        *(double*)data = value;
+                        break;
+                }
+            }
+        }
+    }
 };
 
 struct FunctionInfo {
@@ -349,6 +426,13 @@ enum class VariableType : uint8_t {
     LOCAL = 2
 };
 
+enum class Access : uint8_t {
+    READ_WRITE = 0,
+    READ_ONLY  = 1,
+    WRITE_ONLY = 2,
+    PRIVATE    = 3,
+};
+
 struct Value {
     DataType type;
 
@@ -367,8 +451,10 @@ struct Value {
     VariableType varType;
     bool isConst;
 
+    struct Property;
+
     std::shared_ptr<ObjectContext> object_context;
-    std::unordered_map<std::string, Value> properties;
+    std::unordered_map<std::string, Property> properties;
     std::vector<Value> array_elements;
     DataType object_type;
 
@@ -401,32 +487,11 @@ struct Value {
                type == DataType::JSON_OBJECT ||
                type == DataType::JSON_ARRAY;
     }
-    Value* getProperty(const std::string& name) {
-        if (properties.find(name) != properties.end()) {
-            return &properties[name];
-        }
-        return nullptr;
-    }
-    Value* getArrayElement(size_t index) {
-        if (type == DataType::JSON_ARRAY && index < array_elements.size()) {
-            return &array_elements[index];
-        }
-        return nullptr;
-    }
+    Property* getProperty(const std::string& name);
+    Value* getArrayElement(size_t index);
 
-    Value getProperty(const std::string& name, Value placeholder) {
-        if (properties.find(name) != properties.end()) {
-            return properties[name];
-        }
-        return placeholder;
-    }
-    Value getProperty(const std::string& name, Value placeholder) const {
-        auto it = properties.find(name);
-        if (it != properties.end()) {
-            return it->second;
-        }
-        return placeholder;
-    }
+    Property getProperty(const std::string& name, Value placeholder);
+    Property getProperty(const std::string& name, Value placeholder) const;
 
     static Value createNumber(double num);
     static Value createString(const std::string& str);
@@ -493,9 +558,16 @@ struct Value {
             case DataType::NUMBER:
             case DataType::HEXADECIMAL:
             case DataType::BINARY:
-            case DataType::OCTAL:
-                archive(number_value);
+            case DataType::OCTAL: {
+                bool hasNumericData = static_cast<bool>(numeric_data);
+                archive(hasNumericData);
+                if (hasNumericData) {
+                    archive(*numeric_data);
+                } else {
+                    archive(number_value);
+                }
                 break;
+            }
             case DataType::STRING:
             case DataType::LINK:
             case DataType::PATH:
@@ -523,6 +595,54 @@ struct Value {
         }
     }
 };
+struct Value::Property {
+    Access access = Access::READ_WRITE;
+    std::shared_ptr<Value> getter;
+    std::shared_ptr<Value> setter;
+    bool hasGetter = false;
+    bool hasSetter = false;
+    Value value;
+
+    Property() : value(Value::createNull()) {}
+    Property(const Value& val, const Access& acs): value(val), access(acs) {}
+
+    template <class Archive>
+    void serialize(Archive& archive) {
+        int accessInt = static_cast<int>(access);
+        archive(accessInt);
+        access = static_cast<Access>(accessInt);
+        archive(value);
+    }
+};
+inline Value::Property* Value::getProperty(const std::string& name) {
+    if (properties.find(name) != properties.end()) {
+        return &properties[name];
+    }
+    return nullptr;
+}
+inline Value* Value::getArrayElement(size_t index) {
+    if (type == DataType::JSON_ARRAY && index < array_elements.size()) {
+        return &array_elements[index];
+    }
+    return nullptr;
+}
+inline Value::Property Value::getProperty(const std::string& name, Value placeholder) {
+    if (properties.find(name) != properties.end()) {
+        return properties[name];
+    }
+    Property prop;
+    prop.value = placeholder;
+    return prop;
+}
+inline Value::Property Value::getProperty(const std::string& name, Value placeholder) const {
+    auto it = properties.find(name);
+    if (it != properties.end()) {
+        return it->second;
+    }
+    Property prop;
+    prop.value = placeholder;
+    return prop;
+}
 
 struct LogEntry {
     std::string type;
@@ -551,7 +671,7 @@ struct ParseResult {
 };
 
 struct JSONObject {
-    std::unordered_map<std::string, Value> properties;
+    std::unordered_map<std::string, Value::Property> properties;
 };
 
 struct JSONArray {
@@ -578,7 +698,7 @@ struct ASTNode {
         : type(t), identifier(id), startPos(start), typeDeclaration(DataType::UNKNOWN), local(false) {}
 };
 
-enum class CharType {
+enum class CharType : uint8_t {
     GRAPHEME  = 0,
     CODEPOINT = 1,
     BYTE      = 2
@@ -594,6 +714,17 @@ struct Mutated {
 };
 
 using Function = std::function<Value(const std::vector<Value>&)>;
+
+struct Class {
+    Value constructor;
+    Value destructor;
+    std::unordered_map<std::string, std::pair<Access, Value>> staticObject;
+    std::unordered_map<std::string, std::pair<Access, Value>> instanceObject;
+
+    Class() : constructor(Value::createNull()), destructor(Value::createNull()) {}
+    Class(Value constructor) : constructor(constructor), destructor(Value::createNull()) {}
+    Class(Value constructor, Value destructor) : constructor(constructor), destructor(destructor) {}
+};
 
 class Parser {
 private:
@@ -911,6 +1042,17 @@ public:
     void clearGlobals();
 
     Value ParseJUSTO(const std::string& code);
+
+    Value p2v(const Value::Property& property);
+    Value::Property v2p(const Value& value, const Access& access = Access::READ_WRITE, const Value& getter = Value::createNull(), const Value& setter = Value::createNull());
+    Value v(const Value& value);
+    Value v(const Value::Property& value);
+    Value::Property p(const Value& value);
+    Value::Property p(const Value::Property& value);
+    std::unordered_map<std::string, Value> vmap(const std::unordered_map<std::string, Value>& props);
+    std::unordered_map<std::string, Value> vmap(const std::unordered_map<std::string, Value::Property>& props);
+    std::unordered_map<std::string, Value::Property> pmap(const std::unordered_map<std::string, Value>& values);
+    std::unordered_map<std::string, Value::Property> pmap(const std::unordered_map<std::string, Value::Property>& values);
 };
 
 #endif
