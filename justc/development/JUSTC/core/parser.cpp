@@ -53,7 +53,6 @@ SOFTWARE.
 #include "cpptypes.h"
 #include <iomanip>
 #include <functional>
-#include <thread>
 
 #ifdef __SIZEOF_FLOAT128__
     #if JUSTC_HAS_QUADMATH
@@ -75,31 +74,6 @@ SOFTWARE.
 #else
     #define JUSTC_INT128_SUPPORT 0
     #define JUSTC_UINT128_SUPPORT 0
-#endif
-
-#if defined(_MSC_VER)
-    #include <intrin.h>
-    #if defined(_M_AMD64) || defined(_M_IX86)
-        #define CPU_PAUSE() _mm_pause()
-    #elif defined(_M_ARM64)
-        #define CPU_PAUSE() __yield()
-    #elif defined(_M_ARM)
-        #define CPU_PAUSE() __wfe()
-    #else
-        #define CPU_PAUSE() (void)0
-    #endif
-#elif defined(__GNUC__) || defined(__clang__)
-    #if defined(__x86_64__) || defined(__i386__)
-        #define CPU_PAUSE() __asm__ volatile("pause" ::: "memory")
-    #elif defined(__aarch64__)
-        #define CPU_PAUSE() __asm__ volatile("yield" ::: "memory")
-    #elif defined(__arm__)
-        #define CPU_PAUSE() __asm__ volatile("wfe" ::: "memory")
-    #elif defined(__wasm__)
-        #define CPU_PAUSE() (void)0
-    #endif
-#else
-    #define CPU_PAUSE() (void)0
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -716,12 +690,13 @@ Value Parser::builtinObjectFunction(const std::string& name) {
 Parser::Parser(
     const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript,
     const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau,
-    const bool isFunction, const std::unordered_map<std::string, Value>* initialContext, const CharType chartype
+    const bool isFunction, const std::unordered_map<std::string, Value>* initialContext, const CharType chartype, const ParserType parsertype
 ) :
     tokens(tokens), input(input), position(0), outputMode("everything"), allowJavaScript(allowJavaScript), globalScope(false),
     strictMode(false), hasLogFile(false), allowLuau(allowLuau), canAllowLuau(canAllowLuau), doExecute(doExecute), runAsync(runAsync),
     canAllowJS(allowJavaScript ? true : canAllowJS), scriptName(scriptName), scriptType(scriptType), asJSON(false), isJSONArray(false),
-    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype), currentScope(0), rootIndex(0)
+    endOfScript("."), returnValue(DataType::UNKNOWN), isFunction(isFunction), chartype(chartype), currentScope(0), rootIndex(0),
+    parsertype(parsertype)
 {
     initializeCPPTypes();
     initializeBuiltIns();
@@ -981,12 +956,6 @@ Parser::Parser(
     scriptProperties["uint128"] = booleanToValue(JUSTC_UINT128_SUPPORT);
     scriptProperties["float128"] = booleanToValue(JUSTC_FLOAT128_SUPPORT);
     builtinObject("Script", scriptProperties);
-
-    std::unordered_map<std::string, Value> taskProperties;
-    taskProperties["Sleep"] = builtinObjectFunction("Task.Sleep");
-    taskProperties["Wait"] = builtinObjectFunction("Task.Wait");
-    taskProperties["WaitUntil"] = builtinObjectFunction("Task.WaitUntil");
-    builtinObject("Task", taskProperties);
 
     Value chartypeValue;
     chartypeValue.type = DataType::STRING;
@@ -1858,10 +1827,20 @@ ASTNode Parser::parseStatement(bool doExecute) {
         constVars[funcValue.name] = true;
 
         return node;
+    } else if (keyword == "struct") {
+        Value structVal = parseStructDeclaration(doExecute);
 
+        ASTNode node("VARIABLE_DECLARATION", structVal.name, currentToken().start);
+        node.value = structVal;
+        node.constant = true;
+
+        variables[structVal.name] = structVal;
+        constVars[structVal.name] = true;
+
+        return node;
     } else if (keyword == "echo" || keyword == "log" || keyword == "logfile") {
         return parseCommand(doExecute);
-    } else if ((match("identifier") || match("string") || isCPPType()) && !isJSONArray) {
+    } else if ((match("identifier") || match("string") || isCPPType() || isStruct(currentToken().value).first) && !isJSONArray) {
         return parseVariableDeclaration(doExecute);
     } else if (match("keyword", "const") && !isJSONArray) {
         advance();
@@ -1914,6 +1893,11 @@ ASTNode Parser::parseGlobal(bool doExecute, bool constant) {
         global.value = funcValue;
         global.identifier = funcValue.name;
         global.constant = constant;
+    } else if (match("keyword", "struct")) {
+        Value structVal = parseStructDeclaration(doExecute);
+        global.value = structVal;
+        global.identifier = structVal.name;
+        global.constant = constant;
     } else {
         global = parseVariableDeclaration(doExecute, constant, false, true);
     }
@@ -1930,7 +1914,7 @@ bool Parser::CanIgnoreNoAssigmentOperator() {
 }
 ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool local, bool global) {
     std::string cpptype = "default";
-    if (isCPPType()) {
+    if (isCPPType() || isStruct(currentToken().value).first) {
         cpptype = currentToken().value;
         advance();
     }
@@ -2000,7 +1984,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         typeDecl = currentToken().value;
         if (!match("identifier") && !match("string") && !match("link")) {
             // then `:` and `=` are the same
-            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN, doExecute);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
@@ -2021,7 +2005,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
             node.typeDeclaration = Utility::typeDeclaration2dataType(typeDecl, Utility::position(currentToken().start, input) + ".");
         } catch (...) {
             // then `:` and `=` are the same
-            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, DataType::UNKNOWN, doExecute);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
 
@@ -2045,7 +2029,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         assignOp = currentToken().value;
         advance();
 
-        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
+        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration, doExecute);
         node.value = exprValue;
         extractReferences(exprValue, node.references);
     }
@@ -2053,7 +2037,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         assignOp = currentToken().value;
         advance();
 
-        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
+        Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration, doExecute);
         exprValue = handleInequality(exprValue);
         node.value = exprValue;
         extractReferences(exprValue, node.references);
@@ -2104,7 +2088,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
         if (isEnd()) {
             throw std::runtime_error("Expected assignment operator at " + Utility::position(currentToken().start, input) + ", got EOF.");
         } else if (CanIgnoreNoAssigmentOperator()) {
-            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration);
+            Value exprValue = applyCPPTypeDeclaration(parseExpression(doExecute), cpptype, node.typeDeclaration, doExecute, true);
             node.value = exprValue;
             extractReferences(exprValue, node.references);
         } else throw std::runtime_error("Expected assignment operator at " + Utility::position(currentToken().start, input) + ", got \"" + currentToken().value +"\".");
@@ -2151,7 +2135,7 @@ ASTNode Parser::parseVariableDeclaration(bool doExecute, bool constant, bool loc
 }
 
 Value Parser::parseExpression(bool doExecute, bool identifierMode, bool doFunctionCall, bool ignoreColon) {
-    if (match("keyword", "function") || match("keyword", "isolated")) {
+    if (match("keyword", "function") || match("keyword", "isolated") || match("keyword", "struct")) {
         std::string funcName = std::to_string(position);
         bool gotName = false;
         size_t offset = 1;
@@ -2165,6 +2149,7 @@ Value Parser::parseExpression(bool doExecute, bool identifierMode, bool doFuncti
             }
             ++offset;
         }
+        if (match("keyword", "struct")) return parseStructDeclaration(doExecute, funcName, false);
         return parseFunctionDeclaration(doExecute, funcName, false);
     }
     Value result = parseConditional(doExecute, identifierMode, doFunctionCall, ignoreColon);
@@ -3605,173 +3590,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         if (funcName == "RenderJSX") {
             return Value::createString(renderJSX(args[0]));
         }
-        if (funcName == "Task.Sleep") {
-            double value = args[0].toNumber();
-            std::string unit = "ms";
-            
-            if (args.size() > 1) {
-                unit = args[1].toString();
-            }
-            
-            if (unit == "ms" || unit == "milliseconds") {
-                auto duration = std::chrono::milliseconds(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    emscripten_sleep(static_cast<int>(duration.count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else if (unit == "s" || unit == "seconds") {
-                auto duration = std::chrono::seconds(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    emscripten_sleep(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else if (unit == "m" || unit == "minutes") {
-                auto duration = std::chrono::minutes(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    emscripten_sleep(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else if (unit == "h" || unit == "hours") {
-                auto duration = std::chrono::hours(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    emscripten_sleep(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else if (unit == "us" || unit == "microseconds") {
-                auto duration = std::chrono::microseconds(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-                    emscripten_sleep(static_cast<int>(ms.count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else if (unit == "ns" || unit == "nanoseconds") {
-                auto duration = std::chrono::nanoseconds(static_cast<long long>(value));
-                #ifdef __EMSCRIPTEN__
-                    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-                    emscripten_sleep(static_cast<int>(ms.count()));
-                #else
-                    std::this_thread::sleep_for(duration);
-                #endif
-            } else {
-                throw std::runtime_error("Unknown time unit for Task.Sleep: " + unit);
-            }
-            
-            return Value::createNumber(value);
-        }
-        if (funcName == "Task.Wait") {            
-            double value = args[0].toNumber();
-            std::string unit = "ms";
-            
-            if (args.size() > 1) {
-                unit = args[1].toString();
-            }
-            
-            long long ms = 0;
-            if (unit == "ms" || unit == "milliseconds") {
-                ms = static_cast<long long>(value);
-            } else if (unit == "s" || unit == "seconds") {
-                ms = static_cast<long long>(value * 1000);
-            } else if (unit == "m" || unit == "minutes") {
-                ms = static_cast<long long>(value * 60 * 1000);
-            } else if (unit == "h" || unit == "hours") {
-                ms = static_cast<long long>(value * 60 * 60 * 1000);
-            } else {
-                throw std::runtime_error("Unknown time unit for Task.Wait: " + unit);
-            }
-            
-            if (ms < 0) ms = 0;
-            
-            auto start = std::chrono::steady_clock::now();
-            
-            if (ms < 100) {
-                while (true) {
-                    auto now = std::chrono::steady_clock::now();
-                    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
-                    
-                    if (elapsed >= ms * 1000) {
-                        break;
-                    }
-                    
-                    CPU_PAUSE();
-                }
-            } else {
-                const long long CHECK_INTERVAL_MS = 1;
-                
-                while (true) {
-                    auto now = std::chrono::steady_clock::now();
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-                    
-                    if (elapsed >= ms) {
-                        break;
-                    }
-                    
-                    #ifdef __EMSCRIPTEN__
-                        emscripten_sleep(0);
-                    #else
-                        std::this_thread::sleep_for(std::chrono::microseconds(100));
-                        CPU_PAUSE();
-                    #endif
-                }
-            }
-            
-            return Value::createNumber(value);
-        }
-        if (funcName == "Task.WaitUntil") {
-            double timeoutValue = args[1].toNumber();
-            std::string unit = "ms";
-            if (args.size() > 2) {
-                unit = args[2].toString();
-            }
-            
-            long long timeoutMs = 0;
-            if (unit == "ms" || unit == "milliseconds") {
-                timeoutMs = static_cast<long long>(timeoutValue);
-            } else if (unit == "s" || unit == "seconds") {
-                timeoutMs = static_cast<long long>(timeoutValue * 1000);
-            } else if (unit == "m" || unit == "minutes") {
-                timeoutMs = static_cast<long long>(timeoutValue * 60 * 1000);
-            } else if (unit == "h" || unit == "hours") {
-                timeoutMs = static_cast<long long>(timeoutValue * 60 * 60 * 1000);
-            } else {
-                throw std::runtime_error("Unknown time unit for Task.WaitUntil: " + unit);
-            }
-            
-            auto start = std::chrono::steady_clock::now();
-            const long long CHECK_INTERVAL_MS = 10;
-            
-            while (true) {
-                bool conditionMet;
-                if (args[0].type == DataType::FUNCTION) {
-                    Value result = callFunction(args[0], {}, currentToken().start, doExecute);
-                    conditionMet = result.toBoolean();
-                } else {
-                    conditionMet = args[0].toBoolean();
-                }
-                
-                if (conditionMet) {
-                    return Value::createBoolean(true);
-                }
-                
-                auto now = std::chrono::steady_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-                
-                if (elapsed >= timeoutMs) {
-                    return Value::createBoolean(false);
-                }
-                
-                #ifdef __EMSCRIPTEN__
-                    emscripten_sleep(CHECK_INTERVAL_MS);
-                #else
-                    std::this_thread::sleep_for(std::chrono::milliseconds(CHECK_INTERVAL_MS));
-                    CPU_PAUSE();
-                #endif
-            }
-        }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }
@@ -4661,10 +4479,11 @@ __float128 Parser::parseToFloat128(const std::string& str) {
     return strtoflt128(cleaned.c_str(), nullptr);
 }
 #endif
-Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cpptype, const DataType typeDecl) {
+Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cpptype, const DataType typeDecl, bool doExecute, const bool canBeDefault) {
     if (cpptype == "default") return value;
 
     Value result = value;
+    const bool isDefault = canBeDefault && value.type == DataType::NULL_TYPE;
 
     if (isCPPNumber(cpptype)) {
         switch (typeDecl) {
@@ -4674,6 +4493,8 @@ Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cppt
             case DataType::BINARY:
             case DataType::OCTAL: {
                 std::string cleaned = stripUnderscores(value.name);
+                if (isDefault) cleaned = "0";
+
                 if (cpptype == "int8") {
                     result = Value::createNumberWithType(static_cast<int8_t>(std::stoi(cleaned)), NumericType::INT8);
                 } else if (cpptype == "int16") {
@@ -4773,6 +4594,10 @@ Value Parser::applyCPPTypeDeclaration(const Value value, const std::string& cppt
                 throw std::runtime_error("C++ type declaration error: Cannot convert " + dataTypeToString(typeDecl) + " to " + cpptype + " at " + Utility::position(currentToken().start, input) + ".");
                 break;
         }
+    } else if (isStruct(cpptype).first) {
+        Value constructor = isStruct(cpptype).second;
+        result = callFunction(constructor, {}, currentToken().start, doExecute);
+        if (!isDefault) throw std::runtime_error("");
     }
 
     return result;
@@ -4969,7 +4794,7 @@ Value Parser::merger(const std::vector<Value>& args) {
     variables[key] = value;
     return Value::createNull();
 }
-Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent) {
+Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent, ParserType ptype) {
     try {
         auto lexerResult = Lexer::parse(code);
 
@@ -4996,7 +4821,8 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
             this->canAllowLuau,
             isFunction,
             context,
-            chartype
+            chartype,
+            ptype
         );
 
         ParseResult result;
@@ -5112,13 +4938,13 @@ Value Parser::isolated(const std::string& code, bool doExecute, size_t startPos,
         throw std::runtime_error(std::string(e.what()) + " (at \"" + this->scriptName + "\" " + Utility::position(startPos, input) + ")");
     }
 }
-Value Parser::shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent) {
+Value Parser::shared(const std::string& code, bool doExecute, size_t startPos, const std::unordered_map<std::string, Value>* context, const std::string name, bool merge, bool silent, ParserType ptype) {
     std::unordered_map<std::string, Value> ctx;
     if (context) {
         ctx = *context;
     }
 
-    Value result = isolated(code, doExecute, startPos, &ctx, name, merge);
+    Value result = isolated(code, doExecute, startPos, &ctx, name, merge, silent, ptype);
 
     if (merge) {
         for (const auto& [key, value] : ctx) {
@@ -5554,7 +5380,7 @@ Value Parser::parseFunctionDeclaration(bool doExecute, std::string funcName, boo
 }
 
 Value Parser::callFunction(const Value& function, const std::vector<Value>& args, size_t startPos, bool doExecute) {
-    if (function.type != DataType::FUNCTION) {
+    if (function.type != DataType::FUNCTION && function.type != DataType::STRUCT) {
         throw std::runtime_error("Cannot call non-function value at " + Utility::position(startPos, input));
     } else if (!doExecute) {
         return onExecDisabled(startPos, function.name);
@@ -5606,7 +5432,9 @@ Value Parser::callFunction(const Value& function, const std::vector<Value>& args
         functionContext[funcInfo.paramNames[i]] = paramValue;
     }
 
-    Value result = isolated(function.string_value, true, startPos, &functionContext);
+    ParserType ptype = ParserType::SCRIPT;
+    if (function.type == DataType::STRUCT) ptype = ParserType::STRUCT;
+    Value result = isolated(function.string_value, true, startPos, &functionContext, "auto", false, false, ptype);
 
     if (!result.properties.empty()) {
         auto it = result.properties.find("return");
@@ -6800,6 +6628,74 @@ std::unordered_map<std::string, Value::Property> Parser::pmap(const std::unorder
 }
 std::unordered_map<std::string, Value::Property> Parser::pmap(const std::unordered_map<std::string, Value::Property>& values) { // propertyMap
     return values;
+}
+
+Value Parser::parseStructDeclaration(bool doExecute, std::string structName, bool requireName) {
+    if (!match("keyword", "struct")) {
+        throw std::runtime_error("Expected 'struct' keyword at " + Utility::position(currentToken().start, input));
+    }
+    advance();
+
+    if (requireName) {
+        if (!match("identifier")) {
+            throw std::runtime_error("Expected struct name at " + Utility::position(currentToken().start, input));
+        }
+        structName = currentToken().value;
+        advance();
+    } else {
+        if (match("identifier")) {
+            structName = currentToken().value;
+            advance();
+        }
+    }
+
+    if (!match("{")) {
+        throw std::runtime_error("Expected '{' for struct body at " + Utility::position(currentToken().start, input));
+    }
+    advance();
+
+    std::stringstream body;
+    int braceCount = 1;
+
+    while (!isEnd() && braceCount > 0) {
+        if (match("{")) braceCount++;
+        else if (match("}")) braceCount--;
+
+        if (braceCount > 0) {
+            body << t2i(currentToken());
+        }
+        advance();
+    }
+
+    if (braceCount != 0) {
+        throw std::runtime_error("Unclosed struct body at " + Utility::position(currentToken().start, input));
+    }
+
+    std::string structBody = body.str();
+
+    Value result;
+    result.type = DataType::STRUCT;
+    result.string_value = structBody;
+    result.name = structName;
+
+    auto closureContext = std::make_shared<ObjectContext>();
+    for (const auto& [key, value] : this->variables) {
+        closureContext->variables[key] = value;
+    }
+    closureContext->allowJavaScript = this->allowJavaScript;
+    closureContext->allowLuau = this->allowLuau;
+    result.closure_context = closureContext;
+
+    structures[structName] = result;
+    return result;
+}
+
+std::pair<bool, Value> Parser::isStruct(const std::string& name) {
+    auto it = structures.find(name);
+    if (it != structures.end()) {
+        return {true, it->second};
+    }
+    return {false, Value::createNull()};
 }
 
 ParseResult Parser::parseTokens(const std::vector<ParserToken>& tokens, bool doExecute, bool runAsync, const std::string& input, const bool allowJavaScript, const bool canAllowJS, const std::string scriptName, const std::string scriptType, const bool allowLuau, const bool canAllowLuau) {
