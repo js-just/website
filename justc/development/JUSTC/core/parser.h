@@ -45,6 +45,7 @@ SOFTWARE.
 #include <cereal/types/string.hpp>
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/memory.hpp>
+#include <optional>
 
 #ifdef _MSC_VER
     #define JUSTC_HAS_INT128 0
@@ -440,6 +441,7 @@ enum class Access : uint8_t {
 
 struct Value {
     DataType type;
+    std::string cpptype;
 
     union {
         double number_value;
@@ -470,9 +472,9 @@ struct Value {
     
     std::shared_ptr<NumericValue> numeric_data;
 
-    Value() : type(DataType::UNKNOWN), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
-    Value(DataType t) : type(t), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
-    Value(DataType t, std::string s) : type(t), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
+    Value() : type(DataType::UNKNOWN), cpptype("default"), number_value(0), name("unknown"), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
+    Value(DataType t) : type(t), cpptype("default"), number_value(0), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
+    Value(DataType t, std::string s) : type(t), cpptype("default"), string_value(s), name(dataTypeToString(t)), object_type(DataType::UNKNOWN), native(false), isVariable(false), varType(VariableType::VARIABLE) {}
 
     std::string toString() const;
     std::string toIdentifier() const;
@@ -558,6 +560,7 @@ struct Value {
         int typeInt = static_cast<int>(type);
         archive(typeInt);
         type = static_cast<DataType>(typeInt);
+        archive(cpptype);
 
         switch (type) {
             case DataType::NUMBER:
@@ -737,6 +740,14 @@ enum class ParserType : uint8_t {
     STRUCT = 1
 };
 
+struct PropertyPathNode {
+    bool isProperty = false;
+    bool isIndex = false;
+    std::string name;
+    size_t index = 0;
+    std::optional<ASTNode> typeNode;
+};
+
 class Parser {
 private:
     bool doExecute;
@@ -850,10 +861,10 @@ private:
     Value parseJustcObject(bool doExecute);
     Value parseJsonObject(bool doExecute);
     Value parseJsonArray(bool doExecute);
-    Value parseObjectPropertyAccess(bool doExecute);
+    Value parseObjectPropertyAccess(bool doExecute, bool set = false);
     std::shared_ptr<ObjectContext> createObjectContext(bool inheritFromParent);
 
-    Value accessProperty(const Value& obj, const std::string& propName);
+    std::pair<Value, Value::Property> accessProperty(const Value& obj, const std::string& propName, const Access& requestAccess = Access::READ_ONLY);
     Value accessIndex(const Value& arr, size_t index);
     std::vector<Value> parseArguments(bool doExecute);
 
@@ -861,7 +872,7 @@ private:
     void checkVariableNameAvailable(std::string name);
 
     ASTNode parseStatement(bool doExecute);
-    bool CanIgnoreNoAssigmentOperator();
+    bool CanIgnoreNoAssignmentOperator();
     Value makeValue(Value value, bool b);
     ASTNode parseGlobal(bool doExecute, bool constant = false);
     ASTNode parseVariableDeclaration(bool doExecute, bool constant = false, bool local = false, bool global = false);
@@ -1037,6 +1048,10 @@ private:
 
     Value parseStructDeclaration(bool doExecute, std::string structName = "anonymous", bool requireName = true);
     std::pair<bool, Value> isStruct(const std::string& name);
+    void removeStructsFromOutput();
+
+    Value updateObjectProperty(const std::vector<std::variant<std::string, size_t>>& accessChain, std::string accessChainStr);
+    Value updateObjectPropertyRecursive(const Value& obj, const std::vector<PropertyPathNode>& pathNodes, size_t depth, const Value& newValue);
 
 public:
     static std::string getCurrentTimestamp();
@@ -1061,16 +1076,18 @@ public:
 
     Value ParseJUSTO(const std::string& code);
 
-    Value p2v(const Value::Property& property);
+    Value p2v(const Value::Property& property, const Access& requestAccess = Access::READ_ONLY);
     Value::Property v2p(const Value& value, const Access& access = Access::READ_WRITE, const Value& getter = Value::createNull(), const Value& setter = Value::createNull());
-    Value v(const Value& value);
-    Value v(const Value::Property& value);
+    Value v(const Value& value, const Access& requestAccess = Access::READ_ONLY);
+    Value v(const Value::Property& value, const Access& requestAccess = Access::READ_ONLY);
     Value::Property p(const Value& value);
     Value::Property p(const Value::Property& value);
     std::unordered_map<std::string, Value> vmap(const std::unordered_map<std::string, Value>& props);
     std::unordered_map<std::string, Value> vmap(const std::unordered_map<std::string, Value::Property>& props);
     std::unordered_map<std::string, Value::Property> pmap(const std::unordered_map<std::string, Value>& values);
     std::unordered_map<std::string, Value::Property> pmap(const std::unordered_map<std::string, Value::Property>& values);
+    std::pair<Value, Value::Property> vp(const Value& value, const Access& requestAccess);
+    std::pair<Value, Value::Property> vp(const Value::Property& value, const Access& requestAccess);
 };
 
 #endif
