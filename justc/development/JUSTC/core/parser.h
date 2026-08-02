@@ -554,6 +554,9 @@ struct Value {
     }
     
     std::string toNumericString() const;
+    
+    template<typename T>
+    T toNum() const;
 
     template <class Archive>
     void serialize(Archive& archive) {
@@ -821,6 +824,8 @@ private:
     ParserType parsertype;
 
     std::unordered_map<std::string, Value> structures;
+    
+    std::vector<std::string> outputExcludeVariables;
 
     // logs
     void addLog(const std::string& type, const std::string& message, size_t position = 0);
@@ -1053,6 +1058,10 @@ private:
     Value updateObjectProperty(const std::vector<std::variant<std::string, size_t>>& accessChain, std::string accessChainStr);
     Value updateObjectPropertyRecursive(const Value& obj, const std::vector<PropertyPathNode>& pathNodes, size_t depth, const Value& newValue);
 
+    void finalizeOutput();
+
+    Value unaryAssign(const Value& value);
+
 public:
     static std::string getCurrentTimestamp();
     static Value stringToValue(const std::string& str);
@@ -1088,6 +1097,15 @@ public:
     std::unordered_map<std::string, Value::Property> pmap(const std::unordered_map<std::string, Value::Property>& values);
     std::pair<Value, Value::Property> vp(const Value& value, const Access& requestAccess);
     std::pair<Value, Value::Property> vp(const Value::Property& value, const Access& requestAccess);
+
+    uint64_t registerPointer(const Value& value);
+    Value getPointer(const uint64_t& pointer);
+    void freePointer(const uint64_t& pointer);
+    void clearPointers();
+
+    Value makePointer(const Value& value);
+    Value getPointer(const Value& pointer);
+    void freePointer(const Value& pointer);
 };
 
 #endif
