@@ -10,7 +10,6 @@
 "https://just.js.org/justc/development/JUSTC/core/serializer/yaml.cpp",
 "https://just.js.org/justc/development/JUSTC/core/utility.cpp",
 "https://just.js.org/justc/development/JUSTC/core/import.cpp",
-"https://just.js.org/justc/development/JUSTC/core/lang/luau.cpp",
 "https://just.js.org/justc/development/JUSTC/core/built-in/http/http.cpp",
 "https://just.js.org/justc/development/JUSTC/core/built-in/math/math.cpp",
 "https://just.js.org/justc/development/JUSTC/core/built-in/binary/binary.cpp",
@@ -63,4 +62,5 @@
 "https://just.js.org/justc/development/JUSTC/core/cpptypes.h",
 "https://just.js.org/justc/development/JUSTC/core/justb.hpp",
 "https://just.js.org/justc/development/JUSTC/core/compiler/justb.hpp",
-"https://just.js.org/justc/development/JUSTC/core/loader/justb.hpp"]
+"https://just.js.org/justc/development/JUSTC/core/loader/justb.hpp",
+"https://just.js.org/justc/development/JUSTC/core/lang/luau.cpp"]
