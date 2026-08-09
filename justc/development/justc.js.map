@@ -63,4 +63,6 @@
 "https://just.js.org/justc/development/JUSTC/core/justb.hpp",
 "https://just.js.org/justc/development/JUSTC/core/compiler/justb.hpp",
 "https://just.js.org/justc/development/JUSTC/core/loader/justb.hpp",
-"https://just.js.org/justc/development/JUSTC/core/lang/luau.cpp"],"mappings":""}
+"https://just.js.org/justc/development/JUSTC/core/lang/luau.cpp",
+"https://just.js.org/justc/development/JUSTC/core/built-in/window/window.cpp",
+"https://just.js.org/justc/development/JUSTC/core/built-in/window/window.hpp"],"mappings":""}

@@ -24,6 +24,10 @@ SOFTWARE.
 
 */
 
+#ifdef _WIN32
+    #define NOMINMAX
+#endif
+
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
@@ -43,6 +47,8 @@ SOFTWARE.
 
         std::unordered_map<uint64_t, Class> m_classes;
         uint64_t m_nextClass = 0;
+        bool m_builtinClasses = false;
+        std::unordered_map<std::string, uint64_t> m_builtinClassMap;
 
     public:
         static GlobalContext& getInstance() {
@@ -117,6 +123,19 @@ SOFTWARE.
         void clearClasses() {
             m_classes.clear();
             m_nextClass = 0;
+        }
+
+        void setBIC(const bool& value) {
+            m_builtinClasses = value;
+        }
+        bool getBIC() {
+            return m_builtinClasses;
+        }
+        void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+            m_builtinClassMap = map;
+        }
+        std::unordered_map<std::string, uint64_t> getBIM() {
+            return m_builtinClassMap;
         }
     };
 #else
@@ -132,6 +151,8 @@ SOFTWARE.
 
         std::unordered_map<uint64_t, Class> m_classes;
         uint64_t m_nextClass = 0;
+        bool m_builtinClasses = false;
+        std::unordered_map<std::string, uint64_t> m_builtinClassMap;
 
     public:
         static GlobalContext& getInstance() {
@@ -220,6 +241,23 @@ SOFTWARE.
             std::unique_lock<std::shared_mutex> lock(m_mutex);
             m_classes.clear();
             m_nextClass = 0;
+        }
+
+        void setBIC(const bool& value) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_builtinClasses = value;
+        }
+        bool getBIC() {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_builtinClasses;
+        }
+        void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_builtinClassMap = map;
+        }
+        std::unordered_map<std::string, uint64_t> getBIM() {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_builtinClassMap;
         }
     };
 #endif
@@ -277,6 +315,22 @@ inline void removeClass(const uint64_t& classID) {
 
 inline void clearClasses_() {
     GlobalContext::getInstance().clearClasses();
+}
+
+inline bool getBIC() {
+    return GlobalContext::getInstance().getBIC();
+}
+
+inline void setBIC(const bool& value) {
+    GlobalContext::getInstance().setBIC(value);
+}
+
+inline std::unordered_map<std::string, uint64_t> getBIM() {
+    return GlobalContext::getInstance().getBIM();
+}
+
+inline void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+    GlobalContext::getInstance().setBIM(map);
 }
 
 #endif
