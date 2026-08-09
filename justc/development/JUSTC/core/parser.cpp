@@ -26,6 +26,10 @@ SOFTWARE.
 
 #ifdef _WIN32
     #define NOMINMAX
+    #undef INFINITE
+    #undef NAN
+    #undef ERROR
+    #undef DELETE
 #endif
 
 #include "parser.h"
@@ -3192,7 +3196,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
     }
 
     // math and binary
-    if (args.empty() && funcName != "Math.Random") {
+    if (args.empty() && funcName != "Math.Random" && funcName != "Window") {
         if (funcName == "JUSTC.Parse" || funcName == "JUSTC.Execute") {
             return emptyJUSTC();
         }
@@ -4902,7 +4906,7 @@ Value Parser::functionHTTP(size_t startPos, const std::string& method, const std
     } else if (method == "PATCH") {
         result = HTTP::PATCH(url, headers, body);
     } else if (method == "DELETE") {
-        result = HTTP::DELETE(url, headers);
+        result = (HTTP::DELETE_)(url, headers);
     } else if (method == "HEAD") {
         result = HTTP::HEAD(url, headers);
     } else if (method == "OPTIONS") {
