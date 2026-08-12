@@ -238,12 +238,17 @@ public:
     static bool compareValues(const Value& left, const Value::Property& right);
     static bool compareValues(const Value::Property& left, const Value::Property& right);
     static bool checkElement(const Value& val);
+    static bool checkArray(const Value& val);
+    static bool checkArrays(const Value& left, const Value& right);
 
     static inline std::string uint64ToHexString(uint64_t num) {
         std::stringstream ss;
         ss << "0x" << std::setfill('0') << std::setw(16) << std::hex << num;
         return ss.str();
     }
+
+    static std::string hashString(const Value& val);
+    static std::string hashString(const Value::Property& val);
 };
 class UnicodeUtility {
 public:

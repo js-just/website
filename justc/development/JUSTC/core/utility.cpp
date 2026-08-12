@@ -191,6 +191,8 @@ DataType Utility::typeDeclaration2dataType(const std::string& typeDeclaration, c
         { "infinity",    DataType::INFINITE     },     { "inf",  DataType::INFINITE     },
         { "data",        DataType::BINARY_DATA  },
         { "element",     DataType::JSX_ELEMENT  },
+        { "map",         DataType::MAP          },
+        { "set",         DataType::SET          },
         { "auto",        DataType::UNKNOWN      },
     };
 
@@ -692,4 +694,62 @@ bool Utility::checkElement(const Value& val) {
         default:
             return false;
     }
+}
+
+bool Utility::checkArray(const Value& val) {
+    switch (val.type) {
+        case DataType::JSON_ARRAY:
+        case DataType::SET:
+        case DataType::INT8_ARRAY:
+        case DataType::INT16_ARRAY:
+        case DataType::INT32_ARRAY:
+        case DataType::INT64_ARRAY:
+        case DataType::UINT8_ARRAY:
+        case DataType::UINT16_ARRAY:
+        case DataType::UINT32_ARRAY:
+        case DataType::UINT64_ARRAY:
+        case DataType::CUINT8_ARRAY:
+        case DataType::CUINT16_ARRAY:
+        case DataType::CUINT32_ARRAY:
+        case DataType::CUINT64_ARRAY:
+        case DataType::FLOAT32_ARRAY:
+        case DataType::FLOAT64_ARRAY:
+            return true;
+        default:
+            return false;
+    }
+}
+bool Utility::checkArrays(const Value& left, const Value& right) {
+    return (checkArray(left) && checkArray(right));
+}
+
+std::string Utility::hashString(const Value& val) {
+    std::stringstream ss;
+    ss << static_cast<int>(val.type);
+    ss << val.cpptype;
+    ss << (val.boolean_value ? "1" : "0");
+    ss << val.toNumericString();
+    ss << uint64ToHexString(static_cast<uint64_t>(val.object_value.size()));
+    for (const auto& [key, item] : val.object_value) {
+        ss << key;
+        ss << hashString(item);
+    }
+    ss << uint64ToHexString(static_cast<uint64_t>(val.properties.size()));
+    for (const auto& [key, item] : val.properties) {
+        ss << key;
+        ss << hashString(item);
+    }
+    ss << uint64ToHexString(static_cast<uint64_t>(val.array_elements.size()));
+    for (const auto& item : val.array_elements) {
+        ss << hashString(item);
+    }
+    ss << val.string_value;
+    return ss.str();
+}
+std::string Utility::hashString(const Value::Property& val) {
+    std::stringstream ss;
+    ss << static_cast<int>(val.access);
+    ss << (val.hasGetter && val.hasSetter ? "a" : val.hasGetter ? "b" : val.hasSetter ? "c" : "d");
+    ss << hashString(val.value);
+    return ss.str();
 }
