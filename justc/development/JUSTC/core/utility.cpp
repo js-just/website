@@ -233,9 +233,14 @@ Value Utility::ParseResult2Value(const ParseResult parseresult) {
     return result;
 }
 
+std::pair<bool, std::string> Utility::env(const std::string& name) {
+    const char* env_p = std::getenv(name.c_str());
+    return {(env_p ? true : false), (env_p ? std::string(env_p) : "")};
+}
+
 bool Utility::isGitHubActions() {
-    const char* githubActions = std::getenv("GITHUB_ACTIONS");
-    return (githubActions && std::string(githubActions) == "true");
+    const std::pair<bool, std::string> githubActions = env("GITHUB_ACTIONS");
+    return (githubActions.first && githubActions.second == "true");
 }
 
 std::unordered_map<std::string, std::string> Utility::ParseHeaders(const std::string& headers) {
