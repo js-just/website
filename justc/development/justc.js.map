@@ -22,6 +22,7 @@
 "https://just.js.org/justc/development/JUSTC/core/justb.cpp",
 "https://just.js.org/justc/development/JUSTC/core/compiler/justb.cpp",
 "https://just.js.org/justc/development/JUSTC/core/loader/justb.cpp",
+"https://just.js.org/justc/development/JUSTC/core/built-in/compression/compression.cpp",
 "https://just.js.org/justc/development/JUSTC/core/entry/cli.cpp",
 "https://just.js.org/justc/development/JUSTC/core/lexer.h",
 "https://just.js.org/justc/development/JUSTC/core/parser.h",
@@ -65,4 +66,5 @@
 "https://just.js.org/justc/development/JUSTC/core/loader/justb.hpp",
 "https://just.js.org/justc/development/JUSTC/core/lang/luau.cpp",
 "https://just.js.org/justc/development/JUSTC/core/built-in/window/window.cpp",
-"https://just.js.org/justc/development/JUSTC/core/built-in/window/window.hpp"],"mappings":""}
+"https://just.js.org/justc/development/JUSTC/core/built-in/window/window.hpp",
+"https://just.js.org/justc/development/JUSTC/core/built-in/compression/compression.hpp"],"mappings":""}
