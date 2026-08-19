@@ -1469,6 +1469,7 @@ ParseResult Parser::parse(bool doExecute) {
 
                             std::vector<Value> args = {var};
                             std::vector<Value> additionalArgs = parseArguments(doExecute);
+                            args.reserve(args.size() + additionalArgs.size());
                             args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                             Value result = executeFunction(typeMethods[var.type][funcName], args, currentToken().start);
 
@@ -5380,6 +5381,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
 
         if (match("(")) {
             std::vector<Value> additionalArgs = parseArguments(doExecute);
+            args.reserve(args.size() + additionalArgs.size());
             args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
         }
 
@@ -5420,6 +5422,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                     if (match("(")) {
                         std::vector<Value> args = {left};
                         std::vector<Value> additionalArgs = parseArguments(doExecute);
+                        args.reserve(args.size() + additionalArgs.size());
                         args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                         result = executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
                     }
@@ -5444,10 +5447,72 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                 case DataType::JSON_ARRAY: 
                     result = index < left.array_elements.size() ? left.array_elements[index] : Value::createNull();
                     break;
+                case DataType::INT8_ARRAY: {
+                    std::vector<int8_t> a = left.getComplexData<std::vector<int8_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::INT8) : Value::createNull();
+                    break;
+                }
+                case DataType::INT16_ARRAY: {
+                    std::vector<int16_t> a = left.getComplexData<std::vector<int16_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::INT16) : Value::createNull();
+                    break;
+                }
+                case DataType::INT32_ARRAY: {
+                    std::vector<int32_t> a = left.getComplexData<std::vector<int32_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::INT32) : Value::createNull();
+                    break;
+                }
+                case DataType::INT64_ARRAY: {
+                    std::vector<int64_t> a = left.getComplexData<std::vector<int64_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::INT64) : Value::createNull();
+                    break;
+                }
+                case DataType::UINT8_ARRAY:
+                case DataType::CUINT8_ARRAY: {
+                    std::vector<uint8_t> a = left.getComplexData<std::vector<uint8_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], left.type == DataType::UINT8_ARRAY ? NumericType::UINT8 : NumericType::CUINT8) : Value::createNull();
+                    break;
+                }
+                case DataType::UINT16_ARRAY:
+                case DataType::CUINT16_ARRAY: {
+                    std::vector<uint16_t> a = left.getComplexData<std::vector<uint16_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], left.type == DataType::UINT16_ARRAY ? NumericType::UINT16 : NumericType::CUINT16) : Value::createNull();
+                    break;
+                }
+                case DataType::UINT32_ARRAY:
+                case DataType::CUINT32_ARRAY: {
+                    std::vector<uint32_t> a = left.getComplexData<std::vector<uint32_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], left.type == DataType::UINT32_ARRAY ? NumericType::UINT32 : NumericType::CUINT32) : Value::createNull();
+                    break;
+                }
+                case DataType::UINT64_ARRAY:
+                case DataType::CUINT64_ARRAY: {
+                    std::vector<uint64_t> a = left.getComplexData<std::vector<uint64_t>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], left.type == DataType::UINT64_ARRAY ? NumericType::UINT64 : NumericType::CUINT64) : Value::createNull();
+                    break;
+                }
+                case DataType::FLOAT32_ARRAY: {
+                    std::vector<float> a = left.getComplexData<std::vector<float>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::FLOAT32) : Value::createNull();
+                    break;
+                }
+                case DataType::FLOAT64_ARRAY: {
+                    std::vector<double> a = left.getComplexData<std::vector<double>>();
+                    result = index < a.size() ? Value::createNumberWithType(a[index], NumericType::FLOAT64) : Value::createNull();
+                    break;
+                }
                 case DataType::JSON_OBJECT:
                 case DataType::JUSTC_OBJECT:
                     result = accessProperty(left, right.toString()).first;
                     break;
+                case DataType::MAP: {
+                    std::unordered_map<Value, Value> map = left.getComplexData<std::unordered_map<Value, Value>>();
+                    auto it = map.find(right.toPrimitive());
+                    if (it != map.end()) {
+                        result = it->second;
+                    } else result = Value::createNull();
+                    break;
+                }
                 default: break;
             }
         }
@@ -5462,6 +5527,7 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                 if (match("(")) {
                     std::vector<Value> args = {left};
                     std::vector<Value> additionalArgs = parseArguments(doExecute);
+                    args.reserve(args.size() + additionalArgs.size());
                     args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                     result = executeFunction(typeMethods[left.type][funcName], args, currentToken().start);
                 }
@@ -7475,6 +7541,7 @@ Value Parser::parseObjectPropertyAccess(bool doExecute, bool set) {
                     if (match("(")) {
                         std::vector<Value> args = {currentValue};
                         std::vector<Value> additionalArgs = parseArguments(doExecute);
+                        args.reserve(args.size() + additionalArgs.size());
                         args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
                         return executeFunction(typeMethods[currentValue.type][funcName], args, currentToken().start);
                     } else {
@@ -7552,12 +7619,41 @@ std::pair<Value, Value::Property> Parser::accessProperty(const Value& obj, const
             return {val, empty};
         }
 
+        auto itM = typeMethods[DataType::JUSTC_OBJECT].find(propName);
+        if (itM != typeMethods[DataType::JUSTC_OBJECT].end()) {
+            const size_t currPos = currentToken().start;
+            Value funcVal = createFunction([this, obj, propName, currPos](const std::vector<Value>& args) -> Value {
+                std::vector<Value> additionalArgs;
+                additionalArgs.reserve(1 + args.size());
+                additionalArgs.push_back(obj);
+                additionalArgs.insert(additionalArgs.end(), args.begin(), args.end());
+                return this->executeFunction(typeMethods[DataType::JUSTC_OBJECT][propName], additionalArgs, currPos);
+            }, typeMethods[DataType::JUSTC_OBJECT][propName]);
+            Value::Property prop(funcVal, Access::READ_ONLY);
+            return {funcVal, prop};
+        }
+
         throw std::runtime_error("Property '" + propName + "' not found in object at " + Utility::position(currentToken().start, input) + ".");
     } else if (Utility::checkObject(obj)) {
         auto it = obj.properties.find(propName);
         if (it != obj.properties.end()) {
             return vp(it->second, requestAccess);
         }
+
+        auto itM = typeMethods[obj.type].find(propName);
+        if (itM != typeMethods[obj.type].end()) {
+            const size_t currPos = currentToken().start;
+            Value funcVal = createFunction([this, obj, propName, currPos](const std::vector<Value>& args) -> Value {
+                std::vector<Value> additionalArgs;
+                additionalArgs.reserve(1 + args.size());
+                additionalArgs.push_back(obj);
+                additionalArgs.insert(additionalArgs.end(), args.begin(), args.end());
+                return this->executeFunction(typeMethods[obj.type][propName], additionalArgs, currPos);
+            }, typeMethods[obj.type][propName]);
+            Value::Property prop(funcVal, Access::READ_ONLY);
+            return {funcVal, prop};
+        }
+
         throw std::runtime_error("Property '" + propName + "' not found in object at " + Utility::position(currentToken().start, input) + ".");
     } else if (Utility::checkArray(obj)) {
         throw std::runtime_error("Cannot access property '" + propName + "' on array at " + Utility::position(currentToken().start, input) + ".");
