@@ -138,6 +138,11 @@ SOFTWARE.
     #include "lang/js.hpp"
 #endif
 
+#include <thread>
+#include <chrono>
+#include "promise-cpp/promise.hpp"
+using namespace promise;
+
 #ifndef DEFAULT_CPP_TYPE
 #define DEFAULT_CPP_TYPE "_"
 #endif
@@ -242,6 +247,8 @@ std::string Value::toString() const {
             return "[map " + name + "]";
         case DataType::SET:
             return "[set " + name + "]";
+        case DataType::PROMISE:
+            return "[promise " + name + "]";
         default:
             return "unknown";
     }
@@ -277,6 +284,7 @@ std::string Value::toIdentifier() const {
         case DataType::CUINT64_ARRAY:
         case DataType::FLOAT32_ARRAY:
         case DataType::FLOAT64_ARRAY:
+        case DataType::PROMISE:
             return name;
         default:
             return toString();
@@ -349,6 +357,7 @@ bool Value::toBoolean() const {
         case DataType::CUINT64_ARRAY:
         case DataType::FLOAT32_ARRAY:
         case DataType::FLOAT64_ARRAY:
+        case DataType::PROMISE:
             return true;
         default:
             return false;
@@ -1104,6 +1113,12 @@ Parser::Parser(
         {"toLink", "Link"},
         
         {"size", "Float64Array::size"},
+    };
+    typeMethods[DataType::PROMISE] = {
+        {"toString", "String"},
+        {"toNumber", "Number"},
+        {"toInt", "ParseInt"},
+        {"toLink", "Link"},
     };
 
     // built-in variables
@@ -4989,6 +5004,75 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
             }
             return Value::createNumberWithType(static_cast<uint64_t>(0), NumericType::UINT64);
         }
+        if (funcName == "sleep") {
+            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(args[0].toNumber())));
+            return Value::createNull();
+        }
+        if (funcName == "Promise") {
+            bool doExec = doExecute;
+            Value result;
+            result.type = DataType::PROMISE;
+            result.setComplexData<Promise>(newPromise([this, args, startPos, doExec](Defer d) {
+                std::thread([this, args, d, startPos, doExec]() {
+                    Value output = Value::createNull();
+                    bool rejected = false;
+                    bool done = false;
+                    
+                    try {
+                        if (args[0].type == DataType::FUNCTION) {
+                            Value resolve = createFunction(
+                                [&done, &output](const std::vector<Value>& args) -> Value {
+                                    if (!done) {
+                                        done = true;
+                                        if (!args.empty()) {
+                                            output = args[0];
+                                        }
+                                    }
+                                    return Value::createNull();
+                                },
+                                "resolve"
+                            );
+                            
+                            Value reject = createFunction(
+                                [&done, &output, &rejected](const std::vector<Value>& args) -> Value {
+                                    if (!done) {
+                                        done = true;
+                                        rejected = true;
+                                        if (!args.empty()) {
+                                            output = args[0];
+                                        }
+                                    }
+                                    return Value::createNull();
+                                },
+                                "reject"
+                            );
+                            
+                            Value funcResult = callFunction(args[0], {resolve, reject}, startPos, doExec);
+                            
+                            if (funcResult.type != DataType::NULL_TYPE && !done) {
+                                done = true;
+                                output = funcResult;
+                            }
+                        } else {
+                            output = args[0];
+                            done = true;
+                        }
+                        
+                        if (rejected) {
+                            d.reject(output);
+                        } else if (done) {
+                            d.resolve(output);
+                        }
+                    } catch (const std::exception& e) {
+                        d.reject(Value::createString(std::string(e.what())));
+                    } catch (...) {
+                        d.reject(Value::createString(std::string("Unknown error in Promise")));
+                    }
+                }).detach();
+            }));
+            result.name = "Promise";
+            return result;
+        }
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string(e.what()) + " at " + Utility::position(startPos, input) + ".");
     }
@@ -8736,6 +8820,7 @@ void Parser::builtinClasses() {
     if (!getBIC()) {
         #ifndef __EMSCRIPTEN__
             BIM["Window"] = builtinClass("Window");
+            BIM["Promise"] = builtinClass("Promise");
         #endif
         setBIM(BIM);
         setBIC(true);
@@ -8744,6 +8829,7 @@ void Parser::builtinClasses() {
         #ifndef __EMSCRIPTEN__
             fromBIM(BIM, "Window");
         #endif
+        fromBIM(BIM, "Promise");
     }
 }
 void Parser::fromBIM(const std::unordered_map<std::string, uint64_t>& BIM, const std::string& name) {
