@@ -351,22 +351,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             ZlibDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.zlib",
-                Return: function ZLIB(data, length) {
+                Return: function ZLIB(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_zlib_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -387,22 +384,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             GzipDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.gzip",
-                Return: function GZIP(data, length) {
+                Return: function GZIP(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_gzip_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -423,22 +417,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             Bzip2Dcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.bzip2",
-                Return: function BZIP2(data, length) {
+                Return: function BZIP2(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_bzip2_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -459,22 +450,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             LzmaDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.lzma",
-                Return: function LZMA(data, length) {
+                Return: function LZMA(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_lzma_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -495,22 +483,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             ZstdDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.zstd",
-                Return: function ZSTD(data, length) {
+                Return: function ZSTD(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_zstd_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -531,22 +516,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             Lz4Dcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.lz4",
-                Return: function LZ4(data, length) {
+                Return: function LZ4(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_lz4_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -567,22 +549,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             SnappyDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.snappy",
-                Return: function SNAPPY(data, length) {
+                Return: function SNAPPY(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_snappy_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
@@ -603,22 +582,19 @@ SOFTWARE.
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
-                    const len = raw.split('|')[0];
-                    const out = raw.slice(len.length + 1);
-                    return [out, NUMBER(len)];
+                    return raw;
                 }
             },
             DeflateDcmp: {
                 NeedsWASM: true,
                 Name: "internal.decompress.deflate",
-                Return: function DEFLATE(data, length) {
+                Return: function DEFLATE(data) {
                     if (!data || typeof data != 'string') throw new JUSTC.Error(JUSTC.Errors.wrongInputType);
-                    if (!length || typeof length != 'number') throw new JUSTC.Error(JUSTC.Errors.numInput);
                     const ptr = JUSTC.WASM.ccall(
                         'internal_deflate_dcmp',
                         'number',
-                        ['string', 'number'],
-                        [data, length]
+                        ['string'],
+                        [data]
                     );
                     const raw = JUSTC.WASM.UTF8ToString(ptr);
                     JUSTC.WASM.ccall('free_string', null, ['number'], [ptr]);
