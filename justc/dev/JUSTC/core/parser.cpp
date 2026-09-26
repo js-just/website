@@ -3622,6 +3622,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         return booleanToValue(allowLuau);
     }
 
+    double inpnum = 0.0;
     if (
         args.empty() && funcName != "math.random" && funcName != "Window" && funcName != "task.wait" && funcName != "memory.global" &&
         funcName != "memory.classes" && funcName != "memory.funcitons" && funcName != "memory.pointers"
@@ -3637,7 +3638,7 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         }
         throw std::runtime_error("Expected at least one argument, got 0 at " + Utility::position(startPos, input) + ".");
     }
-    double inpnum = args[0].number_value;
+    if (!args.empty()) inpnum = args[0].number_value;
     try {
         if (funcName == "Binary::toText") {
             return Binary::ToText(args);
@@ -4156,16 +4157,12 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
         }
         if (funcName == "Window") {
             #ifndef __EMSCRIPTEN__
-                std::cout << "window call" << std::endl;
                 Value windowHandle = JUSTCWindow::Create(args, this);
-                std::cout << "window created _" << std::endl;
                 std::unordered_map<std::string, Value> obj;
                 obj["_handle"] = windowHandle;
                 
                 obj["show"] = createFunction([windowHandle](const std::vector<Value>& args) -> Value {
-                    std::cout << "show call" << std::endl;
                     bool success = JUSTCWindow::showWindow(windowHandle.getNumericValue<uint64_t>());
-                    std::cout << "show done" << std::endl;
                     return Value::createBoolean(success);
                 }, "Window.show");
                 
@@ -4348,7 +4345,6 @@ Value Parser::executeFunction(const std::string& funcName, const std::vector<Val
 
                 Value result = Value::createJsonObject(obj);
                 result.name = "Window";
-                std::cout << "window object done" << std::endl;
                 return result;
             #else
                 throw std::runtime_error("JUSTC Window is not supported in WebAssembly builds.");
@@ -5877,8 +5873,10 @@ Value Parser::evaluateExpression(const Value& left, const std::string& op, const
                 else throw std::runtime_error("Expected \"(\" for function call at " + Utility::position(currentToken().start, input) + ".");
             } else if (left.type == DataType::JSON_OBJECT || left.type == DataType::JUSTC_OBJECT) {
                 result = accessProperty(left, right.toString()).first;
+            } else {
+                std::string ogName = left.isVariable ? left.variable : std::string("<" + dataTypeToString(left.type) + ">");
+                throw std::runtime_error(ogName + op + funcName + " is not a function. Call attempt at " + Utility::position(currentToken().start, input) + ".");
             }
-            else throw std::runtime_error("<" + dataTypeToString(left.type) + ">" + op + funcName + " is not a function. Call attempt at " + Utility::position(currentToken().start, input) + ".");
         } else if (left.type == DataType::JSON_OBJECT || left.type == DataType::JUSTC_OBJECT) {
             result = accessProperty(left, right.toString()).first;
         }
