@@ -1,0 +1,587 @@
+/*
+
+MIT License
+
+Copyright (c) 2025-2026 JustStudio. <https://juststudio.is-a.dev/>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+
+#ifdef _WIN32
+    #define NOMINMAX
+    #undef INFINITE
+    #undef NAN
+    #undef ERROR
+#endif
+
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
+#include <unordered_map>
+#include <string>
+#include <cstdint>
+#include <stdexcept>
+#include "parser.h"
+
+#ifdef __EMSCRIPTEN__
+    class GlobalContext {
+    private:
+        std::unordered_map<std::string, Value> m_variables;
+        std::unordered_map<std::string, bool> m_constVars;
+        std::unordered_map<std::string, bool> m_JUSTCVars;
+        uint64_t m_rootCounter = 0;
+
+        std::unordered_map<uint64_t, Class> m_classes;
+        uint64_t m_nextClass = 0;
+        bool m_builtinClasses = false;
+        std::unordered_map<std::string, uint64_t> m_builtinClassMap;
+
+        std::unordered_map<uint64_t, std::function<Value(const std::vector<Value>&)>> m_functions;
+        uint64_t m_nextFunctionId = 0;
+
+        std::unordered_map<uint64_t, Value> m_pointers;
+        uint64_t m_nextPointer = 0;
+
+    public:
+        static GlobalContext& getInstance() {
+            static GlobalContext instance;
+            return instance;
+        }
+
+        void set(const std::string& name, const Value& value, const bool& isConst = false, const bool& isJUSTC = false) {
+            m_variables[name] = value;
+            m_constVars[name] = isConst;
+            m_JUSTCVars[name] = isJUSTC;
+        }
+
+        Value get(const std::string& name) const {
+            auto it = m_variables.find(name);
+            if (it != m_variables.end()) {
+                return it->second;
+            }
+            return Value::createNull();
+        }
+
+        bool has(const std::string& name) const {
+            return m_variables.find(name) != m_variables.end();
+        }
+
+        bool isConst(const std::string& name) const {
+            auto it = m_constVars.find(name);
+            return it != m_constVars.end() && it->second;
+        }
+        bool isJUSTC(const std::string& name) const {
+            auto it = m_JUSTCVars.find(name);
+            return it != m_JUSTCVars.end() && it->second;
+        }
+
+        void remove(const std::string& name) {
+            m_variables.erase(name);
+            m_constVars.erase(name);
+            m_JUSTCVars.erase(name);
+        }
+
+        void clear() {
+            m_variables.clear();
+            m_constVars.clear();
+            m_JUSTCVars.clear();
+        }
+
+        std::unordered_map<std::string, Value> getAll() const {
+            return m_variables;
+        }
+
+        uint64_t getRootCounter() const {
+            return m_rootCounter;
+        }
+
+        uint64_t incrementRootCounter() {
+            return ++m_rootCounter;
+        }
+
+        uint64_t setClass(const Class& value) {
+            uint64_t classID = m_nextClass++;
+            m_classes[classID] = value;
+            return classID;
+        }
+        Class getClass(const uint64_t& classID, const std::string& className) const {
+            auto it = m_classes.find(classID);
+            if (it == m_classes.end()) throw std::runtime_error("Class registry has been corrupted. Failed to access class " + className + ".");
+            return it->second;
+        }
+        void removeClass(const uint64_t& classID) {
+            m_classes.erase(classID);
+        }
+        void clearClasses() {
+            m_classes.clear();
+            m_nextClass = 0;
+        }
+
+        void setBIC(const bool& value) {
+            m_builtinClasses = value;
+        }
+        bool getBIC() {
+            return m_builtinClasses;
+        }
+        void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+            m_builtinClassMap = map;
+        }
+        std::unordered_map<std::string, uint64_t> getBIM() {
+            return m_builtinClassMap;
+        }
+
+        uint64_t registerFunction(const std::function<Value(const std::vector<Value>&)>& func) {
+            uint64_t id = m_nextFunctionId++;
+            m_functions[id] = func;
+            return id;
+        }
+        std::function<Value(const std::vector<Value>&)> getFunction(const uint64_t& id, const std::string& name) const {
+            auto it = m_functions.find(id);
+            if (it == m_functions.end()) {
+                throw std::runtime_error("Function registry has been corrupted. Failed to access function " + name + ".");
+            }
+            return it->second;
+        }
+        void removeFunction(const uint64_t& id) {
+            m_functions.erase(id);
+        }
+        void clearFunctions() {
+            m_functions.clear();
+            m_nextFunctionId = 0;
+        }
+        bool hasFunction(const uint64_t& id) const {
+            return m_functions.find(id) != m_functions.end();
+        }
+
+        uint64_t setPointer(const Value& value) {
+            uint64_t id = m_nextPointer++;
+            m_pointers[id] = value;
+            return id;
+        }
+        Value getPointer(const uint64_t& id, const std::string& name) const {
+            auto it = m_pointers.find(id);
+            if (it == m_pointers.end()) {
+                throw std::runtime_error("Pointer " + name + " does not exist.");
+            }
+            return it->second;
+        }
+        void freePointer(const uint64_t& id) {
+            m_pointers.erase(id);
+        }
+        void clearPointers() {
+            m_pointers.clear();
+            m_nextPointer = 0;
+        }
+        bool hasPointer(const uint64_t& id) const  {
+            return m_pointers.find(id) != m_pointers.end();
+        }
+        uint64_t setPointer(const uint64_t& id, const std::string& name, const Value& value) {
+            auto it = m_pointers.find(id);
+            if (it == m_pointers.end()) {
+                throw std::runtime_error("Pointer " + name + " does not exist.");
+            }
+            m_pointers[id] = value;
+            return id;
+        }
+
+        void resetRootCounter() {
+            m_rootCounter = 0;
+        }
+
+        std::unordered_map<std::string, Value> globals() {
+            return m_variables;
+        }
+        std::unordered_map<uint64_t, Class> classes() {
+            return m_classes;
+        }
+        std::unordered_map<uint64_t, std::function<Value(const std::vector<Value>&)>> functions() {
+            return m_functions;
+        }
+        std::unordered_map<uint64_t, Value> pointers() {
+            return m_pointers;
+        }
+    };
+#else
+    #include <shared_mutex>
+
+    class GlobalContext {
+    private:
+        mutable std::shared_mutex m_mutex;
+        std::unordered_map<std::string, Value> m_variables;
+        std::unordered_map<std::string, bool> m_constVars;
+        std::unordered_map<std::string, bool> m_JUSTCVars;
+        uint64_t m_rootCounter = 0;
+
+        std::unordered_map<uint64_t, Class> m_classes;
+        uint64_t m_nextClass = 0;
+        bool m_builtinClasses = false;
+        std::unordered_map<std::string, uint64_t> m_builtinClassMap;
+
+        std::unordered_map<uint64_t, std::function<Value(const std::vector<Value>&)>> m_functions;
+        uint64_t m_nextFunctionId = 0;
+
+        std::unordered_map<uint64_t, Value> m_pointers;
+        uint64_t m_nextPointer = 0;
+
+    public:
+        static GlobalContext& getInstance() {
+            static GlobalContext instance;
+            return instance;
+        }
+
+        void set(const std::string& name, const Value& value, const bool& isConst = false, const bool& isJUSTC = false) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_variables[name] = value;
+            m_constVars[name] = isConst;
+            m_JUSTCVars[name] = isJUSTC;
+        }
+
+        Value get(const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_variables.find(name);
+            if (it != m_variables.end()) {
+                return it->second;
+            }
+            return Value::createNull();
+        }
+
+        bool has(const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_variables.find(name) != m_variables.end();
+        }
+
+        bool isConst(const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_constVars.find(name);
+            return it != m_constVars.end() && it->second;
+        }
+        bool isJUSTC(const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_JUSTCVars.find(name);
+            return it != m_JUSTCVars.end() && it->second;
+        }
+
+        void remove(const std::string& name) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_variables.erase(name);
+            m_constVars.erase(name);
+            m_JUSTCVars.erase(name);
+        }
+
+        void clear() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_variables.clear();
+            m_constVars.clear();
+            m_JUSTCVars.clear();
+        }
+
+        std::unordered_map<std::string, Value> getAll() const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_variables;
+        }
+
+        uint64_t getRootCounter() const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_rootCounter;
+        }
+
+        uint64_t incrementRootCounter() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            return ++m_rootCounter;
+        }
+
+        uint64_t setClass(const Class& value) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            uint64_t classID = m_nextClass++;
+            m_classes[classID] = value;
+            return classID;
+        }
+        Class getClass(const uint64_t& classID, const std::string& className) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_classes.find(classID);
+            if (it == m_classes.end()) throw std::runtime_error("Class registry has been corrupted. Failed to access class " + className + ".");
+            return it->second;
+        }
+        void removeClass(const uint64_t& classID) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_classes.erase(classID);
+        }
+        void clearClasses() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_classes.clear();
+            m_nextClass = 0;
+        }
+
+        void setBIC(const bool& value) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_builtinClasses = value;
+        }
+        bool getBIC() {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_builtinClasses;
+        }
+        void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_builtinClassMap = map;
+        }
+        std::unordered_map<std::string, uint64_t> getBIM() {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_builtinClassMap;
+        }
+
+        uint64_t registerFunction(const std::function<Value(const std::vector<Value>&)>& func) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            uint64_t id = m_nextFunctionId++;
+            m_functions[id] = func;
+            return id;
+        }
+        std::function<Value(const std::vector<Value>&)> getFunction(const uint64_t& id, const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_functions.find(id);
+            if (it == m_functions.end()) {
+                throw std::runtime_error("Function registry has been corrupted. Failed to access function " + name + ".");
+            }
+            return it->second;
+        }
+        void removeFunction(const uint64_t& id) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_functions.erase(id);
+        }
+        void clearFunctions() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_functions.clear();
+            m_nextFunctionId = 0;
+        }
+        bool hasFunction(const uint64_t& id) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_functions.find(id) != m_functions.end();
+        }
+
+        uint64_t setPointer(const Value& value) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            uint64_t id = m_nextPointer++;
+            m_pointers[id] = value;
+            return id;
+        }
+        Value getPointer(const uint64_t& id, const std::string& name) const {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_pointers.find(id);
+            if (it == m_pointers.end()) {
+                throw std::runtime_error("Pointer " + name + " does not exist.");
+            }
+            return it->second;
+        }
+        void freePointer(const uint64_t& id) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_pointers.erase(id);
+        }
+        void clearPointers() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_pointers.clear();
+            m_nextPointer = 0;
+        }
+        bool hasPointer(const uint64_t& id) const  {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            return m_pointers.find(id) != m_pointers.end();
+        }
+        uint64_t setPointer(const uint64_t& id, const std::string& name, const Value& value) {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            auto it = m_pointers.find(id);
+            if (it == m_pointers.end()) {
+                throw std::runtime_error("Pointer " + name + " does not exist.");
+            }
+            m_pointers[id] = value;
+            return id;
+        }
+
+        void resetRootCounter() {
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            m_rootCounter = 0;
+        }
+
+        std::unordered_map<std::string, Value> globals() {
+            return m_variables;
+        }
+        std::unordered_map<uint64_t, Class> classes() {
+            return m_classes;
+        }
+        std::unordered_map<uint64_t, std::function<Value(const std::vector<Value>&)>> functions() {
+            return m_functions;
+        }
+        std::unordered_map<uint64_t, Value> pointers() {
+            return m_pointers;
+        }
+    };
+#endif
+
+inline void setGlobal(const std::string& name, const Value& value, const bool& isConst = false, const bool& isJUSTC = false) {
+    GlobalContext::getInstance().set(name, value, isConst, isJUSTC);
+}
+
+inline Value getGlobal_(const std::string& name) {
+    return GlobalContext::getInstance().get(name);
+}
+
+inline bool hasGlobal_(const std::string& name) {
+    return GlobalContext::getInstance().has(name);
+}
+
+inline bool isGlobalConst(const std::string& name) {
+    return GlobalContext::getInstance().isConst(name);
+}
+inline bool isGlobalJUSTC(const std::string& name) {
+    return GlobalContext::getInstance().isJUSTC(name);
+}
+
+inline void removeGlobal(const std::string& name) {
+    GlobalContext::getInstance().remove(name);
+}
+
+inline void clearGlobals_() {
+    GlobalContext::getInstance().clear();
+}
+
+inline uint64_t getRootCounter() {
+    return GlobalContext::getInstance().getRootCounter();
+}
+
+inline uint64_t incrementRootCounter() {
+    return GlobalContext::getInstance().incrementRootCounter();
+}
+
+inline uint64_t setClass(const Class& value) {
+    try {
+        return GlobalContext::getInstance().setClass(value);
+    } catch (const std::bad_alloc& e) {
+        throw std::runtime_error("Out of memory: Class registry is full.");
+    }
+}
+
+inline Class getClass_(const uint64_t& classID, const std::string& className = "(unknown)") {
+    return GlobalContext::getInstance().getClass(classID, className);
+}
+
+inline void removeClass(const uint64_t& classID) {
+    GlobalContext::getInstance().removeClass(classID);
+}
+
+inline void clearClasses_() {
+    GlobalContext::getInstance().clearClasses();
+}
+
+inline bool getBIC() {
+    return GlobalContext::getInstance().getBIC();
+}
+
+inline void setBIC(const bool& value) {
+    GlobalContext::getInstance().setBIC(value);
+}
+
+inline std::unordered_map<std::string, uint64_t> getBIM() {
+    return GlobalContext::getInstance().getBIM();
+}
+
+inline void setBIM(const std::unordered_map<std::string, uint64_t>& map) {
+    GlobalContext::getInstance().setBIM(map);
+}
+
+inline uint64_t registerFunction(const std::function<Value(const std::vector<Value>&)>& func) {
+    try {
+        return GlobalContext::getInstance().registerFunction(func);
+    } catch (const std::bad_alloc& e) {
+        throw std::runtime_error("Out of memory: Function registry is full.");
+    }
+}
+
+inline std::function<Value(const std::vector<Value>&)> getFunction(const uint64_t& id, const std::string& name) {
+    return GlobalContext::getInstance().getFunction(id, name);
+}
+
+inline void removeFunction(const uint64_t& id) {
+    GlobalContext::getInstance().removeFunction(id);
+}
+
+inline void clearFunctions_() {
+    GlobalContext::getInstance().clearFunctions();
+}
+
+inline bool hasFunction(const uint64_t& id) {
+    return GlobalContext::getInstance().hasFunction(id);
+}
+
+inline uint64_t setPointer_(const Value& value) {
+    try {
+        return GlobalContext::getInstance().setPointer(value);
+    } catch (const std::bad_alloc& e) {
+        throw std::runtime_error("Out of memory: Pointer registry is full.");
+    }
+}
+
+inline Value getPointer_(const uint64_t& pointer, const std::string& pointerHex = "(unknown)") {
+    return GlobalContext::getInstance().getPointer(pointer, pointerHex);
+}
+
+inline void freePointer_(const uint64_t& pointer) {
+    GlobalContext::getInstance().freePointer(pointer);
+}
+
+inline void clearPointers_() {
+    GlobalContext::getInstance().clearPointers();
+}
+
+inline bool hasPointer_(const uint64_t& id) {
+    return GlobalContext::getInstance().hasPointer(id);
+}
+
+inline uint64_t setPointer_(const uint64_t& id, const std::string& name, const Value& value) {
+    try {
+        return GlobalContext::getInstance().setPointer(id, name, value);
+    } catch (const std::bad_alloc& e) {
+        throw std::runtime_error("Out of memory: Pointer registry is full.");
+    }
+}
+
+inline void cleanupGlobal() {
+    clearGlobals_();
+    GlobalContext::getInstance().resetRootCounter();
+    clearClasses_();
+    setBIC(false);
+    setBIM({});
+    clearFunctions_();
+    clearPointers_();
+}
+
+inline std::unordered_map<std::string, Value> listGlobals() {
+    return GlobalContext::getInstance().globals();
+}
+
+inline std::unordered_map<uint64_t, Class> listClasses() {
+    return GlobalContext::getInstance().classes();
+}
+
+inline std::unordered_map<uint64_t, std::function<Value(const std::vector<Value>&)>> listFunctions() {
+    return GlobalContext::getInstance().functions();
+}
+
+inline std::unordered_map<uint64_t, Value> listPointers() {
+    return GlobalContext::getInstance().pointers();
+}
+
+#endif
