@@ -21,4 +21,5 @@
 # SOFTWARE.
 
 #!/bin/bash
-(shopt -s dotglob; mv main/* ./)
+(shopt -s dotglob; mv main/* ./) && \
+cp justc/LICENSE.txt justc/license.txt
